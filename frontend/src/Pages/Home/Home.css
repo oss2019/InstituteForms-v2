@@ -1,0 +1,219 @@
+/* Main Page Layout */
+.login-page {
+    display: flex;
+    height: 100vh;
+    background-color: #f0f4f8;
+    overflow: hidden;
+}
+
+/* Left Section - College Logo */
+.logo-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+}
+
+.college-logo {
+    max-width: 70%;
+    height: auto;
+    object-fit: contain;
+}
+
+/* Icons Section */
+.icon-container {
+    flex: 1;
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    padding: 2rem;
+    gap: 2rem;
+}
+
+/* Role Icons */
+.role-icon {
+    width: 6rem;
+    height: 6rem;
+    border-radius: 50%;
+    background-color: white;
+    font-size: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.6s ease-in-out;
+    border: 0.2rem solid #ddd;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Expanded Icon */
+.role-icon.expand {
+    width: 18rem;
+    height: 18rem;
+    border-radius: 1rem;
+    background-color: #e6f7ff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Form Container */
+.form-container {
+    position: absolute;
+    top: 50%; 
+    left: 50%; 
+    transform: translate(-50%, -50%); /* Center the form */
+    width: 90%;
+    max-width: 16rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+}
+
+/* Show Form when Expanded */
+.role-icon.expand .form-container {
+    opacity: 1;
+}
+
+/* Login Form */
+.login-form {
+    width: 100%; /* Full width within the container */
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    font-size: large;
+    white-space: nowrap;
+}
+
+/* Headings */
+h2 {
+    font-size: 1.2rem; /* Adjusted size */
+    margin: 0;
+    text-align: center;
+    white-space: nowrap; /* Prevents wrapping to multiple lines */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Ensures the text stays on one line */
+}
+
+/* Student Specific Heading */
+.student-heading {
+    font-size: 1.2rem; /* Reduced size for student heading */
+}
+
+/* Input Fields */
+input {
+    width: 100%;
+    padding: 0.5rem; /* Smaller padding */
+    font-size: 0.9rem; /* Smaller font size */
+    border: 0.1rem solid #ccc;
+    border-radius: 0.4rem;
+    box-sizing: border-box; /* Ensures proper sizing */
+    transition: border-color 0.3s ease;
+}
+
+input:focus {
+    border-color: #3b82f6;
+    outline: none;
+}
+
+/* Submit Button */
+button {
+    width: 100%;
+    padding: 0.5rem; /* Smaller padding */
+    font-size: 0.9rem; /* Smaller font size */
+}
+
+/* Toggle Button */
+.toggle-button {
+    display: flex;
+    align-items: center;
+    margin-top: 1rem;
+}
+.toggle-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .login-page {
+        flex-direction: column;
+    }
+
+    .logo-container {
+        height: 15rem;
+    }
+
+    .icon-container {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .role-icon {
+        width: 5rem;
+        height: 5rem;
+        font-size: 2.5rem;
+    }
+
+    .role-icon.expand {
+        width: 85%;
+    }
+}
+
+/* Toggle Switch Styles */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 40px; /* Width of the toggle */
+    height: 20px; /* Height of the toggle */
+}
+
+.switch input {
+    opacity: 0; /* Hide the default checkbox */
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc; /* Default color */
+    transition: .4s; /* Animation */
+    border-radius: 34px; /* Rounded corners */
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px; /* Height of the circle */
+    width: 16px; /* Width of the circle */
+    left: 2px; /* Position the circle */
+    bottom: 2px; /* Position the circle */
+    background-color: white; /* Circle color */
+    transition: .4s; /* Animation */
+    border-radius: 50%; /* Circle shape */
+}
+
+input:checked + .slider {
+    background-color: #3b82f6; /* Color when toggled */
+}
+
+input:checked + .slider:before {
+    transform: translateX(20px); /* Move circle on toggle */
+}
+.toggle-text {
+    font-size: 0.8rem; /* Adjust this size as needed */
+    margin-left: 0.5rem; /* Adjust margin if necessary */
+}

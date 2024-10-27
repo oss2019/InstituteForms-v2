@@ -1,0 +1,33 @@
+.dashboard-container {
+  padding: 40px 20px;
+  background-color: #f9f9f9;
+}
+
+.dashboard-card {
+  margin-bottom: 20px;
+  background-color: #ffffff;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+.dashboard-card ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dashboard-card li {
+  padding: 8px 0;
+  border-bottom: 1px solid #e9e9e9;
+}
+
+.dashboard-card li:last-child {
+  border-bottom: none;
+}
+
+.error-message {
+  color: #e74c3c;
+  font-size: 1.2em;
+  text-align: center;
+}

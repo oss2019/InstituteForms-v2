@@ -1,0 +1,57 @@
+.outing-container {
+    display: flex;
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+    height: 100%; /* Take full height of the parent */
+    padding: 20px; /* Add some padding */
+    background-color: #f9f9f9; /* Light background color */
+  }
+  
+  .outing-form {
+    background-color: white; /* White background for the form */
+    padding: 30px; /* Inner padding */
+    border-radius: 15px; /* Rounded corners */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Soft shadow */
+    width: 100%; /* Full width */
+    max-width: 400px; /* Max width for form */
+    transition: transform 0.3s ease; /* Smooth transition on hover */
+  }
+  
+  .form-title {
+    font-size: 24px; /* Title font size */
+    margin-bottom: 20px; /* Space below title */
+    text-align: center; /* Center the title text */
+  }
+  
+  .form-input {
+    width: 100%; /* Full width */
+    padding: 10px; /* Inner padding */
+    margin: 10px 0; /* Space between inputs */
+    border: 1px solid #ddd; /* Light border */
+    border-radius: 5px; /* Rounded corners */
+    font-size: 16px; /* Font size */
+    transition: border-color 0.3s; /* Smooth border color change */
+  }
+  
+  .form-input:focus {
+    border-color: #007bff; /* Change border color on focus */
+    outline: none; /* Remove default outline */
+  }
+  
+  .form-button {
+    width: 100%; /* Full width */
+    padding: 10px; /* Inner padding */
+    margin-top: 20px; /* Space above button */
+    border: none; /* Remove border */
+    border-radius: 5px; /* Rounded corners */
+    background-color: #007bff; /* Blue background */
+    color: white; /* White text */
+    font-size: 16px; /* Font size */
+    cursor: pointer; /* Pointer on hover */
+    transition: background-color 0.3s; /* Smooth background color change */
+  }
+  
+  .form-button:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+  }
+  
