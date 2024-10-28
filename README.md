@@ -1,65 +1,71 @@
-# Library Management System #
+# Outpass Management System
 
-## Project Overview ##
-- This is a Smart LMS where books borrowed and returned.
-- The user can login with their IITDH student email and borrow or return. THe user has to be a IITDH student to signup first to set the password then login with the set password.
-- The user wil get notified to return the book and also get a email about it.
-- The admin can see the users, their borrowed books, and add, edit or remove a book.
-- In this website the user can access the whole database of books, and also search, filter and sort them.
-- The user gets the recommended books based on his branch
+## Project Overview
+- This is an Outpass Management System for college students, enabling them to apply for leaves and outings.
+- Users can log in to their accounts and submit leave or outing applications.
+- The application includes a feature for wardens to review, approve, or reject leave applications.
+- Students will receive notifications regarding the status of their applications.
+- The application ensures that users complete their profiles before applying for leave or outings.
+- The dashboard provides an overview of pending and completed applications.
+
 ## Tech Stack
-### Frontend
-- Developed using React and Vite for a fast and reactive user interface.
-### Styling
-- Bootstrap 5 and Material UI for templates.
-- Vanilla CSS for custom styling.
-- Tailwind CSS for minified styling.
-### Backend
-- node.js and express.js for backend server.
-- axios to connect the backend with frontend securely.
-- jsonwebtoken for secure authentication.
-### Database
-- MongoDB for storing data.
 
-## Using the repository
-### BackEnd 
+### Frontend
+- Developed using **React** and **Bootstrap** for a responsive and user-friendly interface.
+
+### Backend
+- **Node.js** and **Express.js** for the backend server.
+- **Axios** for secure communication between the frontend and backend.
+- **Jsonwebtoken** for user authentication and authorization.
+
+### Database
+- **MongoDB** for storing user and application data.
+
+## Using the Repository
+
+### Backend 
 ```bash
-  `cd backend`
+cd backend
 ```
-- Go to the backend folder.
+- Navigate to the backend folder.
 ```bash
-   `npm i`
+npm install
 ```
-- Install the node modules.
+- Install the necessary node modules.
 ```bash
-    `npm start`
+npm start
 ```
 - Starts the backend server.
 
-### FrontEnd 
+### Frontend 
 ```bash
-  `cd frontend`
+cd frontend
 ```
-- Go to the frontend folder.
+- Navigate to the frontend folder.
 ```bash
-  `npm i`
+npm install
 ```
-- Install the node modules.
+- Install the necessary node modules.
 ```bash
-  `npm run dev`
+npm start
 ```
 - Runs the application in development mode.
-- If either of them is not run then the website won't load
 
-## People Behind this
-  * K Varshith - Frontend(React structure,CSS and Animation)
-  * Yash Halbhavi - Frontend(React Structure and functionality)
-  * Prajwal Koppad - Backend
-  * Suhas - Database Management
-## For the judges to test:
-- A sample user:
-email: ```EE23BT035@iitdh.ac.in```
-password ```HelloPrajwal```
-- A sample admin:
-email: ```kamatham.varshith@gmail.com```
-password ```HelloPrajwal```
+- Ensure that both the frontend and backend servers are running for the application to function properly.
+
+## People Behind This
+  * Varshith Meda - Security page
+  * Prajwal Koppad - Backend and Frontend
+  * Varshith Kamatham - Frontend
+  * Vishwanathan - Backend
+  
+## For the Judges to Test:
+- A sample student user:
+  - Email: `ee23bt035@iitdh.ac.in`
+  - Password: `123456`
+  
+- A sample warden user:
+  - Email: `prajw@iitdh.ac.in
+  - Password: `prajwal`
+-A security Key:
+ -Password:security
