@@ -47,15 +47,14 @@ export const getOutingStatus = async (req, res) => {
         const { userID } = req.body; // Ensure you're getting userID correctly
 
         // Use findOne to get only one outing request for the user
-        const outingRequest = await OutingRequest.findOne({ userID }).populate('userID', 'name email'); // Populate user details if needed
+        const outingRequest = await OutingRequest.findOne({ userID })
 
         if (!outingRequest) {
-            return res.status(404).json({ message: "No outing applications found." });
+            return res.status(404).json({ message: "No outing application found." });
         }
 
         // Return the single outing request
         res.status(200).json({
-            message: "Outing application retrieved successfully.",
             outingRequest
         });
     } catch (error) {
@@ -98,6 +97,24 @@ export const scanOutingApplication = async (req, res) => {
         res.status(200).json({
             message: "Outing application scanned successfully.",
             application: outingApplication
+        });
+    } catch (error) {
+        console.log("Error:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+export const deleteOutingRequest = async (req, res) => {
+    try {
+        const { applicationId } = req.params; // Get applicationId from request parameters
+        const outingRequest = await OutingRequest.findByIdAndDelete(applicationId);
+
+        if (!outingRequest) {
+            return res.status(404).json({ message: "outing request not found" });
+        }
+
+        res.status(200).json({
+            message: "outing request deleted successfully.",
         });
     } catch (error) {
         console.log("Error:", error.message);

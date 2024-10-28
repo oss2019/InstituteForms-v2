@@ -1,5 +1,39 @@
 import LeaveApplication from "../models/leave.model.js";
 import User from "../models/user.model.js";
+import nodemailer from "nodemailer";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+// Configure nodemailer
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+    }
+});
+
+
+const sendEmail = (to, subject, text) => {
+  const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to,
+      subject,
+      text
+  };
+
+  console.log('Attempting to send email to:', to);
+
+  transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+          console.error('Error sending email:', error);
+      } else {
+          console.log('Email sent:', info.response);
+      }
+  });
+};
+
 
 // Apply for Leave
 export const applyForLeave = async (req, res) => {
@@ -68,10 +102,11 @@ export const getLeaveStatus = async (req, res) => {
 };
 
 
+
 // Warden approval 
 export const updateLeaveStatus = async (req, res) => {
     try {
-        const { applicationId } = req.params; // Get applicationId from request parameters
+        const { applicationId } = req.params; // Get applicationId from request parameters takes leave id
         const { status } = req.body; // Get status from request body
 
         // Validate the status
@@ -88,6 +123,14 @@ export const updateLeaveStatus = async (req, res) => {
 
         if (!updatedApplication) {
             return res.status(404).json({ message: "Leave application not found" });
+        }
+
+        // If status is approved, send email to the user
+        if (status === 'Approved') {
+            const user = await User.findById(updatedApplication.userID);
+            const subject = "Your Leave Application has been Approved";
+            const text = `Dear ${user.name},\n\nYour leave application for ${updatedApplication.placeOfVisit} has been approved.\n\nBest regards,\nYour College`;
+            await sendEmail(user.email, subject, text);
         }
 
         res.status(200).json({
@@ -156,6 +199,24 @@ export const scanLeaveApplication = async (req, res) => {
         res.status(200).json({
             message: "Leave application scanned successfully.",
             application: leaveApplication
+        });
+    } catch (error) {
+        console.log("Error:", error.message);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+export const deleteLeaveApplication = async (req, res) => {
+    try {
+        const { id } = req.params; // Get applicationId from request parameters
+        const leaveApplication = await LeaveApplication.findByIdAndDelete(id);
+
+        if (!leaveApplication) {
+            return res.status(404).json({ message: "Leave application not found" });
+        }
+
+        res.status(200).json({
+            message: "Leave application deleted successfully.",
         });
     } catch (error) {
         console.log("Error:", error.message);

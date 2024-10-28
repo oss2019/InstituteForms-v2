@@ -1,7 +1,8 @@
 // outing.routes.js
 
 import express from "express";
-import { applyForOuting, getOutingStatus, getAllOutings,scanOutingApplication } from "../controller/outing.controller.js";
+import { applyForOuting, getOutingStatus, getAllOutings,scanOutingApplication, deleteOutingRequest } from "../controller/outing.controller.js";
+import { deleteModel } from "mongoose";
 
 const router = express.Router();
 
@@ -14,5 +15,5 @@ router.post('/status', getOutingStatus);
 // Route to get all outing applications
 router.get('/all', getAllOutings); // New route for getting all outings
 router.patch('/scan/:applicationId', scanOutingApplication);
-
+router.delete('/delete/:applicationId', deleteOutingRequest);
 export default router;

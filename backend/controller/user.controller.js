@@ -85,7 +85,7 @@ export const login = async (req, res) => {
   
       // If userId is provided, find by userId; otherwise, find by rollNumber
       if (userId) {
-        user = await User.findById(userId, "name rollNumber email phnumber hostel roomNumber course branch year");
+        user = await User.findById(userId, "leaveApplication outingRequest name rollNumber email phnumber hostel roomNumber course branch year");
       } else if (rollNumber) {
         user = await User.findOne({ rollNumber }, "name rollNumber email"); // Find by rollNumber
       }
