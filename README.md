@@ -1,3 +1,8 @@
+# Fork Details
+- Forked from Outpass Management System
+- To Modify to convert it into an Institute Forms Portal
+- Details of original project below
+
 # Outpass Management System
 
 ## Project Overview
