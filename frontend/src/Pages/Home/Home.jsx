@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
-import "bootstrap/dist/css/bootstrap.min.css"; // Import Bootstrap CSS
+import "bootstrap/dist/css/bootstrap.min.css";
 import "./Home.css";
 import collegeLogo from "/IITDHlogo.webp";
+import clubSecretaryIcon from "../../../public/student.png";
+import staffIcon from "../../../public/staff.png";
 import Footer from "../../Components/Footer/Footer";
 import axios from "axios";
 
@@ -11,61 +13,67 @@ const Home = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null); // New state for category selection
   const navigate = useNavigate();
-  //FrontendStarts
+
   const handleLogin = async (e) => {
     e.preventDefault();
-    try {
-      const userData =
-        selectedRole === "security"
-          ? { email:"security1@iitdh.ac.in",
-            password: e.target[0].value,
-            rollNumber:"123",
-            role:"security"
-           } // Only password for security
-          : {
-              email: isSignup ? e.target[1].value : e.target[0].value, // Roll No / Email for student/warden
-              password: e.target[isSignup ? 2 : 1].value, // Password
-              rollNumber: isSignup ? e.target[0].value : undefined, // Roll number for signup
-            };
 
+    // Prepare the user data
+    const userData = {
+      email: isSignup ? e.target[1].value : e.target[0].value, // Email for all roles
+      password: e.target[isSignup ? 2 : 1].value, // Password
+      category: selectedCategory, // Add the selected category to the user data
+    };
+
+    try {
       const response = await axios.post(
-        `http://localhost:4001/user/${isSignup ? 'signup' : 'login'}`,
+        `http://localhost:4001/user/${isSignup ? "signup" : "login"}`,
         userData
       );
-      console.log(response)
+
       if (response.data.user.role !== selectedRole) {
         toast.error("Not Authorized for Login");
         return;
       }
       toast.success("Login successful!");
-      // Store necessary data in local storage
-      
-      localStorage.setItem("token", response.data.token); // Replace with your actual token path
-
-      localStorage.setItem("userID", response.data.user._id); // or whatever response structure you have
-    
-    setTimeout(()=>{
-      navigate(`/${selectedRole}`);
-    },1000);
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("userID", response.data.user._id);
+      setTimeout(() => {
+        navigate(`/${selectedRole}`);
+      }, 1000);
     } catch (error) {
       if (error.response) {
         console.log(error);
         toast.error("Error: " + error.response.data.message);
-        setTimeout(() => {}, 1000);
       }
     }
   };
 
   const handleIconClick = (role) => {
-    setSelectedRole(role);
-    setIsExpanded(true);
-    setIsSignup(false); // Reset to login mode on icon click
+    if (selectedRole === role) {
+      setIsExpanded(!isExpanded); // Toggle expanded state only for selected role
+    } else {
+      setSelectedRole(role);
+      setIsExpanded(true); // Expand the clicked role icon and hide the image
+    }
   };
 
   const toggleForm = (e) => {
-    e.stopPropagation(); // Prevent click from affecting other elements
-    setIsSignup((prev) => !prev);
+    e.stopPropagation();
+    if (selectedRole === "club-secretary") {
+      setIsSignup((prev) => !prev); // Only toggle signup for club-secretary role
+    }
+  };
+
+  const handleCategoryClick = (category) => {
+    setSelectedCategory(category); // Set the selected category
+  };
+
+  const closeSignupForm = (e) => {
+    if (!e.target.closest(".form-container")) {
+      setIsSignup(false); // Close signup form if clicked outside
+    }
   };
 
   useEffect(() => {
@@ -74,6 +82,7 @@ const Home = () => {
         setIsExpanded(false);
         setSelectedRole(null);
       }
+      closeSignupForm(e);
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -81,7 +90,7 @@ const Home = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-  //Frontend Ends
+
   return (
     <>
       <div className="login-page">
@@ -90,54 +99,53 @@ const Home = () => {
           <img src={collegeLogo} alt="College Logo" className="college-logo" />
         </div>
         <div className="icon-container">
-          {["student", "warden", "security"].map((role) => (
+          {["club-secretary", "staff"].map((role) => (
             <div
               key={role}
-              className={`role-icon ${
-                isExpanded && selectedRole === role ? "expand" : ""
-              }`}
+              className={`role-icon ${isExpanded && selectedRole === role ? "expand" : ""} ${isSignup && selectedRole === role ? "signup" : ""}`}
               onClick={() => handleIconClick(role)}
             >
-              {!(isExpanded && selectedRole === role) &&
-                (role === "student" ? "🎓" : role === "warden" ? "👨‍🏫" : "🛂")}
+              {/* Conditionally render the icon only if the role is not selected */}
+              {selectedRole !== role && (
+                <img
+                  src={role === "club-secretary" ? clubSecretaryIcon : staffIcon}
+                  alt={`${role} Icon`}
+                  className="role-icon-image"
+                />
+              )}
+              {/* Show the form if the role is selected */}
               {isExpanded && selectedRole === role && (
-                <div
-                  className="form-container"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="form-container" onClick={(e) => e.stopPropagation()}>
                   <form className="login-form" onSubmit={handleLogin}>
-                    <h2
-                      className={`form-heading ${
-                        role === "student" ? "student-heading" : ""
-                      }`}
-                    >
+                    <h2 className="form-heading">
                       {isSignup
                         ? "Sign Up"
-                        : `${
-                            role.charAt(0).toUpperCase() + role.slice(1)
-                          } Login`}
+                        : role === "club-secretary"
+                        ? "Club Secretary"
+                        : role === "staff"
+                        ? "Staff Portal"
+                        : `${role.replace("-", " ").toUpperCase()} Login`}
                     </h2>
-                    {selectedRole !== "security" && (
-                      <>
-                        {isSignup && (
-                          <input
-                            type="text"
-                            placeholder="Roll Number" // Placeholder for Roll Number
-                            required
-                            className="form-control form-control-sm"
-                          />
-                        )}
-
-                        <input
-                          type="email" // Change the type to email for better validation
-                          placeholder="Email" // Placeholder for Email
-                          required
-                          className="form-control form-control-sm"
-                        />
-                      </>
+                    {isSignup && role === "club-secretary" && (
+                      <div className="category-buttons">
+                        {["Technical", "Cultural", "Sports", "Others"].map((category) => (
+                          <button
+                            key={category}
+                            type="button"
+                            className={`btn btn-sm ${selectedCategory === category ? "btn-success" : "btn-primary"}`}
+                            onClick={() => handleCategoryClick(category)} // Handle category click
+                          >
+                            {category}
+                          </button>
+                        ))}
+                      </div>
                     )}
-
-                    {/* Password field always shown */}
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      required
+                      className="form-control form-control-sm"
+                    />
                     <input
                       type="password"
                       placeholder="Password"
@@ -147,8 +155,7 @@ const Home = () => {
                     <button type="submit" className="btn btn-primary btn-sm">
                       {isSignup ? "Sign Up" : "Login"}
                     </button>
-
-                    {role === "student" && (
+                    {role === "club-secretary" && (
                       <div className="toggle-container d-flex align-items-center mt-2">
                         <div className="form-check form-switch">
                           <input
@@ -158,10 +165,7 @@ const Home = () => {
                             checked={isSignup}
                             onChange={toggleForm}
                           />
-                          <label
-                            htmlFor="signupToggle"
-                            className="form-check-label ml-2"
-                          >
+                          <label htmlFor="signupToggle" className="form-check-label ml-2">
                             {isSignup ? "Login" : "Sign Up"}
                           </label>
                         </div>

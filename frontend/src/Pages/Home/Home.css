@@ -29,12 +29,14 @@
     align-items: center;
     padding: 2rem;
     gap: 2rem;
+    position: relative; /* Establish a stacking context */
+    overflow: visible;
 }
 
 /* Role Icons */
 .role-icon {
-    width: 6rem;
-    height: 6rem;
+    width: 9rem;
+    height: 9rem;
     border-radius: 50%;
     background-color: white;
     font-size: 3rem;
@@ -47,6 +49,7 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
     position: relative;
     overflow: hidden;
+    z-index: 1;
 }
 
 /* Expanded Icon */
@@ -54,6 +57,7 @@
     width: 18rem;
     height: 18rem;
     border-radius: 1rem;
+    z-index: 10;
     background-color: #e6f7ff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
@@ -141,6 +145,11 @@ button {
     margin-top: 1rem;
 }
 
+/* Ensure sibling icons are always visible */
+.role-icon:not(.expand) {
+    opacity: 1; /* Maintain visibility */
+    z-index: 5; /* Ensure non-expanded icons are above the default layer */
+}
 
 /* Media Queries */
 @media (max-width: 768px) {
@@ -217,3 +226,52 @@ input:checked + .slider:before {
     font-size: 0.8rem; /* Adjust this size as needed */
     margin-left: 0.5rem; /* Adjust margin if necessary */
 }
+
+.role-icon-image {
+    width: 70px;
+    height: 70px;
+  }
+  /* Style for the category buttons */
+.category-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    justify-content: center;
+  }
+  
+  .category-buttons button {
+    background-color: #007bff; /* Bootstrap primary blue color */
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    width: 100px;
+  }
+  
+  .category-buttons button:hover {
+    background-color: #0056b3; /* Darker blue for hover effect */
+    transform: scale(1.05); /* Slightly enlarge on hover */
+  }
+  
+  .category-buttons button:focus {
+    outline: none; /* Remove focus outline */
+  }
+  
+  .category-buttons button:active {
+    background-color: #004085; /* Even darker blue when button is pressed */
+    transform: scale(0.98); /* Slightly shrink when pressed */
+  }
+  .role-icon.expand.signup {
+    width: 22rem;  /* Adjusted width for signup */
+    height: 22rem;  /* Adjusted height for signup */
+    padding: 4rem;  /* Adjusted padding for signup */
+    background-color: #e0f7fa; /* Light cyan background for signup */
+}
+.category-buttons button.btn-success {
+    background-color: #28a745; /* Green background for selected button */
+    color: white;
+    border-color: #28a745; /* Green border */
+  }
