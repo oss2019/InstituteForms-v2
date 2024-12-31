@@ -1,15 +1,19 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import './ApplyLeave.css';
-import toast, { Toaster } from "react-hot-toast";
+import { useState } from "react";
+import { jsPDF } from "jspdf";
+import "bootstrap/dist/css/bootstrap.min.css";
 
-function ApplyLeave() {
+const EventForm = () => {
   const [formData, setFormData] = useState({
-    placeOfVisit: '',
-    reason: '',
-    dateOfLeaving: '',
-    arrivalDate: '',
-    emergencyContact: ''
+    name: "",
+    designation: "",
+    phoneNumber: "",
+    email: "",
+    eventName: "",
+    eventType: "Technical",
+    eventDates: "",
+    eventVenue: "",
+    helpRequired: [],
+    eventDescription: "",
   });
 
   const handleChange = (e) => {
@@ -17,107 +21,182 @@ function ApplyLeave() {
     setFormData({ ...formData, [name]: value });
   };
 
-  // Get today’s date in YYYY-MM-DD format for validation
-  const today = new Date().toISOString().split('T')[0];
-
-  const handleDateValidation = () => {
-    const { dateOfLeaving, arrivalDate } = formData;
-
-    // Validate that dateOfLeaving is not in the past
-    if (dateOfLeaving && new Date(dateOfLeaving) < new Date(today)) {
-      toast.error("Date of leaving cannot be in the past.");
-      setFormData({ ...formData, dateOfLeaving: '' });
-      return;
-    }
-
-    // Validate that arrivalDate is not before dateOfLeaving
-    if (arrivalDate && dateOfLeaving && new Date(arrivalDate) < new Date(dateOfLeaving)) {
-      toast.error("Arrival date cannot be before the date of leaving.");
-      setFormData({ ...formData, arrivalDate: '' });
-    }
+  const handleCheckboxChange = (e) => {
+    const { value, checked } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      helpRequired: checked
+        ? [...prevData.helpRequired, value]
+        : prevData.helpRequired.filter((item) => item !== value),
+    }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem('token');
-    const userID = localStorage.getItem('userID');
-    try {
-      await axios.post('http://localhost:4001/leave/apply', { ...formData, userID }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      toast.success('Leave application submitted!');
-      setFormData({
-        placeOfVisit: '',
-        reason: '',
-        dateOfLeaving: '',
-        arrivalDate: '',
-        emergencyContact: ''
-      });
-    } catch (error) {
-      console.error(error);
-      toast.error(error.response?.data?.message || 'Error applying for leave.');
-    }
+  const generatePDF = () => {
+    const doc = new jsPDF();
+
+    // Add content to the PDF
+    doc.setFontSize(12);
+    doc.text("Event Proposal Form", 105, 10, { align: "center" });
+    doc.text(`Name: ${formData.name}`, 10, 20);
+    doc.text(`Designation: ${formData.designation}`, 10, 30);
+    doc.text(`Phone Number: ${formData.phoneNumber}`, 10, 40);
+    doc.text(`Email: ${formData.email}`, 10, 50);
+    doc.text(`Event Name: ${formData.eventName}`, 10, 60);
+    doc.text(`Event Type: ${formData.eventType}`, 10, 70);
+    doc.text(`Event Dates: ${formData.eventDates}`, 10, 80);
+    doc.text(`Event Venue: ${formData.eventVenue}`, 10, 90);
+    doc.text(
+      `Help Required: ${formData.helpRequired.join(", ")}`,
+      10,
+      100
+    );
+    doc.text("Event Description:", 10, 110);
+    doc.text(formData.eventDescription, 10, 120, { maxWidth: 190 });
+
+    // Declaration
+    doc.text(
+      `I, ${formData.name}, ${formData.designation}, hereby agree to conduct the event to the best of my abilities and follow all the rules and regulations set by the institute.`,
+      10,
+      140,
+      { maxWidth: 190 }
+    );
+
+    // Save the PDF
+    doc.save(`${formData.eventName}-Proposal.pdf`);
   };
 
   return (
-    <div className="leave-container">
-      <Toaster />
-      <form onSubmit={handleSubmit} className="leave-form">
-        <h2 className="form-title">Apply for Leave</h2>
-        <input 
-          name="placeOfVisit" 
-          onChange={handleChange} 
-          value={formData.placeOfVisit}
-          placeholder="Place of Visit" 
-          required 
-          className="form-input"
-        />
-        <input 
-          name="reason" 
-          onChange={handleChange} 
-          value={formData.reason}
-          placeholder="Reason" 
-          required 
-          className="form-input"
-        />
-
-        {/* Label and Date Input for Date of Leaving with Minimum Date */}
-        <label className="form-label">Date of Leave</label>
-        <input 
-          type="date" 
-          name="dateOfLeaving" 
-          onChange={handleChange} 
-          onBlur={handleDateValidation}
-          value={formData.dateOfLeaving}
-          min={today} // Prevents selecting a past date
-          required 
-          className="form-input"
-        />
-
-        {/* Label and Date Input for Arrival Date with Validation */}
-        <label className="form-label">Arrival Date</label>
-        <input 
-          type="date" 
-          name="arrivalDate" 
-          onChange={handleChange} 
-          onBlur={handleDateValidation} // Validate on blur
-          value={formData.arrivalDate}
-          required 
-          className="form-input"
-        />
-
-        <input 
-          name="emergencyContact" 
-          onChange={handleChange} 
-          value={formData.emergencyContact}
-          placeholder="Emergency Contact" 
-          required 
-          className="form-input"
-        />
-        <button type="submit" className="form-button">Submit</button>
+    <div className="container mt-5">
+      <h2>Event Proposal Form</h2>
+      <form>
+        <div className="mb-3">
+          <label>Name</label>
+          <input
+            type="text"
+            className="form-control"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Designation</label>
+          <input
+            type="text"
+            className="form-control"
+            name="designation"
+            value={formData.designation}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Phone Number</label>
+          <input
+            type="text"
+            className="form-control"
+            name="phoneNumber"
+            value={formData.phoneNumber}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Email</label>
+          <input
+            type="email"
+            className="form-control"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Event Name</label>
+          <input
+            type="text"
+            className="form-control"
+            name="eventName"
+            value={formData.eventName}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Event Type</label>
+          <select
+            className="form-control"
+            name="eventType"
+            value={formData.eventType}
+            onChange={handleChange}
+          >
+            <option value="Technical">Technical</option>
+            <option value="Cultural">Cultural</option>
+            <option value="Sports">Sports</option>
+            <option value="Others">Others</option>
+          </select>
+        </div>
+        <div className="mb-3">
+          <label>Event Dates</label>
+          <input
+            type="text"
+            className="form-control"
+            name="eventDates"
+            value={formData.eventDates}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Event Venue</label>
+          <input
+            type="text"
+            className="form-control"
+            name="eventVenue"
+            value={formData.eventVenue}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div className="mb-3">
+          <label>Help Required</label>
+          {["Networking", "Housekeeping", "Mess", "Hostel", "Academic"].map(
+            (help) => (
+              <div key={help} className="form-check">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  value={help}
+                  onChange={handleCheckboxChange}
+                />
+                <label className="form-check-label">{help}</label>
+              </div>
+            )
+          )}
+        </div>
+        <div className="mb-3">
+          <label>Event Description</label>
+          <textarea
+            className="form-control"
+            name="eventDescription"
+            rows="4"
+            value={formData.eventDescription}
+            onChange={handleChange}
+            required
+          ></textarea>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={generatePDF}
+        >
+          Generate PDF
+        </button>
       </form>
     </div>
   );
-}
+};
 
-export default ApplyLeave;
+export default EventForm;
