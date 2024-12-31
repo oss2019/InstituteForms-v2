@@ -9,7 +9,7 @@ const EventForm = () => {
     phoneNumber: "",
     email: "",
     eventName: "",
-    eventType: "Technical",
+    eventType: "",
     eventDates: "",
     eventVenue: "",
     helpRequired: [],
@@ -45,11 +45,7 @@ const EventForm = () => {
     doc.text(`Event Type: ${formData.eventType}`, 10, 70);
     doc.text(`Event Dates: ${formData.eventDates}`, 10, 80);
     doc.text(`Event Venue: ${formData.eventVenue}`, 10, 90);
-    doc.text(
-      `Help Required: ${formData.helpRequired.join(", ")}`,
-      10,
-      100
-    );
+    doc.text(`Help Required: ${formData.helpRequired.join(", ")}`, 10, 100);
     doc.text("Event Description:", 10, 110);
     doc.text(formData.eventDescription, 10, 120, { maxWidth: 190 });
 
@@ -77,6 +73,7 @@ const EventForm = () => {
             name="name"
             value={formData.name}
             onChange={handleChange}
+            placeholder="Enter your name"
             required
           />
         </div>
@@ -88,6 +85,7 @@ const EventForm = () => {
             name="designation"
             value={formData.designation}
             onChange={handleChange}
+            placeholder="Enter your designation"
             required
           />
         </div>
@@ -99,6 +97,7 @@ const EventForm = () => {
             name="phoneNumber"
             value={formData.phoneNumber}
             onChange={handleChange}
+            placeholder="Enter your phone number"
             required
           />
         </div>
@@ -110,6 +109,7 @@ const EventForm = () => {
             name="email"
             value={formData.email}
             onChange={handleChange}
+            placeholder="Enter your email address"
             required
           />
         </div>
@@ -121,6 +121,7 @@ const EventForm = () => {
             name="eventName"
             value={formData.eventName}
             onChange={handleChange}
+            placeholder="Enter the event name"
             required
           />
         </div>
@@ -131,7 +132,8 @@ const EventForm = () => {
             name="eventType"
             value={formData.eventType}
             onChange={handleChange}
-          >
+          >       
+            <option value="">Select Event Type</option>
             <option value="Technical">Technical</option>
             <option value="Cultural">Cultural</option>
             <option value="Sports">Sports</option>
@@ -146,6 +148,7 @@ const EventForm = () => {
             name="eventDates"
             value={formData.eventDates}
             onChange={handleChange}
+            placeholder="Enter the event dates"
             required
           />
         </div>
@@ -157,6 +160,7 @@ const EventForm = () => {
             name="eventVenue"
             value={formData.eventVenue}
             onChange={handleChange}
+            placeholder="Enter the event venue"
             required
           />
         </div>
@@ -184,14 +188,11 @@ const EventForm = () => {
             rows="4"
             value={formData.eventDescription}
             onChange={handleChange}
+            placeholder="Describe your event details"
             required
           ></textarea>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={generatePDF}
-        >
+        <button type="button" className="btn btn-primary" onClick={generatePDF}>
           Generate PDF
         </button>
       </form>

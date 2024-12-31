@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProfilePage from '../../Components/ProfilePage/ProfilePage';
-import ApplyLeave from '../../Components/ApplyLeave/ApplyLeave';
-import ApplyOuting from '../../Components/ApplyOuting/ApplyOuting';
+import EventForm from '../../Components/EventForm/EventForm'; // Import EventForm component
 import './StudentDashboard.css'; // Import styles
 import Dashboard from '../../Components/StudentDashboard/Dashboard';
+import toast, { Toaster } from "react-hot-toast";
 
 function StudentDashboard() {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -12,9 +12,13 @@ function StudentDashboard() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/');
+    toast.success("Logout successful!"); // Show toast immediately
+    setTimeout(() => {
+       localStorage.removeItem('token');
+      navigate(`/`);
+    }, 1700); // Navigate after 2 seconds
   };
+  
 
   const handleSectionChange = (newSection) => {
     setDirection(newSection === 'dashboard' ? 'up' : 'down');
@@ -27,10 +31,8 @@ function StudentDashboard() {
         return <Dashboard />;
       case 'profile':
         return <ProfilePage />;
-      case 'applyLeave':
-        return <ApplyLeave />;
-      case 'applyOuting':
-        return <ApplyOuting />;
+      case 'eventForm':
+        return <EventForm />;
       default:
         return <Dashboard />;
     }
@@ -41,11 +43,12 @@ function StudentDashboard() {
       <div className="sidebar">
         <h2 className="sidebar-title">
           <button 
-              className={`sidebar-button ${activeSection === 'dashboard' ? 'active' : ''}`}
-              onClick={() => handleSectionChange('dashboard')}
-            >
-              Student Dashboard
-          </button></h2>
+            className={`sidebar-button ${activeSection === 'dashboard' ? 'active' : ''}`}
+            onClick={() => handleSectionChange('dashboard')}
+          >
+            Student Dashboard
+          </button>
+        </h2>
         <ul className="sidebar-menu">
           <li>
             <button 
@@ -57,18 +60,10 @@ function StudentDashboard() {
           </li>
           <li>
             <button 
-              className={`sidebar-button ${activeSection === 'applyLeave' ? 'active' : ''}`}
-              onClick={() => handleSectionChange('applyLeave')}
+              className={`sidebar-button ${activeSection === 'eventForm' ? 'active' : ''}`}
+              onClick={() => handleSectionChange('eventForm')}
             >
-              Apply for Leave
-            </button>
-          </li>
-          <li>
-            <button 
-              className={`sidebar-button ${activeSection === 'applyOuting' ? 'active' : ''}`}
-              onClick={() => handleSectionChange('applyOuting')}
-            >
-              Apply for Outing
+              Submit Event Proposal
             </button>
           </li>
           <li>

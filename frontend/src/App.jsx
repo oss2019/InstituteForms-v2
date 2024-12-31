@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Home from './Pages/Home/Home.jsx';
-import Security from './Pages/Security/Security.jsx';
 import ProtectedRoute from './Components/ProtectedRoute/ProtectedRoute.jsx';
 import StudentDashboard from './Pages/Student DashBoard/StudentDashboard.jsx';
-import WardenDashboard from './Pages/WardenDashboard/WardenDashboard.jsx';
+import StaffDashboard from './Pages/StaffDashboard/StaffDashboard.jsx';
+import { Toaster } from 'react-hot-toast'; // Import the Toaster component
 
 function App() {
   return (
@@ -19,22 +19,15 @@ function App() {
           } 
         />
         <Route 
-          path="/warden" 
+          path="/staff" 
           element={
-            <ProtectedRoute requiredRole="warden">
-              <WardenDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/security" 
-          element={
-            <ProtectedRoute requiredRole="security">
-              <Security />
+            <ProtectedRoute requiredRole="staff">
+              <StaffDashboard />
             </ProtectedRoute>
           } 
         />
       </Routes>
+      <Toaster position="top-center" reverseOrder={false} /> {/* Render the Toaster */}
     </Router>
   );
 }
