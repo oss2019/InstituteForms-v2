@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const Schema = mongoose.Schema;
 
-const leaveApplicationSchema = new Schema({
+const eventApprovalSchema = new Schema({
   userID: { type: String, required: true }, 
   placeOfVisit: { type: String, required: true },
   reason: { type: String, required: true },
@@ -15,5 +15,5 @@ const leaveApplicationSchema = new Schema({
 }, {
 });
 
-const LeaveApplication = mongoose.model('LeaveApplication', leaveApplicationSchema);
-export default LeaveApplication;
+const EventApproval = mongoose.model('EventApproval', eventApprovalSchema);
+export default EventApproval;

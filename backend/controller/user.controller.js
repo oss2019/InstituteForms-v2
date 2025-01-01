@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 
 export const signup = async (req, res) => {
   try {
-    const { email, password, rollNumber } = req.body;
+    const { email, password, category } = req.body;
 
     // Check if the user already exists
     const existingUser = await User.findOne({ email });
@@ -18,13 +18,9 @@ export const signup = async (req, res) => {
       email,
       password: hashPassword,
       name: "",
-      rollNumber,
-      leaveApplication: "",
-      outingRequest: "",
-      roomNumber:"",
-      branch:"",
-      year: "",
-      course: ""
+      category,
+      eventApproval: "",
+      phnumber: "",
     });
 
     await newUser.save();
@@ -36,7 +32,7 @@ export const signup = async (req, res) => {
     res.status(201).json({
       message: "User created successfully",
       token,
-      user: { _id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role },
+      user: { _id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role, category: newUser.category },
     });
     
   } catch (error) {
@@ -79,15 +75,15 @@ export const login = async (req, res) => {
 
   export const getUserDetails = async (req, res) => {
     try {
-      const { userId, rollNumber } = req.body; // Destructure both userId and rollNumber from request body
+      const { userId, email } = req.body; // Destructure both userId and rollNumber from request body
   
       let user;
   
       // If userId is provided, find by userId; otherwise, find by rollNumber
       if (userId) {
-        user = await User.findById(userId, "leaveApplication outingRequest name rollNumber email phnumber hostel roomNumber course branch year");
-      } else if (rollNumber) {
-        user = await User.findOne({ rollNumber }, "name rollNumber email"); // Find by rollNumber
+        user = await User.findById(userId, "eventApproval name email phnumber");
+      } else if (email) {
+        user = await User.findOne({ email }, "name eventApproval phnumber"); // Find by rollNumber
       }
   
       // Check if user was found
@@ -108,7 +104,7 @@ export const login = async (req, res) => {
       const { userId, ...updates } = req.body; // Destructure userId and the rest as updates
   
       // Ensure only permitted fields can be updated
-      const allowedFields = ["name", "roomNumber", "branch", "year", "course", "hostel", "phnumber"];
+      const allowedFields = ["name", "category", "phnumber"];
   
       // Retrieve the existing user data
       const user = await User.findById(userId);

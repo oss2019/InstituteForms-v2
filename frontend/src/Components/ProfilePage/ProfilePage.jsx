@@ -9,6 +9,9 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Define categories for the dropdown
+  const categories = ["Technical", "Cultural", "Sports", "Others"];
+
   useEffect(() => {
     const fetchUserData = async () => {
       const userID = localStorage.getItem("userID");
@@ -75,20 +78,6 @@ const ProfilePage = () => {
             )}
           </div>
           <div className="form-group">
-            <label htmlFor="rollNumber">Roll Number:</label>
-            {isEditing ? (
-              <input 
-                id="rollNumber"
-                name="rollNumber" 
-                value={formData.rollNumber || ""} 
-                onChange={handleChange} 
-                required 
-              />
-            ) : (
-              <p>{userData.rollNumber}</p>
-            )}
-          </div>
-          <div className="form-group">
             <label>Email:</label>
             <p>{userData.email}</p>
           </div>
@@ -107,73 +96,23 @@ const ProfilePage = () => {
             )}
           </div>
           <div className="form-group">
-            <label htmlFor="hostel">Hostel:</label>
+            <label htmlFor="category">Category:</label>
             {isEditing ? (
-              <input 
-                id="hostel"
-                name="hostel" 
-                value={formData.hostel || ""} 
+              <select 
+                id="category" 
+                name="category" 
+                value={formData.category || ""} 
                 onChange={handleChange} 
-                required 
-              />
+                required
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
             ) : (
-              <p>{userData.hostel || "N/A"}</p>
-            )}
-          </div>
-          <div className="form-group">
-            <label htmlFor="roomNumber">Room Number:</label>
-            {isEditing ? (
-              <input 
-                id="roomNumber"
-                name="roomNumber" 
-                value={formData.roomNumber || ""} 
-                onChange={handleChange} 
-                required 
-              />
-            ) : (
-              <p>{userData.roomNumber || "N/A"}</p>
-            )}
-          </div>
-          <div className="form-group">
-            <label htmlFor="branch">Branch:</label>
-            {isEditing ? (
-              <input 
-                id="branch"
-                name="branch" 
-                value={formData.branch || ""} 
-                onChange={handleChange} 
-                required 
-              />
-            ) : (
-              <p>{userData.branch || "N/A"}</p>
-            )}
-          </div>
-          <div className="form-group">
-            <label htmlFor="year">Year:</label>
-            {isEditing ? (
-              <input 
-                id="year"
-                name="year" 
-                value={formData.year || ""} 
-                onChange={handleChange} 
-                required 
-              />
-            ) : (
-              <p>{userData.year || "N/A"}</p>
-            )}
-          </div>
-          <div className="form-group">
-            <label htmlFor="course">Course:</label>
-            {isEditing ? (
-              <input 
-                id="course"
-                name="course" 
-                value={formData.course || ""} 
-                onChange={handleChange} 
-                required 
-              />
-            ) : (
-              <p>{userData.course || "N/A"}</p>
+              <p>{userData.category || "N/A"}</p>
             )}
           </div>
           <button type="button" className="form-button" onClick={handleEditToggle}>

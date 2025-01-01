@@ -11,9 +11,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route 
-          path="/student" 
+          path="/club-secretary" 
           element={
-            <ProtectedRoute requiredRole="student">
+            <ProtectedRoute requiredRole="club-secretary">
               <StudentDashboard />
             </ProtectedRoute>
           } 

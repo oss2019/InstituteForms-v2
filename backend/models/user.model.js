@@ -18,16 +18,10 @@ const userSchema = new Schema({
     },
   password: {type: String, required: true},
   name: { type: String, required: false },
-  rollNumber: { type: String, required: false },
-  role: {type: String, default: "student",enum: ["student", "warden","security"]},
-  phnumber: {type:String, default: "", required:false},
-  leaveApplication: {type: String, default: "",required: false},
-  outingRequest: {type: String, default: "",required: false},
-  hostel: {type: String, default: "", required:false},
-  roomNumber: {type: String, required: false},
-  branch: {type: String, required: false},
-  year: {type: String, required: false},
-  course: {type: String, required: false}
+  role: {type: String, default: "club-secretary",enum: ["club-secretary", "staff"]},
+  eventApproval: {type: String, default: "",required: false},
+  category: {type: String, default: "",required: false},
+  phnumber: {type: String, default: "", required:false},
 }, 
 );
 

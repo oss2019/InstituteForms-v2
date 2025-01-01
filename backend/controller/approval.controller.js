@@ -1,4 +1,4 @@
-import LeaveApplication from "../models/leave.model.js";
+import LeaveApplication from "../models/approval.model.js";
 import User from "../models/user.model.js";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";

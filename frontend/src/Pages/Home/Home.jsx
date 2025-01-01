@@ -23,7 +23,7 @@ const Home = () => {
     const userData = {
       email: isSignup ? e.target[1].value : e.target[0].value, // Email for all roles
       password: e.target[isSignup ? 2 : 1].value, // Password
-      category: selectedCategory, // Add the selected category to the user data
+      category: isSignup ? e.target[0].value : undefined // Add the selected category to the user data
     };
 
     try {
