@@ -81,9 +81,9 @@ export const login = async (req, res) => {
   
       // If userId is provided, find by userId; otherwise, find by rollNumber
       if (userId) {
-        user = await User.findById(userId, "eventApproval name email phnumber");
+        user = await User.findById(userId, "eventApproval name email phnumber category");
       } else if (email) {
-        user = await User.findOne({ email }, "name eventApproval phnumber"); // Find by rollNumber
+        user = await User.findOne({ email }, "name eventApproval phnumber category"); 
       }
   
       // Check if user was found

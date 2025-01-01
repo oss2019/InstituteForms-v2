@@ -18,14 +18,27 @@ const Home = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    const formData = new FormData(e.target);
+  const email = formData.get("email");
+  const password = formData.get("password");
 
-    // Prepare the user data
-    const userData = {
-      email: isSignup ? e.target[1].value : e.target[0].value, // Email for all roles
-      password: e.target[isSignup ? 2 : 1].value, // Password
-      category: isSignup ? e.target[0].value : undefined // Add the selected category to the user data
+  let userData;
+
+  if (isSignup) {
+    const category = selectedCategory || ""; // Ensure category is included during signup
+    userData = {
+      email,
+      password,
+      category,
     };
+  } else {
+    userData = {
+      email,
+      password,
+    };
+  }
 
+  console.log("Form data:", userData);
     try {
       const response = await axios.post(
         `http://localhost:4001/user/${isSignup ? "signup" : "login"}`,
@@ -142,12 +155,14 @@ const Home = () => {
                     )}
                     <input
                       type="email"
+                      name="email"
                       placeholder="Email"
                       required
                       className="form-control form-control-sm"
                     />
                     <input
                       type="password"
+                      name="password"
                       placeholder="Password"
                       required
                       className="form-control form-control-sm"
