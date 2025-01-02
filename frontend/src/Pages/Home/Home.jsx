@@ -8,6 +8,8 @@ import clubSecretaryIcon from "../../../public/student.png";
 import staffIcon from "../../../public/staff.png";
 import Footer from "../../Components/Footer/Footer";
 import axios from "axios";
+import { useGoogleLogin } from "@react-oauth/google";
+import { googleAuth } from "./api";
 
 const Home = () => {
   const [selectedRole, setSelectedRole] = useState(null);
@@ -19,26 +21,26 @@ const Home = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-  const email = formData.get("email");
-  const password = formData.get("password");
+    const email = formData.get("email");
+    const password = formData.get("password");
 
-  let userData;
+    let userData;
 
-  if (isSignup) {
-    const category = selectedCategory || ""; // Ensure category is included during signup
-    userData = {
-      email,
-      password,
-      category,
-    };
-  } else {
-    userData = {
-      email,
-      password,
-    };
-  }
+    if (isSignup) {
+      const category = selectedCategory || ""; // Ensure category is included during signup
+      userData = {
+        email,
+        password,
+        category,
+      };
+    } else {
+      userData = {
+        email,
+        password,
+      };
+    }
 
-  console.log("Form data:", userData);
+    console.log("Form data:", userData);
     try {
       const response = await axios.post(
         `http://localhost:4001/user/${isSignup ? "signup" : "login"}`,
@@ -62,6 +64,36 @@ const Home = () => {
       }
     }
   };
+
+
+  const responseGoogle = async (authResult) => {
+		try {
+			if (authResult["code"]) {
+				const result = await googleAuth(authResult.code);
+				const {email, name, image} = result.data.user;
+				const token = result.data.token;
+				const obj = {email,name, token, image};
+				localStorage.setItem('user-info',JSON.stringify(obj));
+        localStorage.setItem('token', obj.token)
+        console.log(obj)
+				toast.success("Google Login successful!");
+        setTimeout(() => {
+          navigate(`/${selectedRole}`);
+        }, 1000);
+			} else {
+				console.log(authResult);
+				throw new Error(authResult);
+			}
+		} catch (e) {
+			console.log('Error while Google Login...', e);
+		}
+	};
+
+	const googleLogin = useGoogleLogin({
+		onSuccess: responseGoogle,
+		onError: responseGoogle,
+		flow: "auth-code",
+	});
 
   const handleIconClick = (role) => {
     if (selectedRole === role) {
@@ -115,20 +147,27 @@ const Home = () => {
           {["club-secretary", "staff"].map((role) => (
             <div
               key={role}
-              className={`role-icon ${isExpanded && selectedRole === role ? "expand" : ""} ${isSignup && selectedRole === role ? "signup" : ""}`}
+              className={`role-icon ${
+                isExpanded && selectedRole === role ? "expand" : ""
+              } ${isSignup && selectedRole === role ? "signup" : ""}`}
               onClick={() => handleIconClick(role)}
             >
               {/* Conditionally render the icon only if the role is not selected */}
               {selectedRole !== role && (
                 <img
-                  src={role === "club-secretary" ? clubSecretaryIcon : staffIcon}
+                  src={
+                    role === "club-secretary" ? clubSecretaryIcon : staffIcon
+                  }
                   alt={`${role} Icon`}
                   className="role-icon-image"
                 />
               )}
               {/* Show the form if the role is selected */}
               {isExpanded && selectedRole === role && (
-                <div className="form-container" onClick={(e) => e.stopPropagation()}>
+                <div
+                  className="form-container"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <form className="login-form" onSubmit={handleLogin}>
                     <h2 className="form-heading">
                       {isSignup
@@ -141,16 +180,22 @@ const Home = () => {
                     </h2>
                     {isSignup && role === "club-secretary" && (
                       <div className="category-buttons">
-                        {["Technical", "Cultural", "Sports", "Others"].map((category) => (
-                          <button
-                            key={category}
-                            type="button"
-                            className={`btn btn-sm ${selectedCategory === category ? "btn-success" : "btn-primary"}`}
-                            onClick={() => handleCategoryClick(category)} // Handle category click
-                          >
-                            {category}
-                          </button>
-                        ))}
+                        {["Technical", "Cultural", "Sports", "Others"].map(
+                          (category) => (
+                            <button
+                              key={category}
+                              type="button"
+                              className={`btn btn-sm ${
+                                selectedCategory === category
+                                  ? "btn-success"
+                                  : "btn-primary"
+                              }`}
+                              onClick={() => handleCategoryClick(category)} // Handle category click
+                            >
+                              {category}
+                            </button>
+                          )
+                        )}
                       </div>
                     )}
                     <input
@@ -180,9 +225,15 @@ const Home = () => {
                             checked={isSignup}
                             onChange={toggleForm}
                           />
-                          <label htmlFor="signupToggle" className="form-check-label ml-2">
+                          <label
+                            htmlFor="signupToggle"
+                            className="form-check-label ml-2"
+                          >
                             {isSignup ? "Login" : "Sign Up"}
                           </label>
+                          <button onClick={googleLogin}>
+                            Sign in with Google
+                          </button>
                         </div>
                       </div>
                     )}

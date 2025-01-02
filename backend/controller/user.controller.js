@@ -1,6 +1,8 @@
 import User from "../models/user.model.js";
 import bcryptjs from 'bcryptjs';
 import jwt from "jsonwebtoken";
+import { oauth2Client } from "../googleClient.js";
+import axios from "axios";
 
 export const signup = async (req, res) => {
   try {
@@ -72,6 +74,47 @@ export const login = async (req, res) => {
       res.status(500).json({ message: "Internal server error" });
     }
   };
+
+//Google login function
+
+export const  googleLogin = async (req, res, next) => {
+  const code = req.query.code;
+  try {
+      const googleRes = await oauth2Client.getToken(code);
+      oauth2Client.setCredentials(googleRes.tokens);
+      const userRes = await axios.get(
+        `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${googleRes.tokens.access_token}`
+    );
+      const { email, name, picture } = userRes.data;
+       console.log(userRes);
+      let user = await User.findOne({ email });
+
+      if (!user) {
+          user = await User.create({
+              name,
+              email,
+              image: picture,
+              category: "", // Default values for new users
+              phnumber: "",
+          });
+      }
+      const token = jwt.sign(
+        { userID: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: "1h" } 
+      );
+      res.status(200).json({
+          message: 'success',
+          token,
+          user,
+      });
+  } catch (err) {
+      res.status(500).json({
+          message: "Internal Server Error"
+      })
+  }
+};
+
 
   export const getUserDetails = async (req, res) => {
     try {

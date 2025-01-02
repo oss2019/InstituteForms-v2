@@ -16,12 +16,13 @@ const userSchema = new Schema({
       message: 'Email must have the suffix "iitdh.ac.in"',
         },
     },
-  password: {type: String, required: true},
+  password: {type: String, required: false},
   name: { type: String, required: false },
   role: {type: String, default: "club-secretary",enum: ["club-secretary", "staff"]},
   eventApproval: {type: String, default: "",required: false},
   category: {type: String, default: "",required: false},
   phnumber: {type: String, default: "", required:false},
+  image: {type: String, required: false},
 }, 
 );
 
