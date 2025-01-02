@@ -77,44 +77,48 @@ export const login = async (req, res) => {
 
 //Google login function
 
-export const  googleLogin = async (req, res, next) => {
-  const code = req.query.code;
-  try {
-      const googleRes = await oauth2Client.getToken(code);
-      oauth2Client.setCredentials(googleRes.tokens);
-      const userRes = await axios.get(
-        `https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${googleRes.tokens.access_token}`
-    );
-      const { email, name, picture } = userRes.data;
-       console.log(userRes);
-      let user = await User.findOne({ email });
+export const googleLogin = async (req, res) => {
+  const { token } = req.body; // JWT sent from the frontend
 
-      if (!user) {
-          user = await User.create({
-              name,
-              email,
-              image: picture,
-              category: "", // Default values for new users
-              phnumber: "",
-          });
-      }
-      const token = jwt.sign(
-        { userID: user._id, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" } 
-      );
-      res.status(200).json({
-          message: 'success',
-          token,
-          user,
+  try {
+    // Verify the JWT
+    const ticket = await oauth2Client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID, // Replace with your client ID
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture } = payload;
+
+    // Find or create a user in the database
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({
+        name,
+        email,
+        image: picture,
+        category: "", // Default values
+        phnumber: "",
       });
-  } catch (err) {
-      res.status(500).json({
-          message: "Internal Server Error"
-      })
+    }
+
+    // Generate a JWT token for your application
+    const appToken = jwt.sign(
+      { userID: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.status(200).json({
+      message: "success",
+      token: appToken,
+      user,
+    });
+  } catch (error) {
+    console.error("Google Login Error:", error);
+    res.status(500).json({ message: "Google Login failed" });
   }
 };
-
 
   export const getUserDetails = async (req, res) => {
     try {

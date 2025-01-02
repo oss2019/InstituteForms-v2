@@ -4,18 +4,19 @@ import toast, { Toaster } from "react-hot-toast";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./Home.css";
 import collegeLogo from "/IITDHlogo.webp";
-import clubSecretaryIcon from "../../../public/student.png";
-import staffIcon from "../../../public/staff.png";
+import clubSecretaryIcon from "/student.png";
+import staffIcon from "/staff.png";
 import Footer from "../../Components/Footer/Footer";
 import axios from "axios";
 import { useGoogleLogin } from "@react-oauth/google";
 import { googleAuth } from "./api";
+import { GoogleLogin } from "@react-oauth/google";
 
 const Home = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null); // New state for category selection
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -24,23 +25,10 @@ const Home = () => {
     const email = formData.get("email");
     const password = formData.get("password");
 
-    let userData;
+    let userData = isSignup
+      ? { email, password, category: selectedCategory || "" }
+      : { email, password };
 
-    if (isSignup) {
-      const category = selectedCategory || ""; // Ensure category is included during signup
-      userData = {
-        email,
-        password,
-        category,
-      };
-    } else {
-      userData = {
-        email,
-        password,
-      };
-    }
-
-    console.log("Form data:", userData);
     try {
       const response = await axios.post(
         `http://localhost:4001/user/${isSignup ? "signup" : "login"}`,
@@ -54,9 +42,7 @@ const Home = () => {
       toast.success("Login successful!");
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("userID", response.data.user._id);
-      setTimeout(() => {
-        navigate(`/${selectedRole}`);
-      }, 1000);
+      setTimeout(() => navigate(`/${selectedRole}`), 1000);
     } catch (error) {
       if (error.response) {
         console.log(error);
@@ -65,59 +51,75 @@ const Home = () => {
     }
   };
 
-
   const responseGoogle = async (authResult) => {
-		try {
-			if (authResult["code"]) {
-				const result = await googleAuth(authResult.code);
-				const {email, name, image} = result.data.user;
-				const token = result.data.token;
-				const obj = {email,name, token, image};
-				localStorage.setItem('user-info',JSON.stringify(obj));
-        localStorage.setItem('token', obj.token)
-        console.log(obj)
-				toast.success("Google Login successful!");
-        setTimeout(() => {
-          navigate(`/${selectedRole}`);
-        }, 1000);
-			} else {
-				console.log(authResult);
-				throw new Error(authResult);
-			}
-		} catch (e) {
-			console.log('Error while Google Login...', e);
-		}
-	};
+    try {
+      if (authResult?.credential) {
+        // Send the JWT to the backend
+        const result = await axios.post("http://localhost:4001/user/google-login", {
+          token: authResult.credential,
+        });
+  
+        const { email, name, image, role } = result.data.user;
+        const token = result.data.token;
+  
+        if (role !== selectedRole) {
+          toast.error("Not authorized for this role.");
+          return;
+        }
+  
+        const obj = { email, name, token, image };
+        localStorage.setItem("user-info", JSON.stringify(obj));
+        localStorage.setItem("token", obj.token);
+  
+        toast.success("Google Login successful!");
+        setTimeout(() => navigate(`/${selectedRole}`), 1000);
+      } else {
+        throw new Error("Invalid Google Auth response");
+      }
+    } catch (e) {
+      console.error("Error during Google Login:", e);
+      toast.error("Google Login failed. Please try again.");
+    }
+  };
+  
 
-	const googleLogin = useGoogleLogin({
-		onSuccess: responseGoogle,
-		onError: responseGoogle,
-		flow: "auth-code",
-	});
+  const googleLogin = useGoogleLogin({
+    onSuccess: responseGoogle,
+    onError: responseGoogle,
+    flow: "auth-code",
+  });
+
+  const googleLoginWrapper = () => {
+    if (!selectedRole) {
+      toast.error("Please select a role before logging in.");
+      return;
+    }
+    googleLogin();
+  };
 
   const handleIconClick = (role) => {
     if (selectedRole === role) {
-      setIsExpanded(!isExpanded); // Toggle expanded state only for selected role
+      setIsExpanded(!isExpanded);
     } else {
       setSelectedRole(role);
-      setIsExpanded(true); // Expand the clicked role icon and hide the image
+      setIsExpanded(true);
     }
   };
 
   const toggleForm = (e) => {
     e.stopPropagation();
     if (selectedRole === "club-secretary") {
-      setIsSignup((prev) => !prev); // Only toggle signup for club-secretary role
+      setIsSignup((prev) => !prev);
     }
   };
 
   const handleCategoryClick = (category) => {
-    setSelectedCategory(category); // Set the selected category
+    setSelectedCategory(category);
   };
 
   const closeSignupForm = (e) => {
     if (!e.target.closest(".form-container")) {
-      setIsSignup(false); // Close signup form if clicked outside
+      setIsSignup(false);
     }
   };
 
@@ -152,7 +154,6 @@ const Home = () => {
               } ${isSignup && selectedRole === role ? "signup" : ""}`}
               onClick={() => handleIconClick(role)}
             >
-              {/* Conditionally render the icon only if the role is not selected */}
               {selectedRole !== role && (
                 <img
                   src={
@@ -162,82 +163,27 @@ const Home = () => {
                   className="role-icon-image"
                 />
               )}
-              {/* Show the form if the role is selected */}
               {isExpanded && selectedRole === role && (
                 <div
                   className="form-container"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <form className="login-form" onSubmit={handleLogin}>
-                    <h2 className="form-heading">
-                      {isSignup
-                        ? "Sign Up"
-                        : role === "club-secretary"
-                        ? "Club Secretary"
-                        : role === "staff"
-                        ? "Staff Portal"
-                        : `${role.replace("-", " ").toUpperCase()} Login`}
-                    </h2>
-                    {isSignup && role === "club-secretary" && (
-                      <div className="category-buttons">
-                        {["Technical", "Cultural", "Sports", "Others"].map(
-                          (category) => (
-                            <button
-                              key={category}
-                              type="button"
-                              className={`btn btn-sm ${
-                                selectedCategory === category
-                                  ? "btn-success"
-                                  : "btn-primary"
-                              }`}
-                              onClick={() => handleCategoryClick(category)} // Handle category click
-                            >
-                              {category}
-                            </button>
-                          )
-                        )}
-                      </div>
-                    )}
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="Email"
-                      required
-                      className="form-control form-control-sm"
+                  <h2 className="form-heading">
+                    {isSignup
+                      ? "Sign Up"
+                      : role === "club-secretary"
+                      ? "Club Secretary"
+                      : "Staff Portal"}
+                  </h2>
+                  <div className="toggle-container d-flex align-items-center mt-2">
+                    <GoogleLogin
+                      onSuccess={responseGoogle}
+                      onError={responseGoogle}
+                      theme="outline"
+                      text="signin_with"
+                      shape="square"
                     />
-                    <input
-                      type="password"
-                      name="password"
-                      placeholder="Password"
-                      required
-                      className="form-control form-control-sm"
-                    />
-                    <button type="submit" className="btn btn-primary btn-sm">
-                      {isSignup ? "Sign Up" : "Login"}
-                    </button>
-                    {role === "club-secretary" && (
-                      <div className="toggle-container d-flex align-items-center mt-2">
-                        <div className="form-check form-switch">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="signupToggle"
-                            checked={isSignup}
-                            onChange={toggleForm}
-                          />
-                          <label
-                            htmlFor="signupToggle"
-                            className="form-check-label ml-2"
-                          >
-                            {isSignup ? "Login" : "Sign Up"}
-                          </label>
-                          <button onClick={googleLogin}>
-                            Sign in with Google
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </form>
+                  </div>
                 </div>
               )}
             </div>
