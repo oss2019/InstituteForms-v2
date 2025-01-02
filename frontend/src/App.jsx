@@ -4,6 +4,8 @@ import ProtectedRoute from './Components/ProtectedRoute/ProtectedRoute.jsx';
 import StudentDashboard from './Pages/Student DashBoard/StudentDashboard.jsx';
 import StaffDashboard from './Pages/StaffDashboard/StaffDashboard.jsx';
 import { Toaster } from 'react-hot-toast'; // Import the Toaster component
+import PageNotFound from './Pages/Page Not Found/PageNotFound.jsx';
+
 
 function App() {
   return (
@@ -26,7 +28,9 @@ function App() {
             </ProtectedRoute>
           } 
         />
+        <Route path="*" element = {<PageNotFound/>}/>
       </Routes>
+      
       <Toaster position="top-center" reverseOrder={false} /> {/* Render the Toaster */}
     </Router>
   );
