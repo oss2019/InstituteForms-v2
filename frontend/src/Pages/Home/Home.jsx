@@ -18,6 +18,9 @@ const Home = () => {
   const [isSignup, setIsSignup] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
+  const [error, setError] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -41,7 +44,7 @@ const Home = () => {
       }
       toast.success("Login successful!");
       localStorage.setItem("token", response.data.token);
-      localStorage.setItem("userID", response.data.user._id);
+      localStorage.setItem("email", response.data.email);
       setTimeout(() => navigate(`/${selectedRole}`), 1000);
     } catch (error) {
       if (error.response) {
@@ -70,7 +73,20 @@ const Home = () => {
         const obj = { email, name, token, image };
         localStorage.setItem("user-info", JSON.stringify(obj));
         localStorage.setItem("token", obj.token);
-  
+        localStorage.setItem("email", obj.email);
+        
+        try {
+          const response = await axios.post("http://localhost:4001/user/details", {
+            email: obj.email
+          });
+          setUserData(response.data);
+          localStorage.setItem("userID", response.data._id);
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+          setError("Failed to load user data");
+        }
+        console.log(obj)
+
         toast.success("Google Login successful!");
         setTimeout(() => navigate(`/${selectedRole}`), 1000);
       } else {
