@@ -5,7 +5,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     const token = localStorage.getItem('token');
     
     // Check for a condition to bypass authentication, e.g., a local development flag
-    const isDevMode = false;  // Set this to `true` temporarily during development
+    const isDevMode = true;  // Set this to `true` temporarily during development
 
     // Decode the token to get user info (you may use a library like jwt-decode)
     const decodedToken = token ? JSON.parse(atob(token.split('.')[1])) : null; // Basic decoding
