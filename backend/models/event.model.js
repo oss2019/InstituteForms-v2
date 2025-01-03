@@ -19,12 +19,12 @@ const eventApprovalSchema = new Schema({
       role: {
         type: String,
         enum: [
-          "Club Secretary",
-          "General Secretary",
-          "Treasurer",
-          "President",
-          "Faculty in Charge",
-          "Associate Dean",
+          "club-secretary",
+          "general-secretary",
+          "treasurer",
+          "president",
+          "faculty-in-charge",
+          "associate-dean",
         ],
         required: false,
       },

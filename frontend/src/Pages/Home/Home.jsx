@@ -63,7 +63,9 @@ const Home = () => {
         });
   
         const { email, name, image, role } = result.data.user;
+        console.log(result.data)
         const token = result.data.token;
+    
   
         // Special roles that should be allowed to log in as staff
         const allowedRolesForStaff = [
@@ -77,9 +79,10 @@ const Home = () => {
         // If the role is in the allowedRolesForStaff, log them in as staff
         if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
           toast.success("Login successful!");
-          localStorage.setItem("user-info", JSON.stringify({ email, name, token, image }));
+          localStorage.setItem("user-info", JSON.stringify({ email, role, name, token, image }));
           localStorage.setItem("token", token);
           localStorage.setItem("email", email);
+          localStorage.setItem("role", role);
   
           // Fetch user details from the backend
           try {
@@ -97,10 +100,10 @@ const Home = () => {
         } else if (role === selectedRole) {
           // If the role matches the selected role
           toast.success("Login successful!");
-          localStorage.setItem("user-info", JSON.stringify({ email, name, token, image }));
+          localStorage.setItem("user-info", JSON.stringify({ email, name, token, image, role }));
           localStorage.setItem("token", token);
           localStorage.setItem("email", email);
-  
+          localStorage.setItem("role", role);
           try {
             const response = await axios.post("http://localhost:4001/user/details", {
               email: email,

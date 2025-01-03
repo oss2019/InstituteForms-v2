@@ -74,12 +74,12 @@ export const applyForEventApproval = async (req, res) => {
 
     // Create the initial approvals array
     const approvals = [
-      { name: "Club Secretary", status: "Approved", comment: "" },
-      { name: "General Secretary", status: "Pending", comment: "" },
-      { name: "Treasurer", status: "Pending", comment: "" },
-      { name: "President", status: "Pending", comment: "" },
-      { name: "Faculty in Charge", status: "Pending", comment: "" },
-      { name: "Associate Dean", status: "Pending", comment: "" },
+      { role: "club-secretary", status: "Approved", comment: "" },
+      { role: "general-secretary", status: "Pending", comment: "" },
+      { role: "treasurer", status: "Pending", comment: "" },
+      { role: "president", status: "Pending", comment: "" },
+      { role: "faculty-in-charge", status: "Pending", comment: "" },
+      { role: "associate-dean", status: "Pending", comment: "" },
     ];
 
     // Create a new event approval request
@@ -115,145 +115,49 @@ export const applyForEventApproval = async (req, res) => {
   }
 };
 
+//get pending approvals list
 
-// Get Leave Status for a User
-export const getLeaveStatus = async (req, res) => {
-  try {
-      const { userID } = req.body; // Ensure you're getting userID correctly
+const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "faculty-in-charge", "associate-dean"];
 
-      // Use findOne to get only one leave application for the user
-      const leaveApplication = await LeaveApplication.findOne({ userID });
-
-      if (!leaveApplication) {
-          return res.status(404).json({ message: "No leave applications found" });
+export const getPendingApprovals = async (req, res) => {
+    const { role } = req.body;
+  
+    try {
+      if (!role) {
+        return res.status(400).json({ message: "Role is required." });
       }
-
-      res.status(200).json(leaveApplication); // Send the single leave application as a JSON response
-  } catch (error) {
-      console.log("Error:", error.message);
-      res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-
-
-// Warden approval 
-export const updateLeaveStatus = async (req, res) => {
-    try {
-        const { applicationId } = req.params; // Get applicationId from request parameters takes leave id
-        const { status } = req.body; // Get status from request body
-
-        // Validate the status
-        if (!['Pending', 'Approved', 'Rejected'].includes(status)) {
-            return res.status(400).json({ message: "Invalid status. Must be either 'Pending', 'Approved', or 'Rejected'." });
-        }
-
-        // Find the leave application and update the status
-        const updatedApplication = await LeaveApplication.findByIdAndUpdate(
-            applicationId,
-            { status },
-            { new: true } // Return the updated document
-        );
-
-        if (!updatedApplication) {
-            return res.status(404).json({ message: "Leave application not found" });
-        }
-
-        // If status is approved, send email to the user
-        if (status === 'Approved') {
-            const user = await User.findById(updatedApplication.userID);
-            const subject = "Your Leave Application has been Approved";
-            const text = `Dear ${user.name},\n\nYour leave application for ${updatedApplication.placeOfVisit} has been approved.\n\nBest regards,\nYour College`;
-            await sendEmail(user.email, subject, text);
-        }
-
-        res.status(200).json({
-            message: "Leave application status updated successfully.",
-            application: updatedApplication
-        });
+  
+      const roleIndex = roleHierarchy.indexOf(role);
+      if (roleIndex === -1) {
+        return res.status(400).json({ message: "Invalid role." });
+      }
+  
+      // Fetch all event approvals where the current role has "Pending" status
+      const pendingApprovals = await EventApproval.find({
+        "approvals.role": role,
+        "approvals.status": "Pending",
+      });
+  
+      // Filter out approvals where the previous roles have not been "Approved"
+      const validApprovals = pendingApprovals.filter((approval) => {
+        const approvals = approval.approvals;
+  
+        // Check if all previous roles have "Approved" status
+        const previousRolesApproved = roleHierarchy
+          .slice(0, roleIndex) // Get roles before the current role
+          .every((prevRole) => {
+            // Check for each previous role if its status is "Approved"
+            const roleApproval = approvals.find((app) => app.role === prevRole);
+            return roleApproval && roleApproval.status === "Approved";
+          });
+  
+        return previousRolesApproved;
+      });
+  
+      res.status(200).json(validApprovals);
     } catch (error) {
-        console.log("Error:", error.message);
-        res.status(500).json({ message: "Internal server error" });
+      console.error("Error fetching pending approvals:", error);
+      res.status(500).json({ message: "Internal server error." });
     }
-};
-
-// Leave extension 
-export const updateLeaveExtension = async (req, res) => {
-    try {
-        const { applicationId } = req.params;
-        const { newArrivalDate } = req.body;
-
-        const leaveApplication = await LeaveApplication.findById(applicationId);
-
-        if (!leaveApplication) {
-            return res.status(404).json({ message: "Leave application not found" });
-        }
-
-        // Update the arrival date and mark the status as 'Extension'
-        leaveApplication.arrivalDate = newArrivalDate;
-        leaveApplication.status = 'Extension';
-
-        await leaveApplication.save();
-
-        res.status(200).json({
-            message: "Leave extension requested successfully.",
-            application: leaveApplication
-        });
-    } catch (error) {
-        console.log("Error:", error.message);
-        res.status(500).json({ message: "Internal server error" });
-    }
-};
-
-// All leave applications for warden
-export const getAllLeaveApplications = async (req, res) => {
-    try {
-        const applications = await LeaveApplication.find().populate("userID", "name rollNumber email");
-        res.status(200).json(applications);
-    } catch (error) {
-        console.error("Error fetching leave applications:", error);
-        res.status(500).json({ message: "Server error" });
-    }
-};
-
-// Scan leave application
-export const scanLeaveApplication = async (req, res) => {
-    try {
-        const { applicationId } = req.params; // Get applicationId from request parameters
-        const leaveApplication = await LeaveApplication.findById(applicationId);
-
-        if (!leaveApplication) {
-            return res.status(404).json({ message: "Leave application not found" });
-        }
-
-        // Update the scanned field with the current date and time
-        leaveApplication.scanned = new Date();
-        await leaveApplication.save();
-
-        res.status(200).json({
-            message: "Leave application scanned successfully.",
-            application: leaveApplication
-        });
-    } catch (error) {
-        console.log("Error:", error.message);
-        res.status(500).json({ message: "Internal server error" });
-    }
-};
-
-export const deleteLeaveApplication = async (req, res) => {
-    try {
-        const { id } = req.params; // Get applicationId from request parameters
-        const leaveApplication = await LeaveApplication.findByIdAndDelete(id);
-
-        if (!leaveApplication) {
-            return res.status(404).json({ message: "Leave application not found" });
-        }
-
-        res.status(200).json({
-            message: "Leave application deleted successfully.",
-        });
-    } catch (error) {
-        console.log("Error:", error.message);
-        res.status(500).json({ message: "Internal server error" });
-    }
-};
+  };
+  
