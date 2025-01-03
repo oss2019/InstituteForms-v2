@@ -15,6 +15,9 @@ function StudentDashboard() {
     toast.success("Logout successful!"); // Show toast immediately
     setTimeout(() => {
        localStorage.removeItem('token');
+       localStorage.removeItem('email');
+       localStorage.removeItem('user-info');
+       localStorage.removeItem('userID');
       navigate(`/`);
     }, 1700); // Navigate after 2 seconds
   };

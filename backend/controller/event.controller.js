@@ -1,4 +1,4 @@
-import LeaveApplication from "../models/approval.model.js";
+import EventApproval from "../models/event.model.js";
 import User from "../models/user.model.js";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
@@ -35,52 +35,86 @@ const sendEmail = (to, subject, text) => {
 };
 
 
-// Apply for Leave
-export const applyForLeave = async (req, res) => {
-    try {
-        const { placeOfVisit, reason, dateOfLeaving, arrivalDate, emergencyContact } = req.body;
-        const userID = req.body.userID; // Ensure you get this from local storage 
+// Apply for Event approval
 
-        // Fetch user details to check if required fields are filled
-        const user = await User.findById(userID);
+export const applyForEventApproval = async (req, res) => {
+  try {
+    const {
+      name,
+      designation,
+      phoneNumber,
+      email,
+      dateFrom,
+      dateTo,
+      eventCategory,
+      venue,
+      helpRequired,
+      description,
+    } = req.body;
 
-        // Check if required user details are filled
-        if (!user.phnumber || !user.roomNumber || !user.year || !user.course || !user.hostel) {
-            return res.status(400).json({ message: "Please complete your profile with phone number, room number, year, and course before applying for leave." });
-        }
+    const userID = req.body.userID; // Ensure this is retrieved correctly (e.g., from the request or session).
 
-        // Check for pending leave applications for the user
-        const existingApplication = await LeaveApplication.findOne({
-            userID,
-            status: 'Pending'
-        });
-
-        if (existingApplication) {
-            return res.status(400).json({ message: "You already have a pending leave application." });
-        }
-
-        // If no pending leave application, proceed to create a new leave application
-        const newApplication = new LeaveApplication({
-            userID,
-            placeOfVisit,
-            reason,
-            dateOfLeaving,
-            arrivalDate,
-            emergencyContact
-        });
-
-        await User.findByIdAndUpdate(userID, { leaveApplication: newApplication._id });
-
-        await newApplication.save();
-        res.status(201).json({
-            message: "Leave application submitted successfully.",
-            application: newApplication
-        });
-    } catch (error) {
-        console.log("error:", error.message);
-        res.status(500).json({ message: "Internal server error" });
+    // Fetch user details to ensure they exist
+    const user = await User.findById(userID);
+    if (!user) {
+      return res.status(404).json({ message: "User not found. Please log in again." });
     }
+
+    // Check for any existing event approval in progress for this user
+    const existingEvent = await EventApproval.findOne({
+      userID,
+      "approvals.status": { $in: ["Pending"] },
+    });
+
+    if (existingEvent) {
+      return res
+        .status(400)
+        .json({ message: "You already have a pending event approval request." });
+    }
+
+    // Create the initial approvals array
+    const approvals = [
+      { name: "Club Secretary", status: "Approved", comment: "" },
+      { name: "General Secretary", status: "Pending", comment: "" },
+      { name: "Treasurer", status: "Pending", comment: "" },
+      { name: "President", status: "Pending", comment: "" },
+      { name: "Faculty in Charge", status: "Pending", comment: "" },
+      { name: "Associate Dean", status: "Pending", comment: "" },
+    ];
+
+    // Create a new event approval request
+    const newEventApproval = new EventApproval({
+      userID,
+      name,
+      designation,
+      phoneNumber,
+      email,
+      dateFrom,
+      dateTo,
+      eventCategory,
+      venue,
+      helpRequired,
+      description,
+      approvals,
+    });
+
+     // Save the new approval
+     const savedApproval = await newEventApproval.save();
+
+     // Update the user's `eventApproval` field with the new approval ID
+     user.eventApproval = savedApproval._id;
+     await user.save();
+
+    res.status(201).json({
+      message: "Event approval request submitted successfully.",
+      eventApproval: newEventApproval,
+    });
+  } catch (error) {
+    console.error("Error submitting event approval request:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
+
 
 // Get Leave Status for a User
 export const getLeaveStatus = async (req, res) => {

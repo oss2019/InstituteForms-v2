@@ -19,7 +19,7 @@ function App() {
           <Route
             path="/club-secretary"
             element={
-              <ProtectedRoute requiredRole="club-secretary">
+              <ProtectedRoute requiredRoles={["club-secretary"]}>
                 <StudentDashboard />
               </ProtectedRoute>
             }
@@ -27,7 +27,7 @@ function App() {
           <Route
             path="/staff"
             element={
-              <ProtectedRoute requiredRole="staff">
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "faculty-in-charge", "associate-dean"]}>
                 <StaffDashboard />
               </ProtectedRoute>
             }

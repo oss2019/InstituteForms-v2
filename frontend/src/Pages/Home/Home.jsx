@@ -65,30 +65,57 @@ const Home = () => {
         const { email, name, image, role } = result.data.user;
         const token = result.data.token;
   
-        if (role !== selectedRole) {
-          toast.error("Not authorized for this role.");
-          return;
-        }
+        // Special roles that should be allowed to log in as staff
+        const allowedRolesForStaff = [
+          "president",
+          "treasurer",
+          "faculty-in-charge",
+          "associate-dean",
+          "general-secretary",
+        ];
   
-        const obj = { email, name, token, image };
-        localStorage.setItem("user-info", JSON.stringify(obj));
-        localStorage.setItem("token", obj.token);
-        localStorage.setItem("email", obj.email);
-        
-        try {
-          const response = await axios.post("http://localhost:4001/user/details", {
-            email: obj.email
-          });
-          setUserData(response.data);
-          localStorage.setItem("userID", response.data._id);
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-          setError("Failed to load user data");
+        // If the role is in the allowedRolesForStaff, log them in as staff
+        if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
+          toast.success("Login successful!");
+          localStorage.setItem("user-info", JSON.stringify({ email, name, token, image }));
+          localStorage.setItem("token", token);
+          localStorage.setItem("email", email);
+  
+          // Fetch user details from the backend
+          try {
+            const response = await axios.post("http://localhost:4001/user/details", {
+              email: email,
+            });
+            setUserData(response.data);
+            localStorage.setItem("userID", response.data._id);
+          } catch (error) {
+            console.error("Error fetching user data:", error);
+            setError("Failed to load user data");
+          }
+  
+          setTimeout(() => navigate(`/staff`), 1000);
+        } else if (role === selectedRole) {
+          // If the role matches the selected role
+          toast.success("Login successful!");
+          localStorage.setItem("user-info", JSON.stringify({ email, name, token, image }));
+          localStorage.setItem("token", token);
+          localStorage.setItem("email", email);
+  
+          try {
+            const response = await axios.post("http://localhost:4001/user/details", {
+              email: email,
+            });
+            setUserData(response.data);
+            localStorage.setItem("userID", response.data._id);
+          } catch (error) {
+            console.error("Error fetching user data:", error);
+            setError("Failed to load user data");
+          }
+  
+          setTimeout(() => navigate(`/${selectedRole}`), 1000);
+        } else {
+          toast.error("Not authorized for this role.");
         }
-        console.log(obj)
-
-        toast.success("Google Login successful!");
-        setTimeout(() => navigate(`/${selectedRole}`), 1000);
       } else {
         throw new Error("Invalid Google Auth response");
       }
@@ -97,6 +124,7 @@ const Home = () => {
       toast.error("Google Login failed. Please try again.");
     }
   };
+  
   
 
   const googleLogin = useGoogleLogin({
