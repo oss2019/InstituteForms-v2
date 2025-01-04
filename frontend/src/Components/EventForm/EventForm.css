@@ -1,57 +1,79 @@
-.leave-container {
-    display: flex;
-    justify-content: center; /* Center horizontally */
-    align-items: center; /* Center vertically */
-    height: 100%; /* Take full height of the parent */
-    padding: 20px; /* Add some padding */
-    background-color: #f9f9f9; /* Light background color */
-  }
-  
-  .leave-form {
-    background-color: white; /* White background for the form */
-    padding: 30px; /* Inner padding */
-    border-radius: 15px; /* Rounded corners */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); /* Soft shadow */
-    width: 100%; /* Full width */
-    max-width: 400px; /* Max width for form */
-    transition: transform 0.3s ease; /* Smooth transition on hover */
-  }
-  
-  .form-title {
-    font-size: 24px; /* Title font size */
-    margin-bottom: 20px; /* Space below title */
-    text-align: center; /* Center the title text */
-  }
-  
-  .form-input {
-    width: 100%; /* Full width */
-    padding: 10px; /* Inner padding */
-    margin: 10px 0; /* Space between inputs */
-    border: 1px solid #ddd; /* Light border */
-    border-radius: 5px; /* Rounded corners */
-    font-size: 16px; /* Font size */
-    transition: border-color 0.3s; /* Smooth border color change */
-  }
-  
-  .form-input:focus {
-    border-color: #007bff; /* Change border color on focus */
-    outline: none; /* Remove default outline */
-  }
-  
-  .form-button {
-    width: 100%; /* Full width */
-    padding: 10px; /* Inner padding */
-    margin-top: 20px; /* Space above button */
-    border: none; /* Remove border */
-    border-radius: 5px; /* Rounded corners */
-    background-color: #007bff; /* Blue background */
-    color: white; /* White text */
-    font-size: 16px; /* Font size */
-    cursor: pointer; /* Pointer on hover */
-    transition: background-color 0.3s; /* Smooth background color change */
-  }
-  
-  .form-button:hover {
-    background-color: #0056b3; /* Darker blue on hover */
-  }
-  
+/* Styling for the container */
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Styling for the header */
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Styling for form labels */
+label {
+  font-weight: bold;
+  color: #555;
+}
+
+/* Styling for inputs and textareas */
+.form-control,
+.form-input {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+/* Styling for checkboxes */
+.form-check-input {
+  margin-right: 10px;
+}
+
+/* Button styling */
+.btn-primary {
+  background-color: #007bff;
+  border-color: #007bff;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+/* Add spacing between form groups */
+.mb-3 {
+  margin-bottom: 15px;
+}
+
+.date-inputs-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px; /* Add spacing between inputs */
+}
+
+.date-input-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Make both inputs take equal space */
+}
+
+.form-label {
+  margin-bottom: 5px; /* Add spacing below the label */
+}
+
+.form-input {
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
