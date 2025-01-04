@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ListOfLeaves from '../../Components/ListOfLeaves/ListOfLeaves'; // Import the ListOfLeaves component
+import PendingApprovals from '../../Components/PendingApprovals/PendingApprovals'; // Import the ListOfLeaves component
 import ListOfOutings from '../../Components/ListOfOutings/ListOfOutings'; // Import the ListOfOutings component
 import './StaffDashboard.css'; // Import styles
-import Dashboard from '../../Components/WardenDashboard/Dashboard';
+import Dashboard from '../../Components/StaffDashboard/Dashboard';
 import toast, { Toaster } from "react-hot-toast";
 
 function StaffDashboard() {
   const [activeSection, setActiveSection] = useState('dashboard'); // Set default active section
   const [direction, setDirection] = useState('down');
   const navigate = useNavigate();
+  const [role, setRole] = useState('general-secretary');
 
   const handleLogout = () => {
     toast.success("Logout successful!"); // Show toast immediately
@@ -18,6 +19,23 @@ function StaffDashboard() {
       navigate(`/`);
     }, 1700); // Navigate after 2 seconds
   };
+
+  const roleMapping = {
+    'general-secretary': 'General Secretary',
+    'treasurer': 'Treasurer',
+    'president': 'President',
+    'faculty-in-charge': 'Faculty In Charge',
+    'associate-dean': 'Associate Dean',
+  };
+
+  useEffect(() => {
+    const storedRole = localStorage.getItem('role');
+    if (storedRole) {
+      const displayRole = roleMapping[storedRole] || 'Staff'; // Map role or fallback to default
+      setRole(displayRole);
+    }
+  }, []);
+
 
   const handleSectionChange = (newSection) => {
     setDirection(newSection === 'dashboard' ? 'up' : 'down'); // Set animation direction based on section
@@ -28,8 +46,8 @@ function StaffDashboard() {
     switch (activeSection) {
       case 'dashboard':
         return <Dashboard />;
-      case 'listOfLeaves':
-        return <ListOfLeaves />; // Render ListOfLeaves component
+      case 'pendingApprovals':
+        return <PendingApprovals />; // Render ListOfLeaves component
       case 'listOfOutings':
         return <ListOfOutings />; // Render ListOfOutings component
       default:
@@ -45,16 +63,17 @@ function StaffDashboard() {
               className={`sidebar-button ${activeSection === 'dashboard' ? 'active' : ''}`}
               onClick={() => handleSectionChange('dashboard')}
           >
-            Staff Dashboard
+            <div>{role}</div> 
+            <div>Dashboard</div>
           </button>
         </h2>
         <ul className="sidebar-menu">
-          <li>
+        <li>
             <button 
               className={`sidebar-button ${activeSection === 'listOfLeaves' ? 'active' : ''}`}
-              onClick={() => handleSectionChange('listOfLeaves')} // Change section to List of Leaves
+              onClick={() => handleSectionChange('pendingApprovals')} // Change section to List of Leaves
             >
-              List of Event Approvals
+              Pending Applications
             </button>
           </li>
           <li>

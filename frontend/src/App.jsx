@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import Home from "./Pages/Home/Home.jsx";
 import ProtectedRoute from "./Components/ProtectedRoute/ProtectedRoute.jsx";
 import StudentDashboard from "./Pages/Student DashBoard/StudentDashboard.jsx";
-import StaffDashboard from "./Pages/StaffDashboard/StaffDashboard.jsx";
+import StaffDashboard from "./Pages/Staff Dashboard/StaffDashboard.jsx";
 import { Toaster } from "react-hot-toast"; // Import the Toaster component
 import PageNotFound from "./Pages/Page Not Found/PageNotFound.jsx";
 import { GoogleOAuthProvider } from "@react-oauth/google"; // Import GoogleOAuthProvider

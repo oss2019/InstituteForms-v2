@@ -22,37 +22,6 @@ const Home = () => {
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState("");
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const email = formData.get("email");
-    const password = formData.get("password");
-
-    let userData = isSignup
-      ? { email, password, category: selectedCategory || "" }
-      : { email, password };
-
-    try {
-      const response = await axios.post(
-        `http://localhost:4001/user/${isSignup ? "signup" : "login"}`,
-        userData
-      );
-
-      if (response.data.user.role !== selectedRole) {
-        toast.error("Not Authorized for Login");
-        return;
-      }
-      toast.success("Login successful!");
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("email", response.data.email);
-      setTimeout(() => navigate(`/${selectedRole}`), 1000);
-    } catch (error) {
-      if (error.response) {
-        console.log(error);
-        toast.error("Error: " + error.response.data.message);
-      }
-    }
-  };
 
   const responseGoogle = async (authResult) => {
     try {
@@ -62,7 +31,7 @@ const Home = () => {
           token: authResult.credential,
         });
   
-        const { email, name, image, role } = result.data.user;
+        const { email, name, image, role, category } = result.data.user;
         console.log(result.data)
         const token = result.data.token;
     
@@ -79,10 +48,11 @@ const Home = () => {
         // If the role is in the allowedRolesForStaff, log them in as staff
         if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
           toast.success("Login successful!");
-          localStorage.setItem("user-info", JSON.stringify({ email, role, name, token, image }));
+          localStorage.setItem("user-info", JSON.stringify({ email, role, name, token, image, category }));
           localStorage.setItem("token", token);
           localStorage.setItem("email", email);
           localStorage.setItem("role", role);
+          localStorage.setItem("category", category);
   
           // Fetch user details from the backend
           try {
@@ -100,10 +70,11 @@ const Home = () => {
         } else if (role === selectedRole) {
           // If the role matches the selected role
           toast.success("Login successful!");
-          localStorage.setItem("user-info", JSON.stringify({ email, name, token, image, role }));
+          localStorage.setItem("user-info", JSON.stringify({ email, name, token, image, role, category }));
           localStorage.setItem("token", token);
           localStorage.setItem("email", email);
           localStorage.setItem("role", role);
+          localStorage.setItem("category", category);
           try {
             const response = await axios.post("http://localhost:4001/user/details", {
               email: email,

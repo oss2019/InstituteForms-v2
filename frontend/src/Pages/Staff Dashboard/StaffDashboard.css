@@ -99,3 +99,15 @@
     overflow-y: auto; /* Allow vertical scrolling */
   }
 }
+.sidebar-title {
+  text-align: center;
+}
+
+.sidebar-button div {
+  line-height: 1.5; /* Adjust spacing between lines if needed */
+}
+
+.sidebar-button {
+  font-size: 1.2rem; /* Adjust the size */
+  font-weight: normal;
+}

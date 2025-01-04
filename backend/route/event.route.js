@@ -7,8 +7,8 @@ const router = express.Router();
 
 router.post("/apply", applyForEventApproval);
 
-router.get("/pending", getPendingApprovals);
-router.get("/approved", getApprovedApplications);
+router.post("/pending", getPendingApprovals);
+router.post("/approved", getApprovedApplications);
 router.patch("/approve", approveApplication);
 // router.post("/status",getLeaveStatus); 
 // router.put("/update/:applicationId", updateLeaveStatus);
