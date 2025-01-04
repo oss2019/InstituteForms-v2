@@ -7,30 +7,30 @@ dotenv.config();
 
 // Configure nodemailer
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
 });
 
 
 const sendEmail = (to, subject, text) => {
   const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to,
-      subject,
-      text
+    from: process.env.EMAIL_USER,
+    to,
+    subject,
+    text
   };
 
   console.log('Attempting to send email to:', to);
 
   transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-          console.error('Error sending email:', error);
-      } else {
-          console.log('Email sent:', info.response);
-      }
+    if (error) {
+      console.error('Error sending email:', error);
+    } else {
+      console.log('Email sent:', info.response);
+    }
   });
 };
 
@@ -40,36 +40,46 @@ const sendEmail = (to, subject, text) => {
 export const applyForEventApproval = async (req, res) => {
   try {
     const {
-      name,
+      userID,
+      eventName,
+      partOfGymkhanaCalendar,
+      eventType,
+      clubName,
+      startDate,
+      endDate,
+      eventVenue,
+      sourceOfBudget,
+      estimatedBudget,
+      nameOfTheOrganizer,
       designation,
-      phoneNumber,
       email,
-      dateFrom,
-      dateTo,
-      eventCategory,
-      venue,
-      helpRequired,
-      description,
+      phoneNumber,
+      requirements,
+      anyAdditionalAmenities,
+      eventDescription,
+      internalParticipants,
+      externalParticipants,
+      listOfCollaboratingOrganizations,
     } = req.body;
 
-    const userID = req.body.userID; // Ensure this is retrieved correctly (e.g., from the request or session).
+    console.log("Incoming Payload:", req.body);
+
+    const userID_ = req.body.userID; // Ensure this is retrieved correctly (e.g., from the request or session).
 
     // Fetch user details to ensure they exist
-    const user = await User.findById(userID);
+    const user = await User.findById(userID_);
     if (!user) {
       return res.status(404).json({ message: "User not found. Please log in again." });
     }
 
     // Check for any existing event approval in progress for this user
     const existingEvent = await EventApproval.findOne({
-      userID,
+      userID_,
       "approvals.status": { $in: ["Pending"] },
     });
 
     if (existingEvent) {
-      return res
-        .status(400)
-        .json({ message: "You already have a pending event approval request." });
+      return res.status(400).json({ message: "You already have a pending event approval request." });
     }
 
     // Create the initial approvals array
@@ -85,31 +95,44 @@ export const applyForEventApproval = async (req, res) => {
     // Create a new event approval request
     const newEventApproval = new EventApproval({
       userID,
-      name,
+      eventName,
+      partOfGymkhanaCalendar,
+      eventType,
+      clubName,
+      startDate,
+      endDate,
+      eventVenue,
+      sourceOfBudget,
+      estimatedBudget,
+      nameOfTheOrganizer,
       designation,
-      phoneNumber,
       email,
-      dateFrom,
-      dateTo,
-      eventCategory,
-      venue,
-      helpRequired,
-      description,
+      phoneNumber,
+      requirements,
+      anyAdditionalAmenities,
+      eventDescription,
+      internalParticipants,
+      externalParticipants,
+      listOfCollaboratingOrganizations,
       approvals,
     });
 
-     // Save the new approval
-     const savedApproval = await newEventApproval.save();
+    // Save the new approval
+    const savedApproval = await newEventApproval.save();
 
-     // Update the user's `eventApproval` field with the new approval ID
-     user.eventApproval = savedApproval._id;
-     await user.save();
+    // Update the user's `eventApproval` field with the new approval ID
+    user.eventApproval = savedApproval._id;
+    await user.save();
 
     res.status(201).json({
       message: "Event approval request submitted successfully.",
       eventApproval: newEventApproval,
     });
   } catch (error) {
+    if (error.name === "ValidationError") {
+      console.error("Validation Error:", error.errors);
+      return res.status(400).json({ message: "Validation error", errors: error.errors });
+    }
     console.error("Error submitting event approval request:", error.message);
     res.status(500).json({ message: "Internal server error" });
   }
@@ -244,39 +267,39 @@ export const getApprovedApplications = async (req, res) => {
 
 // Function to approve an application based on the role
 export const approveApplication = async (req, res) => {
-    const { applicationId, role } = req.body;
+  const { applicationId, role } = req.body;
 
-    try {
-        // Check if the role is valid
-        if (!role || !roleHierarchy.includes(role)) {
-            return res.status(400).json({ message: "Invalid or missing role." });
-        }
-
-        // Find the event approval by applicationId
-        const eventApproval = await EventApproval.findById(applicationId);
-        if (!eventApproval) {
-            return res.status(404).json({ message: "Event approval not found." });
-        }
-
-        // Find the index of the approval object corresponding to the given role
-        const approvalIndex = eventApproval.approvals.findIndex(
-            (approval) => approval.role === role && approval.status === "Pending"
-        );
-
-        if (approvalIndex === -1) {
-            return res.status(400).json({ message: "No pending approval found for this role." });
-        }
-
-        // Update the status of the approval to "Approved"
-        eventApproval.approvals[approvalIndex].status = "Approved";
-
-        // Save the updated event approval document
-        await eventApproval.save();
-
-        // Optionally, you can also send a notification email or take further actions here
-        res.status(200).json({ message: `${role} approved the application successfully.` });
-    } catch (error) {
-        console.error("Error approving application:", error);
-        res.status(500).json({ message: "Internal server error." });
+  try {
+    // Check if the role is valid
+    if (!role || !roleHierarchy.includes(role)) {
+      return res.status(400).json({ message: "Invalid or missing role." });
     }
+
+    // Find the event approval by applicationId
+    const eventApproval = await EventApproval.findById(applicationId);
+    if (!eventApproval) {
+      return res.status(404).json({ message: "Event approval not found." });
+    }
+
+    // Find the index of the approval object corresponding to the given role
+    const approvalIndex = eventApproval.approvals.findIndex(
+      (approval) => approval.role === role && approval.status === "Pending"
+    );
+
+    if (approvalIndex === -1) {
+      return res.status(400).json({ message: "No pending approval found for this role." });
+    }
+
+    // Update the status of the approval to "Approved"
+    eventApproval.approvals[approvalIndex].status = "Approved";
+
+    // Save the updated event approval document
+    await eventApproval.save();
+
+    // Optionally, you can also send a notification email or take further actions here
+    res.status(200).json({ message: `${role} approved the application successfully.` });
+  } catch (error) {
+    console.error("Error approving application:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
 };

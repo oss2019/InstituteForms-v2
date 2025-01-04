@@ -9,7 +9,7 @@ import staffIcon from "/staff.png";
 import Footer from "../../Components/Footer/Footer";
 import axios from "axios";
 import { useGoogleLogin } from "@react-oauth/google";
-import { googleAuth } from "./api";
+// import { googleAuth } from "./api";
 import { GoogleLogin } from "@react-oauth/google";
 
 const Home = () => {

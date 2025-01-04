@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import "bootstrap/dist/css/bootstrap.min.css";
 import toast, { Toaster } from "react-hot-toast";
 import "./EventForm.css";
+import API from '../../api/api';  // Go back two directories to access src/api/api.js
 
 const EventForm = () => {
   const [formData, setFormData] = useState({
@@ -83,7 +84,71 @@ const EventForm = () => {
     }));
   };
 
+  const validateForm = () => {
+    const requiredFields = [
+      "eventName", 
+      "partOfGymkhanaCalendar", 
+      "eventType", 
+      "clubName", 
+      "startDate", 
+      "endDate", 
+      "eventVenue", 
+      "sourceOfBudget", 
+      "estimatedBudget", 
+      "nameOfTheOrganizer", 
+      "designation", 
+      "email", 
+      "phoneNumber", 
+      "eventDescription", 
+      "externalParticipants", 
+      "internalParticipants"
+    ];
+  
+    for (let field of requiredFields) {
+      if (!formData[field]) {
+        return false;  // Return false if any required field is empty
+      }
+    }
+    
+    // Additional check for listOfCollaboratingOrganizations if externalParticipants > 0
+    if (formData.externalParticipants > 0 && !formData.listOfCollaboratingOrganizations) {
+      return false;
+    }
+  
+    return true;
+  };
+  
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      toast.error("All fields are required to be filled!");
+      return; // Do not proceed if the form is not valid
+    }
+
+    const userID = localStorage.getItem("userID");
+
+    // Include userID and match backend schema
+    const requestData = {
+      ...formData,
+      userID,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+    };
+
+    try {
+      const response = await API.post("/event/apply", requestData);
+      toast.success(response.data.message);
+    } catch (error) {
+      console.error("Error submitting event approval:", error.message);
+      toast.error(error.response?.data?.message || "Failed to submit the event approval.");
+    }
+  };
+
   const generatePDF = async () => {
+    // if (!validateForm()) {
+    //   toast.error("All fields are required to be filled!");
+    //   return; // Do not proceed if the form is not valid
+    // }
+
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const headerHeight = 40; // Adjust as needed
@@ -152,7 +217,12 @@ const EventForm = () => {
       //Description of the Event
       const marginLeft = 10;
       doc.text("Brief Description of the Event: ", marginLeft, 200).setFont(undefined, 'normal').text("(A 4-line description is to be furnished)", marginLeft + 63, 200);
-      doc.text(`${formData.eventDescription}`, marginLeft, 205);
+      
+      // Wrap the text with maxWidth parameter
+      const maxWidth = pageWidth - 20;  // Adjust max width based on your page layout
+      // Text wrapping for event description
+      doc.text(`${formData.eventDescription}`, marginLeft, 205, { maxWidth: maxWidth });
+      
       doc.setFont(undefined, 'bold');
       doc.text(`Expected Number of Participants: (External: ${formData.externalParticipants}      Internal: ${formData.internalParticipants}        )`, marginLeft, 230);
       doc.setFont(undefined, 'normal');
@@ -235,6 +305,7 @@ const EventForm = () => {
       // Save PDF
       // doc.save(`${formData.eventName || "Event"}-Permission-Request.pdf`);
     };
+
   };
 
   // generatePDF();
@@ -542,8 +613,18 @@ const EventForm = () => {
         </div>
 
         {/* Disable the button if the agreement checkbox is not checked */}
-        <button type="button" className="btn btn-primary" onClick={generatePDF} disabled={!isAgreementChecked}>
+        <button type="button" className="mb-3 btn btn-primary" onClick={generatePDF} disabled={!isAgreementChecked}>
           Generate PDF
+        </button>
+
+        {/* Submit button */}
+        <button
+          type="button"
+          className="btn btn-success"
+          onClick={handleSubmit}
+          disabled={!isAgreementChecked}
+        >
+          Submit for Approval
         </button>
       </form>
 
