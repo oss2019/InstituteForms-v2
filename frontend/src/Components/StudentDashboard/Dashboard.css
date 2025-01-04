@@ -1,5 +1,6 @@
 /* Dashboard.css */
 
+/* Existing styles */
 .dashboard-container {
   display: flex;
   flex-direction: column;
@@ -29,6 +30,15 @@ h2 {
   padding: 15px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
+}
+
+/* New styles for card statuses */
+.card.pending {
+  background-color: yellow; /* Yellow for pending status */
+}
+
+.card.approved {
+  background-color: lightgreen; /* Green for approved status */
 }
 
 .card h3 {

@@ -1,51 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import './Dashboard.css';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import "./Dashboard.css";
 
 const Dashboard = () => {
-  const [upcomingLeave, setUpcomingLeave] = useState(null);
-  const [upcomingOuting, setUpcomingOuting] = useState(null);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchLeaveStatus = async () => {
+    const fetchEventStatus = async () => {
       const userId = localStorage.getItem("userID");
       try {
-        const leavesResponse = await axios.post(`http://localhost:4001/leave/status`, {
-          userID: userId 
+        const response = await axios.post("http://localhost:4001/event/user-events", {
+          userID: userId,
         });
-        // Set leave application if response is valid
-        setUpcomingLeave(leavesResponse.data);
+        // Set events data if response is valid
+        setEvents(response.data.events || []);
       } catch (error) {
-        console.error("Leave error:", error.response?.data || error.message);
-        // Set to null if leave application is not found
-        setUpcomingLeave(null);
+        console.error("Error fetching events:", error.response?.data || error.message);
+        setEvents([]); // Set to empty if no events are found
+      } finally {
+        setLoading(false);
       }
     };
 
-    const fetchOutingStatus = async () => {
-      const userId = localStorage.getItem("userID");
-      try {
-        const outingsResponse = await axios.post(`http://localhost:4001/out/status`, {
-          userID: userId 
-        });
-        // Set outing application if response is valid
-        setUpcomingOuting(outingsResponse.data.outingRequest);
-      } catch (error) {
-        console.error("Outing error:", error.response.data || error.message);
-        // Set to null if outing application is not found
-        setUpcomingOuting(null);
-      }
-    };
-
-    // Fetch both statuses
-    const fetchData = async () => {
-      setLoading(true);
-      await Promise.all([fetchLeaveStatus(), fetchOutingStatus()]);
-      setLoading(false);
-    };
-
-    fetchData();
+    fetchEventStatus();
   }, []);
 
   return (
@@ -55,36 +33,32 @@ const Dashboard = () => {
       ) : (
         <>
           <div className="section">
-            <h2>Upcoming Leave</h2>
+            <h2>My Event Applications</h2>
             <div className="card-container">
-              {upcomingLeave ? (
-                <div className="card">
-                  <h3>Place of Visit: {upcomingLeave.placeOfVisit}</h3>
-                  <p>Reason: {upcomingLeave.reason}</p>
-                  <p>Date of Leaving: {new Date(upcomingLeave.dateOfLeaving).toLocaleDateString()}</p>
-                  <p>Arrival Date: {new Date(upcomingLeave.arrivalDate).toLocaleDateString()}</p>
-                  <p>Emergency Contact: {upcomingLeave.emergencyContact}</p>
-                  <p>Status: {upcomingLeave.status}</p>
-                </div>
-              ) : (
-                <p>No upcoming leave applications found.</p>
-              )}
-            </div>
-          </div>
+              {events.length > 0 ? (
+                events.map((event) => {
+                  const status = event.approvals.find(
+                    (app) => app.role === "associate-dean"
+                  )?.status || "Pending";
 
-          <div className="section">
-            <h2>Upcoming Outing</h2>
-            <div className="card-container">
-              {upcomingOuting ? (
-                <div className="card">
-                  <h3>Place of Visit: {upcomingOuting.placeOfVisit}</h3>
-                  <p>Reason: {upcomingOuting.reason}</p>
-                  <p>Outing Time: {new Date(upcomingOuting.outTime).toLocaleDateString()}</p>
-                  <p>Emergency Contact: {upcomingOuting.emergencyContact}</p>
-                  <p>Status: {upcomingOuting.status}</p>
-                </div>
+                  // Determine the class for the card based on status
+                  const cardClass = status.toLowerCase() === "approved" ? "approved" : "pending";
+
+                  return (
+                    <div key={event._id} className={`card ${cardClass}`}>
+                      <h3><b>Event Name:</b> {event.eventName}</h3>
+                      <p><b>Club:</b> {event.clubName}</p>
+                      <p><b>Venue:</b> {event.eventVenue}</p>
+                      <p>
+                        <b>Duration:</b> {new Date(event.startDate).toLocaleDateString()} to{" "}
+                        {new Date(event.endDate).toLocaleDateString()}
+                      </p>
+                      <p><b>Status:</b> {status}</p>
+                    </div>
+                  );
+                })
               ) : (
-                <p>No upcoming outing applications found.</p>
+                <p>No events found.</p>
               )}
             </div>
           </div>

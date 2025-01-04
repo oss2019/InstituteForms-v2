@@ -138,6 +138,23 @@ export const applyForEventApproval = async (req, res) => {
   }
 };
 
+export const getUserEvents = async (req, res) => {
+  const { userID } = req.body;
+
+  try {
+    // Find events associated with the user's ID
+    const events = await EventApproval.find({ userID });
+    if (!events || events.length === 0) {
+      return res.status(404).json({ message: "No events found for this user." });
+    }
+
+    res.status(200).json({ events });
+  } catch (error) {
+    console.error("Error fetching user events:", error.message);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
 //get pending approvals list
 //put in staff dashboard Pending section
 
