@@ -55,7 +55,7 @@ const ListOfLeaves = () => {
 
   return (
     <div className="list-of-leaves">
-      <h2>Pending Event Approvals</h2>
+      <h2>Pending Event Applications</h2>
       {loading ? (
         <p>Loading leaves...</p>
       ) : error ? (
@@ -66,13 +66,13 @@ const ListOfLeaves = () => {
             <Col md={6} key={approval._id}>
               <Card className="dashboard-card mb-4">
                 <Card.Body>
-                  <Card.Title>{approval.eventCategory || 'Unknown Event'}</Card.Title>
+                  <Card.Title>{`${approval.eventType} Event` || 'Unknown Event'}</Card.Title>
                   <Card.Text>
-                    <strong>Organizer:</strong> {approval.name || 'Unknown Organizer'} <br />
+                    <strong>Organizer:</strong> {approval.nameOfTheOrganizer || 'Unknown Organizer'} <br />
                     <strong>Email:</strong> {approval.email || 'No Email Provided'} <br />
-                    <strong>Event Category:</strong> {approval.eventCategory} <br />
-                    <strong>Venue:</strong> {approval.venue || 'Venue not specified'} <br />
-                    <strong>Date:</strong> {new Date(approval.dateFrom).toLocaleDateString()} - {new Date(approval.dateTo).toLocaleDateString()} <br />
+                    <strong>Event Name:</strong> {approval.eventName} <br />
+                    <strong>Venue:</strong> {approval.eventVenue || 'Venue not specified'} <br />
+                    <strong>Date:</strong> {new Date(approval.startDate).toLocaleDateString()} - {new Date(approval.endDate).toLocaleDateString()} <br />
                     <strong>Status:</strong> {approval.approvals.find(app => app.role === 'general-secretary')?.status || 'Pending'}
                   </Card.Text>
                   <Button
@@ -93,7 +93,7 @@ const ListOfLeaves = () => {
             </Col>
           ))}
           {pendingApprovals.length === 0 && !loading && (
-            <p>No pending event approvals available.</p>
+            <p>No Pending Event Applications available.</p>
           )}
         </Row>
       )}

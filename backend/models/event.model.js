@@ -35,7 +35,7 @@ const eventApprovalSchema = new Schema({
           "faculty-in-charge",
           "associate-dean",
         ],
-        required: false,
+        required: true,
       },
       status: {
         type: String,

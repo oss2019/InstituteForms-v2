@@ -176,6 +176,7 @@ export const getPendingApprovals = async (req, res) => {
     // Find all applications with the specified role
     let pendingApprovals = await EventApproval.find({
       "approvals.role": role,
+      "approvals.status": "Pending", // Fetch only pending applications
     });
 
     // If no applications are found, return a response and exit
@@ -183,31 +184,26 @@ export const getPendingApprovals = async (req, res) => {
       return res.status(200).json({ message: "No applications found." });
     }
 
-    // Filter out those with a status of 'Pending'
-    pendingApprovals = pendingApprovals.filter((approval) => {
-      const approvalStatus = approval.approvals.find(
-        (app) => app.role === role
-      );
-      return approvalStatus && approvalStatus.status === "Pending";
-    });
+    // // Filter out those with a status of 'Pending'
+    // pendingApprovals = pendingApprovals.filter((approval) => {
+    //   const approvalStatus = approval.approvals.find(
+    //     (app) => app.role === role
+    //   );
+    //   return approvalStatus && approvalStatus.status === "Pending";
+    // });
 
     // Ensure previous roles in the hierarchy are approved
     pendingApprovals = pendingApprovals.filter((approval) => {
-      const approvals = approval.approvals;
-      const previousRolesApproved = roleHierarchy
-        .slice(0, roleIndex) // Slice roles before the current one
-        .every((prevRole) => {
-          const roleApproval = approvals.find((app) => app.role === prevRole);
-          return roleApproval && roleApproval.status === "Approved";
-        });
-
-      return previousRolesApproved;
+      return roleHierarchy.slice(0, roleIndex).every((prevRole) => {
+        const prevApproval = approval.approvals.find((app) => app.role === prevRole);
+        return prevApproval && prevApproval.status === "Approved";
+      });
     });
 
     // If 'general-secretary', filter by event category
     if (role === "general-secretary" && category) {
       pendingApprovals = pendingApprovals.filter(
-        (approval) => approval.eventCategory === category
+        (approval) => approval.eventType === category
       );
     }
 
@@ -222,55 +218,52 @@ export const getPendingApprovals = async (req, res) => {
 export const getApprovedApplications = async (req, res) => {
   const { role, category } = req.body;
 
+  console.log("Received role:", role);
+  console.log("Received category:", category);
+
   try {
     if (!role) {
       return res.status(400).json({ message: "Role is required." });
     }
 
-    const roleIndex = roleHierarchy.indexOf(role);
-    if (roleIndex === -1) {
-      return res.status(400).json({ message: "Invalid role." });
-    }
-
-    // Find all applications with the specified role
+    // Fetch only events with matching role and approved status
     let approvedApplications = await EventApproval.find({
-      "approvals.role": role,
+      "approvals": {
+        $elemMatch: {
+          role: role,
+          status: "Approved"
+        }
+      }
     });
 
-    // If no applications are found, return a response and exit
+    console.log("Initial approved applications:", approvedApplications);
+
     if (approvedApplications.length === 0) {
-      return res.status(200).json({ message: "No applications found." });
+      return res.status(200).json([]);
     }
 
-    // Filter out those with a status of 'Approved'
-    approvedApplications = approvedApplications.filter((approval) => {
-      const approvalStatus = approval.approvals.find(
-        (app) => app.role === role
-      );
-      return approvalStatus && approvalStatus.status === "Approved";
-    });
-
-    // If 'general-secretary', filter by event category
+    // Filter by category if role is 'general-secretary'
     if (role === "general-secretary" && category) {
       approvedApplications = approvedApplications.filter(
-        (approval) => approval.eventCategory === category
+        (approval) => approval.eventType === category
       );
     }
 
-    // Filter out applications whose `dateTo` is before the current date
+    // Filter out applications with `endDate` before the current date
     const currentDate = new Date();
     approvedApplications = approvedApplications.filter((approval) => {
-      const dateTo = new Date(approval.dateTo);
-      return currentDate <= dateTo; // Only include events that are not past their `dateTo`
+      const endDate = new Date(approval.endDate);
+      return currentDate <= endDate;
     });
 
-    // Return filtered approved applications
+    console.log("Final approved applications:", approvedApplications);
     res.status(200).json(approvedApplications);
   } catch (error) {
     console.error("Error fetching approved applications:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };
+
 
 
 
