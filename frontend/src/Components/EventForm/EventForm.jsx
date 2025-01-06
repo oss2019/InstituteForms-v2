@@ -151,7 +151,7 @@ const EventForm = () => {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const headerHeight = 35; // Adjust as needed
+    const headerHeight = 40; // Adjust as needed
     const headerWidth = 180; // Adjust as needed
 
     // Load the header image (ensure the image is accessible as a URL or base64 string)
@@ -171,18 +171,21 @@ const EventForm = () => {
 
       // Content for Page 1
       doc.setFontSize(14).setFont(undefined, 'bold')
-      doc.text("Gymkhana Event Permission Request Form", 105, 40, { align: "center" });
+      doc.text("Gymkhana Event Permission Request Form", 105, 45, { align: "center" });
       doc.setFontSize(11);
-      doc.text("Event Details:", 10, 50);
+      doc.text("Event Details:", 10, 55);
+
+      // currentY is the Y - position of the next line to print
+      let currentY = 65;
       doc.setFont(undefined, 'normal');
-      doc.text(`1) Event Name: ${formData.eventName}`, 10, 60);
-      doc.text(`Is it part of Gymkhana Calendar?: ${formData.partOfGymkhanaCalendar}`, 10, 67);
-      doc.text(`2) Club Name: ${formData.clubName}`, 10, 74);
-      doc.text(`3) Date/Duration (in days) of the Event proposed: ${formData.startDate} to ${formData.endDate}`, 10, 81);
-      doc.text(`4) Venue: (Mention all in case of multiple venues): ${formData.eventVenue}`, 10, 88);
-      doc.text(`5) Source of Budget/Fund: ${formData.sourceOfBudget}`, 10, 96);
+      doc.text(`1) Event Name: ${formData.eventName}`, 10, currentY); currentY += 7;
+      doc.text(`Is it part of Gymkhana Calendar?: ${formData.partOfGymkhanaCalendar}`, 10, currentY); currentY += 7;
+      doc.text(`2) Club Name: ${formData.clubName}`, 10, currentY); currentY += 7;
+      doc.text(`3) Date/Duration (in days) of the Event proposed: ${formData.startDate} to ${formData.endDate}`, 10, currentY); currentY += 7;
+      doc.text(`4) Venue: (Mention all in case of multiple venues): ${formData.eventVenue}`, 10, currentY); currentY += 7;
+      doc.text(`5) Source of Budget/Fund: ${formData.sourceOfBudget}`, 10, currentY); currentY += 7;
 //       doc.text("   1) Sports Budget   2) Cultural Budget   3) Technical Budget   4) Others", 10, 120);
-      doc.text(`6) Estimated Budget: ${formData.estimatedBudget}`, 10, 104);
+      doc.text(`6) Estimated Budget: ${formData.estimatedBudget}`, 10, currentY); currentY += 7;
 
 
       // Content for the Two Columns Layout (all in Bold)
@@ -191,62 +194,70 @@ const EventForm = () => {
       const marginLeftCol2 = pageWidth / 2 + 5; // Second column starting position
 
       // Column 1: Organizer Details
-      doc.text("Organizer Details:", marginLeftCol1, 115);
-      doc.text(`1) Name of the Organizer: ${formData.nameOfTheOrganizer}`, marginLeftCol1, 130);
-      doc.text(`2) Designation: ${formData.designation}`, marginLeftCol1, 137);
-      doc.text(`3) Email: ${formData.email}`, marginLeftCol1, 144);
-      doc.text(`4) Phone No.: ${formData.phoneNumber}`, marginLeftCol1, 151);
+      currentY += 6;
+      doc.text("Organizer Details:", marginLeftCol1, currentY); currentY += 7;
+      doc.text(`1) Name of the Organizer: ${formData.nameOfTheOrganizer}`, marginLeftCol1, currentY); currentY += 5;
+      doc.text(`2) Designation: ${formData.designation}`, marginLeftCol1, currentY); currentY += 5;
+      doc.text(`3) Email: ${formData.email}`, marginLeftCol1, currentY); currentY += 5;
+      doc.text(`4) Phone No.: ${formData.phoneNumber}`, marginLeftCol1, currentY);
 
       // Column 2: Requirements
-      doc.text("Requirements:", marginLeftCol2, 125);
-      const allRequirements = ["Security", "Transport", "IPS Related", "Housekeeping", "Refreshment", "Ambulance", "Networking"];
+      currentY -= 22;
+      doc.text("Requirements:", marginLeftCol2, currentY); currentY += 7;
+      const allRequirements = ["Security", "Transport", "IPS Related", "Housekeeping", "Refreshment", "Ambulance", "Networking", "Any Additional Amenities"];
       allRequirements.forEach((req, index) => {
         const value = formData.requirements.includes(req) ? "Yes" : "No";
-        doc.text(`${index + 1}. ${req}: ${value}`, marginLeftCol2, 135 + index * 5);
+        doc.text(`${index + 1}. ${req}: ${value}`, marginLeftCol2, currentY + index * 5);
       });
 
-      // Add any additional amenities in the second column
-      doc.text("8. Any additional amenities:", marginLeftCol2, 170);
-      doc.text(formData.anyAdditionalAmenities || "N/A", marginLeftCol2, 175);
+      currentY += 8 * 5
+      doc.text(formData.anyAdditionalAmenities || "N/A", marginLeftCol2, currentY);
 
       // Draw border for Organizer Details
-      doc.rect(10, 120, pageWidth / 2 - 10, 60); // x, y, width, height
+      currentY -= 55;
+      doc.rect(10, currentY, pageWidth / 2 - 10, 60); // x, y, width, height
       // Draw border for Requirements section
-      doc.rect(pageWidth / 2, 120, pageWidth / 2 - 10, 60); // x, y, width, height
+      doc.rect(pageWidth / 2, currentY, pageWidth / 2 - 10, 60); // x, y, width, height
 
       //Description of the Event
       const marginLeft = 10;
-      doc.text("Brief Description of the Event: ", marginLeft, 190).setFont(undefined, 'normal').text(" (A 4-line description is to be furnished)", marginLeft + 63, 190, { maxWidth: pageWidth - 40 });
+      currentY += 68;
+      doc.text("Brief Description of the Event: ", marginLeft, currentY).setFont(undefined, 'normal').text(" (A 4-line description is to be furnished)", marginLeft + 63, currentY, { maxWidth: pageWidth - 40 });
+      currentY += 7;
 
       doc.setFontSize(11)
       // Wrap the text with maxWidth parameter
       const maxWidth = pageWidth - 20;  // Adjust max width based on your page layout
       // Text wrapping for event description
-      doc.text(`${formData.eventDescription}`, marginLeft, 197, { maxWidth: pageWidth - 40});
+      doc.text(`${formData.eventDescription}`, marginLeft, currentY, { maxWidth: pageWidth - 40 });
+      currentY += 21;
 
       doc.setFont(undefined, 'bold');
-      doc.text(`Expected Number of Participants: (External: ${formData.externalParticipants}      Internal: ${formData.internalParticipants}        )`, marginLeft, 217);
+      doc.text(`Expected Number of Participants: (External: ${formData.externalParticipants}      Internal: ${formData.internalParticipants} )`, marginLeft, currentY); currentY += 7;
       doc.setFont(undefined, 'normal');
-      doc.text(`If the external participants are invited, list of collaborating organizations: ${formData.listOfCollaboratingOrganizations}`, marginLeft, 224);
+      doc.text(`If the external participants are invited, list of collaborating organizations: ${formData.listOfCollaboratingOrganizations}`, marginLeft, currentY); currentY += 7;
 
       //Declaration by the organizer
-      doc.text([`I, ${formData.nameOfTheOrganizer}, Designation ${formData.designation} will take responsibility to organize and conduct the event to the best of my ability and as per the institute rules.`], marginLeft, 232, { maxWidth: pageWidth - 40 });
+      doc.text([`I, ${formData.nameOfTheOrganizer}, Designation ${formData.designation} will take responsibility to organize and conduct the event to the best of my ability and as per the institute rules.`], marginLeft, currentY, { maxWidth: pageWidth - 40 });
+      currentY += 10;
 
       doc.setFont(undefined, 'normal');
       doc.setFontSize(10)
-      doc.text(["Please read the instructions overleaf. Please submit this form to the Students Welfare Office at least 2 weeks prior to the proposed event date. Seek the approval from the competent authority."], marginLeft, 245,  { maxWidth: pageWidth - 40 });
+      doc.text(["Please read the instructions overleaf. Please submit this form to the Students Welfare Office at least 2 weeks prior to the proposed event date. Seek the approval from the competent authority."], marginLeft, currentY,  { maxWidth: pageWidth - 40 });
 
       //Signatures
       //Upper Row (1)
+      currentY += 30;
       doc.setFontSize(12)
-      doc.text("Club Secretary", marginLeft + 10, 270);
-      doc.text("General Secretary", marginLeft + 55, 270);
-      doc.text("Treasurer", marginLeft + 110, 270);
-      doc.text("President", marginLeft + 150, 270);
+      doc.text("Club Secretary", marginLeft + 10, currentY);
+      doc.text("General Secretary", marginLeft + 55, currentY);
+      doc.text("Treasurer", marginLeft + 110, currentY);
+      doc.text("President", marginLeft + 150, currentY);
 
       //Lower Row (2)
-      doc.text("Faculty In Charge", marginLeft + 25, 290);
-      doc.text("Associate Dean", marginLeft + 130, 290);
+      currentY += 25;
+      doc.text("Faculty In Charge", marginLeft + 25, currentY);
+      doc.text("Associate Dean", marginLeft + 130, currentY);
 
       doc.setFontSize(7)
       doc.setFont(undefined, 'normal');
@@ -260,7 +271,7 @@ const EventForm = () => {
 
       // Content for Page 2
       doc.setFontSize(12)
-      doc.text("For Office Use: Administrative approval/Budget Approval", marginLeft + 40, 60,);
+      doc.text("For Office Use: Administrative approval/Budget Approval", marginLeft + 40, 60);
 
       // Administrative approval section (empty fields for office use)
       // doc.setDrawColor(0);
