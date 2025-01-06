@@ -86,38 +86,38 @@ const EventForm = () => {
 
   const validateForm = () => {
     const requiredFields = [
-      "eventName", 
-      "partOfGymkhanaCalendar", 
-      "eventType", 
-      "clubName", 
-      "startDate", 
-      "endDate", 
-      "eventVenue", 
-      "sourceOfBudget", 
-      "estimatedBudget", 
-      "nameOfTheOrganizer", 
-      "designation", 
-      "email", 
-      "phoneNumber", 
-      "eventDescription", 
-      "externalParticipants", 
+      "eventName",
+      "partOfGymkhanaCalendar",
+      "eventType",
+      "clubName",
+      "startDate",
+      "endDate",
+      "eventVenue",
+      "sourceOfBudget",
+      "estimatedBudget",
+      "nameOfTheOrganizer",
+      "designation",
+      "email",
+      "phoneNumber",
+      "eventDescription",
+      "externalParticipants",
       "internalParticipants"
     ];
-  
+
     for (let field of requiredFields) {
       if (!formData[field]) {
         return false;  // Return false if any required field is empty
       }
     }
-    
+
     // Additional check for listOfCollaboratingOrganizations if externalParticipants > 0
     if (formData.externalParticipants > 0 && !formData.listOfCollaboratingOrganizations) {
       return false;
     }
-  
+
     return true;
   };
-  
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       toast.error("All fields are required to be filled!");
@@ -151,7 +151,7 @@ const EventForm = () => {
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const headerHeight = 40; // Adjust as needed
+    const headerHeight = 35; // Adjust as needed
     const headerWidth = 180; // Adjust as needed
 
     // Load the header image (ensure the image is accessible as a URL or base64 string)
@@ -172,79 +172,84 @@ const EventForm = () => {
       // Content for Page 1
       doc.setFontSize(14).setFont(undefined, 'bold')
       doc.text("Gymkhana Event Permission Request Form", 105, 40, { align: "center" });
-      doc.setFontSize(12);
+      doc.setFontSize(11);
       doc.text("Event Details:", 10, 50);
       doc.setFont(undefined, 'normal');
       doc.text(`1) Event Name: ${formData.eventName}`, 10, 60);
-      doc.text(`(It is part of Gymkhana Calendar: YES/NO): ${formData.partOfGymkhanaCalendar}`, 10, 70);
-      doc.text(`2) Club Name: ${formData.clubName}`, 10, 80);
-      doc.text(`3) Date/Duration (in days) of the Event proposed: ${formData.startDate} to ${formData.endDate}`, 10, 90);
-      doc.text(`4) Venue: (Mention all in case of multiple venues): ${formData.eventVenue}`, 10, 100);
-      doc.text(`5) Source of Budget/Fund: ${formData.sourceOfBudget}`, 10, 110);
-      // doc.text("   1) Sports Budget   2) Cultural Budget   3) Technical Budget   4) Others", 10, 120);
-      doc.text(`6) Estimated Budget: ${formData.estimatedBudget}`, 10, 120);
+      doc.text(`Is it part of Gymkhana Calendar?: ${formData.partOfGymkhanaCalendar}`, 10, 67);
+      doc.text(`2) Club Name: ${formData.clubName}`, 10, 74);
+      doc.text(`3) Date/Duration (in days) of the Event proposed: ${formData.startDate} to ${formData.endDate}`, 10, 81);
+      doc.text(`4) Venue: (Mention all in case of multiple venues): ${formData.eventVenue}`, 10, 88);
+      doc.text(`5) Source of Budget/Fund: ${formData.sourceOfBudget}`, 10, 96);
+//       doc.text("   1) Sports Budget   2) Cultural Budget   3) Technical Budget   4) Others", 10, 120);
+      doc.text(`6) Estimated Budget: ${formData.estimatedBudget}`, 10, 104);
 
 
       // Content for the Two Columns Layout (all in Bold)
       doc.setFont(undefined, 'bold')
-      const marginLeftCol1 = 10;
-      const marginLeftCol2 = pageWidth / 2 + 10; // Second column starting position
+      const marginLeftCol1 = 15;
+      const marginLeftCol2 = pageWidth / 2 + 5; // Second column starting position
 
       // Column 1: Organizer Details
-      doc.text("Organizer Details:", marginLeftCol1, 130);
-      doc.text(`1) Name of the Organizer: ${formData.nameOfTheOrganizer}`, marginLeftCol1, 140);
-      doc.text(`2) Designation: ${formData.designation}`, marginLeftCol1, 150);
-      doc.text(`3) Email: ${formData.email}`, marginLeftCol1, 160);
-      doc.text(`4) Phone No.: ${formData.phoneNumber}`, marginLeftCol1, 170);
+      doc.text("Organizer Details:", marginLeftCol1, 115);
+      doc.text(`1) Name of the Organizer: ${formData.nameOfTheOrganizer}`, marginLeftCol1, 130);
+      doc.text(`2) Designation: ${formData.designation}`, marginLeftCol1, 137);
+      doc.text(`3) Email: ${formData.email}`, marginLeftCol1, 144);
+      doc.text(`4) Phone No.: ${formData.phoneNumber}`, marginLeftCol1, 151);
 
       // Column 2: Requirements
-      doc.text("Requirements:", marginLeftCol2, 130);
+      doc.text("Requirements:", marginLeftCol2, 125);
       const allRequirements = ["Security", "Transport", "IPS Related", "Housekeeping", "Refreshment", "Ambulance", "Networking"];
       allRequirements.forEach((req, index) => {
         const value = formData.requirements.includes(req) ? "Yes" : "No";
-        doc.text(`${index + 1}. ${req}: ${value}`, marginLeftCol2, 140 + index * 5);
+        doc.text(`${index + 1}. ${req}: ${value}`, marginLeftCol2, 135 + index * 5);
       });
 
       // Add any additional amenities in the second column
-      doc.text("8. Any additional amenities:", marginLeftCol2, 180);
-      doc.text(formData.anyAdditionalAmenities || "N/A", marginLeftCol2, 185);
+      doc.text("8. Any additional amenities:", marginLeftCol2, 170);
+      doc.text(formData.anyAdditionalAmenities || "N/A", marginLeftCol2, 175);
 
       // Draw border for Organizer Details
-      doc.rect(10, 130, pageWidth / 2 - 10, 60); // x, y, width, height
+      doc.rect(10, 120, pageWidth / 2 - 10, 60); // x, y, width, height
       // Draw border for Requirements section
-      doc.rect(pageWidth / 2, 130, pageWidth / 2 - 10, 60); // x, y, width, height
+      doc.rect(pageWidth / 2, 120, pageWidth / 2 - 10, 60); // x, y, width, height
 
       //Description of the Event
       const marginLeft = 10;
-      doc.text("Brief Description of the Event: ", marginLeft, 200).setFont(undefined, 'normal').text("(A 4-line description is to be furnished)", marginLeft + 63, 200);
-      
+      doc.text("Brief Description of the Event: ", marginLeft, 190).setFont(undefined, 'normal').text(" (A 4-line description is to be furnished)", marginLeft + 63, 190, { maxWidth: pageWidth - 40 });
+
+      doc.setFontSize(11)
       // Wrap the text with maxWidth parameter
       const maxWidth = pageWidth - 20;  // Adjust max width based on your page layout
       // Text wrapping for event description
-      doc.text(`${formData.eventDescription}`, marginLeft, 205, { maxWidth: maxWidth });
-      
+      doc.text(`${formData.eventDescription}`, marginLeft, 197, { maxWidth: pageWidth - 40});
+
       doc.setFont(undefined, 'bold');
-      doc.text(`Expected Number of Participants: (External: ${formData.externalParticipants}      Internal: ${formData.internalParticipants}        )`, marginLeft, 230);
+      doc.text(`Expected Number of Participants: (External: ${formData.externalParticipants}      Internal: ${formData.internalParticipants}        )`, marginLeft, 217);
       doc.setFont(undefined, 'normal');
-      doc.text(`If the external participants are invited, list of collaborating organizations: ${formData.listOfCollaboratingOrganizations}`, marginLeft, 235);
+      doc.text(`If the external participants are invited, list of collaborating organizations: ${formData.listOfCollaboratingOrganizations}`, marginLeft, 224);
 
       //Declaration by the organizer
-      doc.text([`I, ${formData.nameOfTheOrganizer}, Designation ${formData.designation} will take responsibility to organize and`, `conduct the event to the best of my ability and as per the institute rules.`], marginLeft, 245);
+      doc.text([`I, ${formData.nameOfTheOrganizer}, Designation ${formData.designation} will take responsibility to organize and conduct the event to the best of my ability and as per the institute rules.`], marginLeft, 232, { maxWidth: pageWidth - 40 });
 
-      doc.setFont(undefined, 'bold');
-      doc.text(["(Please read the instructions overleaf. Please submit this form to the Students Welfare Office at", "least 2 weeks prior to the proposed event date. Seek the approval from the competent authority.)"], marginLeft, 255);
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10)
+      doc.text(["Please read the instructions overleaf. Please submit this form to the Students Welfare Office at least 2 weeks prior to the proposed event date. Seek the approval from the competent authority."], marginLeft, 245,  { maxWidth: pageWidth - 40 });
 
       //Signatures
       //Upper Row (1)
-      doc.text("Club Secretary", marginLeft, 275);
-      doc.text("General Secretary", marginLeft + 50, 275);
-      doc.text("Treasurer", marginLeft + 110, 275);
-      doc.text("President", marginLeft + 150, 275);
+      doc.setFontSize(12)
+      doc.text("Club Secretary", marginLeft + 10, 270);
+      doc.text("General Secretary", marginLeft + 55, 270);
+      doc.text("Treasurer", marginLeft + 110, 270);
+      doc.text("President", marginLeft + 150, 270);
 
       //Lower Row (2)
       doc.text("Faculty In Charge", marginLeft + 25, 290);
       doc.text("Associate Dean", marginLeft + 130, 290);
 
+      doc.setFontSize(7)
+      doc.setFont(undefined, 'normal');
       doc.text("Page-1 (to be completed by the applicant/student)", marginLeft, 295);
 
 
@@ -271,7 +276,7 @@ const EventForm = () => {
       doc.setFont(undefined, "bold");
       doc.text("Instructions to the Students:", pageWidth / 2, 170, { align: "center" });
       doc.setFont(undefined, "normal");
-      doc.text(["You are requested to adhere to the below points and make appropriate arrangements as mentioned ", "and submit the Form at least 2 weeks prior."], marginLeft, 175)
+      doc.text(["You are requested to adhere to the below points and make appropriate arrangements ", "and submit the Form at least 2 weeks prior."], marginLeft, 175)
       const instructions = [
         "For reserving classrooms in CLT please contact the Academics Office with the approval form.",
         "For any Audio/Visual assistance please contact the Academic Office/Classroom maintenance staff.",
@@ -287,7 +292,7 @@ const EventForm = () => {
       let cnt = 1;
       instructions.forEach((instruction) => {
         doc.text(`${cnt}. ${instruction}`, marginLeft + 10, yPosition, { maxWidth: pageWidth - 40 });
-        yPosition += 11; // Adjust line spacing as needed
+        yPosition += 10; // Adjust line spacing as needed
         cnt += 1;
       });
 
@@ -323,7 +328,7 @@ const EventForm = () => {
             name="eventName"
             value={formData.eventName}
             onChange={handleChange}
-            placeholder="Enter the event name"
+            placeholder="Event name"
             required
           />
         </div>
@@ -336,7 +341,7 @@ const EventForm = () => {
             value={formData.partOfGymkhanaCalendar}
             onChange={handleChange}
           >
-            <option value="">Select YES or NO</option>
+            <option value="" disabled>YES or NO</option>
             <option value="YES">YES</option>
             <option value="NO">NO</option>
           </select>
@@ -350,7 +355,7 @@ const EventForm = () => {
             value={formData.eventType}
             onChange={handleChange}
           >
-            <option value="">Select Event Type</option>
+            <option value="" disabled>Event Type</option>
             <option value="Technical">Technical</option>
             <option value="Cultural">Cultural</option>
             <option value="Sports">Sports</option>
@@ -366,7 +371,7 @@ const EventForm = () => {
             name="clubName"
             value={formData.clubName}
             onChange={handleChange}
-            placeholder="Enter the club name"
+            placeholder="Club name"
             required
           />
         </div>
@@ -375,7 +380,7 @@ const EventForm = () => {
           <label className="form-label">Event Dates</label>
           <div className="date-inputs-row">
             <div className="date-input-container">
-              <label className="form-label">Start Date</label>
+              <label className="form-label"><i>Start Date</i></label>
               <input
                 type="date"
                 name="startDate"
@@ -388,7 +393,7 @@ const EventForm = () => {
               />
             </div>
             <div className="date-input-container">
-              <label className="form-label">End Date</label>
+              <label className="form-label"><i>End Date</i></label>
               <input
                 type="date"
                 name="endDate"
@@ -410,7 +415,7 @@ const EventForm = () => {
             name="eventVenue"
             value={formData.eventVenue}
             onChange={handleChange}
-            placeholder="Enter the event venue"
+            placeholder="Event venue"
             required
           />
         </div>
@@ -423,7 +428,7 @@ const EventForm = () => {
             value={formData.sourceOfBudget}
             onChange={handleChange}
           >
-            <option value="">Select source</option>
+            <option value="" disabled>Select source</option>
             <option value="Technical">Technical</option>
             <option value="Cultural">Cultural</option>
             <option value="Sports">Sports</option>
@@ -439,7 +444,7 @@ const EventForm = () => {
             name="estimatedBudget"
             value={formData.estimatedBudget}
             onChange={handleChange}
-            placeholder="Enter the estimated budget"
+            placeholder="Estimated budget (in INR)"
             required
           />
         </div>
@@ -453,7 +458,7 @@ const EventForm = () => {
             name="nameOfTheOrganizer"
             value={formData.nameOfTheOrganizer}
             onChange={handleChange}
-            placeholder="Enter your name"
+            placeholder="Organizer name"
             required
           />
         </div>
@@ -466,7 +471,7 @@ const EventForm = () => {
             name="designation"
             value={formData.designation}
             onChange={handleChange}
-            placeholder="Enter your designation"
+            placeholder="Organizer Designation"
             required
           />
         </div>
@@ -479,7 +484,7 @@ const EventForm = () => {
             name="email"
             value={formData.email}
             onChange={handleChange}
-            placeholder="Enter your email address"
+            placeholder="Organizer Email Address"
             required
           />
         </div>
@@ -492,14 +497,14 @@ const EventForm = () => {
             name="phoneNumber"
             value={formData.phoneNumber}
             onChange={handleChange}
-            placeholder="Enter your phone number"
+            placeholder="Organizer Phone Number"
             required
           />
         </div>
 
         {/* Requirements */}
         <div className="mb-3">
-          <label>Requirements ? :</label>
+          <label>Requirements:</label>
           {["Security", "Transport", "IPS Related", "Housekeeping", "Refreshment", "Ambulance", "Networking"].map(
             (help) => (
               <div key={help} className="form-check">
@@ -514,7 +519,7 @@ const EventForm = () => {
             )
           )}
 
-          <div className="mb-3">
+          <div className="mb-3 mt-3">
             <label>Any additional amenities:</label>
             <input
               type="text"
@@ -542,16 +547,16 @@ const EventForm = () => {
         </div>
 
         {/* Expected Number of Participants */}
-        <label>Expected Number of Participants</label>
+        <label className="mb-1">Expected Number of Participants</label>
         <div className="mb-3">
-          <label>External</label>
+          <label><i>External</i></label>
           <input
             type="number"
             className="form-control"
             name="externalParticipants"
             value={formData.externalParticipants}
             onChange={handleChange}
-            placeholder="Enter the Expected Number of External Participants"
+            placeholder="Expected Number of External Participants"
             required
           />
         </div>
@@ -565,7 +570,7 @@ const EventForm = () => {
               name="listOfCollaboratingOrganizations"
               value={formData.listOfCollaboratingOrganizations}
               onChange={handleChange}
-              placeholder="Since external participants are invited, Enter the list of collaborating organizations:"
+              placeholder="Since external participants are invited, list of collaborating organizations:"
               required
             />
           </div>
@@ -578,7 +583,7 @@ const EventForm = () => {
               name="listOfCollaboratingOrganizations"
               value={formData.listOfCollaboratingOrganizations}
               onChange={handleChange}
-              placeholder="Since external participants are invited, Enter the list of collaborating organizations:"
+              placeholder="Since external participants are invited, list of collaborating organizations:"
               disabled
             /> */}
           </div>
@@ -586,14 +591,14 @@ const EventForm = () => {
         }
 
         <div className="mb-3">
-          <label>Internal</label>
+          <label><i>Internal</i></label>
           <input
             type="number"
             className="form-control"
             name="internalParticipants"
             value={formData.internalParticipants}
             onChange={handleChange}
-            placeholder="Enter the Expected Number of Internal Participants"
+            placeholder="Expected Number of Internal Participants"
             required
           />
         </div>
