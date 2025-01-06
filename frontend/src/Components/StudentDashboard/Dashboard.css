@@ -33,6 +33,10 @@ h2 {
 }
 
 /* New styles for card statuses */
+.card.rejected {
+  background-color: red; /* Green for approved status */
+}
+
 .card.pending {
   background-color: yellow; /* Yellow for pending status */
 }
@@ -40,6 +44,8 @@ h2 {
 .card.approved {
   background-color: lightgreen; /* Green for approved status */
 }
+
+
 
 .card h3 {
   margin: 0 0 10px;

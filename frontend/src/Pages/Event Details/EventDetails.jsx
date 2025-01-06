@@ -10,6 +10,7 @@ const EventDetails = () => {
   const [eventDetails, setEventDetails] = useState(null); // State for event data
   const [isLoading, setIsLoading] = useState(true); // State for loading indicator
   const navigate = useNavigate(); // Initialize navigate hook
+  const role = localStorage.getItem("role"); // Fetch role from localStorage
 
   useEffect(() => {
     // Function to fetch event details by ID
@@ -276,14 +277,32 @@ const EventDetails = () => {
           <p><strong>Collaborating Organizations:</strong> {eventDetails.listOfCollaboratingOrganizations}</p>
         )}
 
-        <button className="btn btn-success mb-1" onClick={() => handleStatusUpdate(eventDetails._id, "general-secretary", "Approved")}>
-          Approve
+        {/* Render Approve and Reject buttons only if the role is not 'club-secretary' */}
+        {role !== "club-secretary" && (
+          <>
+            <button
+              className="btn btn-success mb-1"
+              onClick={() => handleStatusUpdate(eventDetails._id, role, "Approved")}
+            >
+              Approve
+            </button>
+            <button
+              className="btn btn-danger mb-1"
+              onClick={() => handleStatusUpdate(eventDetails._id, role, "Rejected")}
+            >
+              Reject
+            </button>
+          </>
+        )}
+
+        <button className="btn btn-primary mb-1" onClick={generatePDF}>
+          Generate & Preview PDF
         </button>
-        <button className="btn btn-danger mb-1" variant="danger" onClick={() => handleStatusUpdate(eventDetails._id, "general-secretary", "Rejected")}>
-          Reject
-        </button>
-        <button className="btn btn-primary mb-1" onClick={generatePDF}>Generate & Preview PDF</button>
-        <iframe id="pdf-preview" className="pdf-preview" style={{ width: "100%", height: "500px", border: "none" }}></iframe>
+        <iframe
+          id="pdf-preview"
+          className="pdf-preview"
+          style={{ width: "100%", height: "500px", border: "none" }}
+        ></iframe>
       </div>
     </div>
   );

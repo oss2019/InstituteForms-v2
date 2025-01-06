@@ -54,25 +54,21 @@ const EventForm = () => {
   const today = new Date().toISOString().split("T")[0];
 
   const handleDateValidation = () => {
-    const { dateOfLeaving, arrivalDate } = formData;
-
-    // Validate that dateOfLeaving is not in the past
-    if (dateOfLeaving && new Date(dateOfLeaving) < new Date(today)) {
-      toast.error("Date of Event cannot be in the past.");
-      setFormData({ ...formData, EventFrom: "" });
+    // Validate that `startDate` is not in the past
+    if (formData.startDate && new Date(formData.startDate) < new Date(today)) {
+      toast.error("Start Date cannot be in the past.");
+      setFormData({ ...formData, startDate: "" });
       return;
     }
-
-    // Validate that arrivalDate is not before dateOfLeaving
-    if (
-      arrivalDate &&
-      dateOfLeaving &&
-      new Date(arrivalDate) < new Date(dateOfLeaving)
-    ) {
-      toast.error("Event End date cannot be before the date of Event.");
-      setFormData({ ...formData, EventTo: "" });
+  
+    // Validate that `endDate` is not before `startDate`
+    if (formData.endDate && new Date(formData.endDate) < new Date(formData.startDate)) {
+      toast.error("End Date cannot be before the Start Date.");
+      setFormData({ ...formData, endDate: "" });
+      return;
     }
   };
+  
 
   const handleCheckboxChange = (e) => {
     const { value, checked } = e.target;
@@ -143,6 +139,7 @@ const EventForm = () => {
     }
   };
 
+  
   const generatePDF = async () => {
     // if (!validateForm()) {
     //   toast.error("All fields are required to be filled!");

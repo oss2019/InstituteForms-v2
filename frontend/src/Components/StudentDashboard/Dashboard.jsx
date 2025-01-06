@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./Dashboard.css";
+import { Card, Button, Row, Col } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
+
 
 const Dashboard = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchEventStatus = async () => {
@@ -26,6 +30,10 @@ const Dashboard = () => {
     fetchEventStatus();
   }, []);
 
+  const handleViewDetails = (eventId) => {
+    navigate(`/event-details/${eventId}`);
+  };
+
   return (
     <div className="dashboard-container">
       {loading ? (
@@ -42,7 +50,7 @@ const Dashboard = () => {
                   )?.status || "Pending";
 
                   // Determine the class for the card based on status
-                  const cardClass = status.toLowerCase() === "approved" ? "approved" : "pending";
+                  const cardClass = status.toLowerCase();
 
                   return (
                     <div key={event._id} className={`card ${cardClass}`}>
@@ -54,6 +62,13 @@ const Dashboard = () => {
                         {new Date(event.endDate).toLocaleDateString()}
                       </p>
                       <p><b>Status:</b> {status}</p>
+                      <Button
+                        className="mb-1"
+                        variant="primary"
+                        onClick={() => handleViewDetails(event._id)}
+                      >
+                        View Details
+                      </Button>
                     </div>
                   );
                 })
