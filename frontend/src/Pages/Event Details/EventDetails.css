@@ -1,0 +1,60 @@
+.event-details-container {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .event-details-content {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    background-color: #f9f9f9;
+  }
+  
+  .event-details-content h3 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+  }
+  
+  .event-details-content p {
+    margin: 5px 0;
+    line-height: 1.5;
+  }
+  
+  .event-details-content h4 {
+    margin-top: 20px;
+    font-size: 1.2rem;
+  }
+  
+  .event-details-content ul {
+    padding-left: 20px;
+  }
+  
+  /* Styling for the Back button */
+  .event-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px; /* Adjust spacing */
+  }
+  
+  .event-details-header h3 {
+    margin: 0; /* Remove default margin */
+  }
+  
+  .event-details-header .btn {
+    width: 15vw;
+    font-size: 0.8rem; /* Small button size */
+    padding: 5px 10px; /* Small padding */
+  }
+  
+  .event-details-content .btn:hover {
+    background-color: #0056b3;
+  }
+  
+  .pdf-preview {
+    width: 100%;
+    height: 600px;
+    border: none;
+    margin-top: 20px;
+  }  

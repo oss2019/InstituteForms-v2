@@ -4,6 +4,12 @@
   overflow: hidden; /* Prevent overflow from affecting the page layout */
 }
 
+.dashboardHeader {
+  text-align: center;
+  background-color: orange;
+  border-radius: 5px;
+}
+
 .sidebar {
   background-color: #f7f7f7;
   padding: 20px;
@@ -35,6 +41,11 @@
   text-align: left;
 }
 
+/* .sidebar-otions {
+  background-color: #007bff;
+
+} */
+ 
 .sidebar-button:hover {
   color: #007bff;
 }

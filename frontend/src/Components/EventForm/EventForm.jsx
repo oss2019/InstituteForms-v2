@@ -176,7 +176,7 @@ const EventForm = () => {
       doc.text("Event Details:", 10, 55);
 
       // currentY is the Y - position of the next line to print
-      let currentY = 65;
+      let currentY = 60;
       doc.setFont(undefined, 'normal');
       doc.text(`1) Event Name: ${formData.eventName}`, 10, currentY); currentY += 7;
       doc.text(`Is it part of Gymkhana Calendar?: ${formData.partOfGymkhanaCalendar}`, 10, currentY); currentY += 7;
