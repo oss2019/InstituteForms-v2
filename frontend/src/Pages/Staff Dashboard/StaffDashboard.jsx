@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PendingApprovals from '../../Components/PendingApprovals/PendingApprovals'; // Import the ListOfLeaves component
-import ListOfOutings from '../../Components/ListOfOutings/ListOfOutings'; // Import the ListOfOutings component
-import './StaffDashboard.css'; // Import styles
-import Dashboard from '../../Components/StaffDashboard/Dashboard';
+import PendingApprovals from '/src/Components/PendingApprovals/PendingApprovals'; // Import the ListOfLeaves component
+import '/src/Components/Sidebar/Sidebar.css'; // Import styles
+import Dashboard from '/src/Components/StaffDashboard/Dashboard';
 import toast, { Toaster } from "react-hot-toast";
 
 function StaffDashboard() {
   const [activeSection, setActiveSection] = useState('dashboard'); // Set default active section
   const [direction, setDirection] = useState('down');
   const navigate = useNavigate();
-  const [role, setRole] = useState('general-secretary');
+  const [role, setRole] = useState('General Secretary');
 
   const handleLogout = () => {
     toast.success("Logout successful!"); // Show toast immediately
@@ -59,17 +58,18 @@ function StaffDashboard() {
     <div className="dashboard">
       <div className="sidebar">
         <h2 className="sidebar-title">
-          <button 
-              className={`sidebar-button ${activeSection === 'dashboard' ? 'active' : ''}`}
+          <button
+              className={`sidebar-title-button`}
               onClick={() => handleSectionChange('dashboard')}
           >
-            <div>{role}</div> 
+            <div>{role}</div>
             <div>Dashboard</div>
           </button>
         </h2>
+        <hr className="bg-black" style={{ border: 'none', height: '1px', backgroundColor: 'black' }} />
         <ul className="sidebar-menu">
         <li>
-            <button 
+            <button
               className={`sidebar-button ${activeSection === 'listOfLeaves' ? 'active' : ''}`}
               onClick={() => handleSectionChange('pendingApprovals')} // Change section to List of Leaves
             >

@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import "bootstrap/dist/css/bootstrap.min.css";
 import toast, { Toaster } from "react-hot-toast";
 import "./EventForm.css";
-import API from '../../api/api';  // Go back two directories to access src/api/api.js
+import API from '/src/api/api';  // Go back two directories to access src/api/api.js
 
 const EventForm = () => {
   const [formData, setFormData] = useState({
@@ -181,7 +181,18 @@ const EventForm = () => {
       doc.text(`1) Event Name: ${formData.eventName}`, 10, currentY); currentY += 7;
       doc.text(`Is it part of Gymkhana Calendar?: ${formData.partOfGymkhanaCalendar}`, 10, currentY); currentY += 7;
       doc.text(`2) Club Name: ${formData.clubName}`, 10, currentY); currentY += 7;
-      doc.text(`3) Date/Duration (in days) of the Event proposed: ${formData.startDate} to ${formData.endDate}`, 10, currentY); currentY += 7;
+
+      const options = { day: 'numeric', month: 'long', year: 'numeric' };
+      const endDate = new Date(formData.endDate);
+      const startDate = new Date(formData.startDate);
+      const formattedEndDate = endDate.toLocaleDateString('en-US', options);
+      const formattedStartDate = startDate.toLocaleDateString('en-US', options);
+
+      if(! (formData.startDate == formData.endDate))
+        doc.text(`3) Date/Duration (in days) of the Event proposed: ${formattedStartDate} to ${formattedEndDate}`, 10, currentY);
+      else
+        doc.text(`3) Date/Duration (in days) of the Event proposed: ${formData.startDate}`, 10, currentY);
+      currentY += 7;
       doc.text(`4) Venue: (Mention all in case of multiple venues): ${formData.eventVenue}`, 10, currentY); currentY += 7;
       doc.text(`5) Source of Budget/Fund: ${formData.sourceOfBudget}`, 10, currentY); currentY += 7;
 //       doc.text("   1) Sports Budget   2) Cultural Budget   3) Technical Budget   4) Others", 10, 120);
@@ -243,7 +254,7 @@ const EventForm = () => {
 
       doc.setFont(undefined, 'normal');
       doc.setFontSize(10)
-      doc.text(["Please read the instructions overleaf. Please submit this form to the Students Welfare Office at least 2 weeks prior to the proposed event date. Seek the approval from the competent authority."], marginLeft, currentY,  { maxWidth: pageWidth - 40 });
+      doc.text("Please read the instructions overleaf. Please submit this form to the Students Welfare Office at least 2 weeks prior to the proposed event date. Seek the approval from the competent authority.", marginLeft, currentY,  { maxWidth: pageWidth - 40 });
 
       //Signatures
       //Upper Row (1)
@@ -287,25 +298,27 @@ const EventForm = () => {
       doc.setFont(undefined, "bold");
       doc.text("Instructions to the Students:", pageWidth / 2, 170, { align: "center" });
       doc.setFont(undefined, "normal");
-      doc.text(["You are requested to adhere to the below points and make appropriate arrangements ", "and submit the Form at least 2 weeks prior."], marginLeft, 175)
-      const instructions = [
-        "For reserving classrooms in CLT please contact the Academics Office with the approval form.",
-        "For any Audio/Visual assistance please contact the Academic Office/Classroom maintenance staff.",
-        "For reserving rooms for external participants in Hostel blocks please contact SW Office.",
-        "For Network Issues/requirements please contact the CCS Office with this prior approval.",
-        "Event organizer team is requested to provide the Visitors ID to the all-external participants.",
-        "All the events are to end by 11PM as notified in Hostels Rules and Regulations.",
-        "All the Accounts need to be settled within 2 weeks of the event conclusion, which will be the responsibility of concerned GS, Treasurer, and President.",
-        "A report is to be submitted to the SW Office by the organizer after the conclusion of the event within 2 weeks.",
-        "If the external experts/dignitaries are invited, please mention the details.",
+      doc.text("You are requested to adhere to the below points and make appropriate arrangements and submit the Form at least 2 weeks prior.", marginLeft, 175, { maxWidth: pageWidth - 40 })
+      const instructions_split = [
+        "1. For reserving classrooms in CLT please contact the Academics Office with the approval form.",
+        "2. For any Audio/Visual assistance please contact the Academic Office/Classroom maintenance staff.",
+        "3. For reserving rooms for external participants in Hostel blocks please contact SW Office.",
+        "4. For Network Issues/requirements please contact the CCS Office with this prior approval.",
+        "5. Event organizer team is requested to provide the Visitors ID to the all-external participants.",
+        "6. All the events are to end by 11PM as notified in Hostels Rules and Regulations.",
+        "7. All the Accounts need to be settled within 2 weeks of the event conclusion, which will be the responsibility of concerned GS, Treasurer, and President.",
+        "8. A report is to be submitted to the SW Office by the organizer after the conclusion of the event within 2 weeks.",
+        "9. If the external experts/dignitaries are invited, please mention the details.",
       ];
-      let yPosition = 185;
-      let cnt = 1;
-      instructions.forEach((instruction) => {
-        doc.text(`${cnt}. ${instruction}`, marginLeft + 10, yPosition, { maxWidth: pageWidth - 40 });
-        yPosition += 10; // Adjust line spacing as needed
-        cnt += 1;
-      });
+      const instructions = instructions_split.join('\n');
+      let yPosition = 190;
+      doc.text(instructions, 15, yPosition, { maxWidth: pageWidth - 40 })
+//       let cnt = 1;
+      // instructions.forEach((instruction) => {
+      //   doc.text(`${cnt}. ${instruction}`, marginLeft + 10, yPosition, { maxWidth: pageWidth - 40 });
+      //   yPosition += 10; // Adjust line spacing as needed
+      //   cnt += 1;
+      // });
 
 
 
@@ -339,7 +352,7 @@ const EventForm = () => {
             name="eventName"
             value={formData.eventName}
             onChange={handleChange}
-            placeholder="Event name"
+            placeholder="Event Name"
             required
           />
         </div>
@@ -382,7 +395,7 @@ const EventForm = () => {
             name="clubName"
             value={formData.clubName}
             onChange={handleChange}
-            placeholder="Club name"
+            placeholder="Club Name"
             required
           />
         </div>
@@ -426,7 +439,7 @@ const EventForm = () => {
             name="eventVenue"
             value={formData.eventVenue}
             onChange={handleChange}
-            placeholder="Event venue"
+            placeholder="Event Venue"
             required
           />
         </div>
@@ -439,7 +452,7 @@ const EventForm = () => {
             value={formData.sourceOfBudget}
             onChange={handleChange}
           >
-            <option value="" disabled>Select source</option>
+            <option value="" disabled>Select Source</option>
             <option value="Technical">Technical</option>
             <option value="Cultural">Cultural</option>
             <option value="Sports">Sports</option>
@@ -455,7 +468,7 @@ const EventForm = () => {
             name="estimatedBudget"
             value={formData.estimatedBudget}
             onChange={handleChange}
-            placeholder="Estimated budget (in INR)"
+            placeholder="Estimated Budget (in INR)"
             required
           />
         </div>
@@ -469,7 +482,7 @@ const EventForm = () => {
             name="nameOfTheOrganizer"
             value={formData.nameOfTheOrganizer}
             onChange={handleChange}
-            placeholder="Organizer name"
+            placeholder="Organizer Name"
             required
           />
         </div>
@@ -629,7 +642,7 @@ const EventForm = () => {
         </div>
 
         {/* Disable the button if the agreement checkbox is not checked */}
-        <button type="button" className="mb-3 btn btn-primary" onClick={generatePDF} disabled={!isAgreementChecked}>
+        <button type="button" onClick={handleSubmit} className="mb-3 btn btn-primary" onClick={generatePDF} disabled={!isAgreementChecked}>
           Generate PDF
         </button>
 
