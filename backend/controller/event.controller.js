@@ -35,6 +35,28 @@ const sendEmail = (to, subject, text) => {
 };
 
 
+//emails of all members
+const roleEmails = [
+  { role: "general-secretary-technical", email: "me23bt009@iitdh.ac.in" },
+  { role: "general-secretary-cultural", email: "cs23bt028@iitdh.ac.in" },
+  { role: "general-secretary-sports", email: "sports.secretary@example.com" },
+  { role: "treasurer", email: "me23bt009@iitdh.ac.in" },
+  { role: "president", email: "president@example.com" },
+  { role: "faculty-in-charge", email: "faculty.incharge@example.com" },
+  { role: "associate-dean", email: "associate.dean@example.com" },
+];
+
+const getEmailForRole = (role) => {
+  const match = roleEmails.find((entry) => entry.role === role);
+  return match ? match.email : null;
+};
+const getEmailForCategory = (category) => {
+  const role = `general-secretary-${category.toLowerCase()}`;
+  const match = roleEmails.find((entry) => entry.role === role);
+  return match ? match.email : null;
+};
+
+
 // Apply for Event approval
 
 export const applyForEventApproval = async (req, res) => {
@@ -65,6 +87,8 @@ export const applyForEventApproval = async (req, res) => {
     console.log("Incoming Payload:", req.body);
 
     const userID_ = req.body.userID; // Ensure this is retrieved correctly (e.g., from the request or session).
+    const  category  = req.body.eventType;
+    const categoryEmail = getEmailForCategory(category);
 
     // Fetch user details to ensure they exist
     const user = await User.findById(userID_);
@@ -123,6 +147,17 @@ export const applyForEventApproval = async (req, res) => {
     // Update the user's `eventApproval` field with the new approval ID
     user.eventApproval = savedApproval._id;
     await user.save();
+    if (categoryEmail) {
+      sendEmail(
+        categoryEmail,
+        `Event Approval Needed: ${eventName},`,
+        `A new ${category} event approval request has been submitted. Please review it at your earliest convenience.`
+      );
+      console.log(`Email sent to ${categoryEmail} for ${category} event approval.`);
+    } else {
+      console.error(`No email found for category: ${category}`);
+    }
+
 
     res.status(201).json({
       message: "Event approval request submitted successfully.",
@@ -362,6 +397,16 @@ export const approveApplication = async (req, res) => {
 
     // Update the status of the approval to "Approved"
     eventApproval.approvals[approvalIndex].status = "Approved";
+    const nextRoleIndex = roleHierarchy.indexOf(role) + 1;
+    if (nextRoleIndex < roleHierarchy.length) {
+      const nextRole = roleHierarchy[nextRoleIndex];
+      
+      sendEmail(
+        `${getEmailForRole(nextRole)}`, // Replace with actual email
+        `Event Approval Needed: ${eventApproval.eventName}`,
+        `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.`
+      ); 
+  }
 
     // Save the updated event approval document
     await eventApproval.save();
@@ -404,6 +449,16 @@ export const handleApprovalStatus = async (req, res) => {
     }
 
     eventApproval.approvals[approvalIndex].status = status;
+    const nextRoleIndex = roleHierarchy.indexOf(role) + 1;
+    if (nextRoleIndex < roleHierarchy.length) {
+      const nextRole = roleHierarchy[nextRoleIndex];
+      
+      sendEmail(
+        `${getEmailForRole(nextRole)}`, // Replace with actual email
+        `Event Approval Needed: ${eventApproval.eventName}`,
+        `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.`
+      ); 
+  }
     await eventApproval.save();
 
     console.log("Application updated successfully:", { applicationId, status }); // Debug log
