@@ -62,11 +62,13 @@ const EventDetails = () => {
 
   return (
     <div className="event-details-container">
-      <h2>Event Details</h2>
+      <div className="event-details">
+        <h1>Event Details</h1>
+      </div>
 
       {/* Back button next to the event name */}
       <div className="event-details-header">
-        <h3>{eventDetails.eventName}</h3>
+        <h4>{eventDetails.eventName}</h4>
         <button className="btn btn-secondary btn-sm" onClick={() => navigate(-1)}>
           Back
         </button>

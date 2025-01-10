@@ -6,8 +6,9 @@
 
 .dashboardHeader {
   text-align: center;
-  background-color: orange;
+  background-color: #7b2c7f;
   border-radius: 5px;
+  color: white;
 }
 
 .sidebar {

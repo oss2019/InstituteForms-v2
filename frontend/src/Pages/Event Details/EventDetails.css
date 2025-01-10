@@ -12,9 +12,13 @@
   }
   
   .event-details-content h3 {
-    font-size: 1.5rem;
     margin-bottom: 15px;
   }
+
+  .event-details {
+    text-align: center;
+  }
+  
   
   .event-details-content p {
     margin: 5px 0;
