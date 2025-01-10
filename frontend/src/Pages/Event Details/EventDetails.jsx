@@ -40,7 +40,7 @@ const EventDetails = () => {
         { applicationId, role, status }
       );
       console.log("Response received:", response.data); // Debug log
-  
+
       // Navigate back to the previous page after successful update
       toast.success(`Event ${status} successfully.`);
       navigate(-1); // Navigate back to the previous page
@@ -50,7 +50,7 @@ const EventDetails = () => {
       toast.error("Failed to update status. Please try again.");
     }
   };
-  
+
   const handleGeneratePDF = () => {
     const headerImageURL = "/form_header.png"; // Path to the header image
     generatePDF(eventDetails, headerImageURL);
@@ -104,6 +104,26 @@ const EventDetails = () => {
         {eventDetails.externalParticipants > 0 && (
           <p><strong>Collaborating Organizations:</strong> {eventDetails.listOfCollaboratingOrganizations}</p>
         )}
+
+        <h4>Approval Status</h4>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Comment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {eventDetails.approvals.map((approval, index) => (
+              <tr key={index}>
+                <td>{approval.role}</td>
+                <td>{approval.status}</td>
+                <td>{approval.comment || "N/A"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
         {/* Render Approve and Reject buttons only if the role is not 'club-secretary' */}
         {role !== "club-secretary" && (

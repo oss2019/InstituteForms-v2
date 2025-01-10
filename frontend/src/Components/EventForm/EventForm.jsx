@@ -37,7 +37,7 @@ const EventForm = () => {
     //Expected Number of Participants
     internalParticipants: "",
     externalParticipants: "",
-    listOfCollaboratingOrganizations: "N/A"
+    listOfCollaboratingOrganizations: ""
   });
 
   const handleChange = (e) => {
@@ -382,7 +382,7 @@ const EventForm = () => {
         <div className="mb-3">
           <label><i>External</i></label>
           <input
-            type="number"
+            type="text"
             className="form-control"
             name="externalParticipants"
             value={formData.externalParticipants}
@@ -424,7 +424,7 @@ const EventForm = () => {
         <div className="mb-3">
           <label><i>Internal</i></label>
           <input
-            type="number"
+            type="text"
             className="form-control"
             name="internalParticipants"
             value={formData.internalParticipants}
