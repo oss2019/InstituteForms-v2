@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import "bootstrap/dist/css/bootstrap.min.css";
 import toast, { Toaster } from "react-hot-toast";
 import "./EventForm.css";
-import API from '../../api/api';  // Go back two directories to access src/api/api.js
+import API from '/src/api/api';  // Go back two directories to access src/api/api.js
 
 import { generatePDF } from "../../utils/pdfGenerator";
 
@@ -159,7 +159,7 @@ const EventForm = () => {
             name="eventName"
             value={formData.eventName}
             onChange={handleChange}
-            placeholder="Event name"
+            placeholder="Event Name"
             required
           />
         </div>
@@ -202,7 +202,7 @@ const EventForm = () => {
             name="clubName"
             value={formData.clubName}
             onChange={handleChange}
-            placeholder="Club name"
+            placeholder="Club Name"
             required
           />
         </div>
@@ -246,7 +246,7 @@ const EventForm = () => {
             name="eventVenue"
             value={formData.eventVenue}
             onChange={handleChange}
-            placeholder="Event venue"
+            placeholder="Event Venue"
             required
           />
         </div>
@@ -259,7 +259,7 @@ const EventForm = () => {
             value={formData.sourceOfBudget}
             onChange={handleChange}
           >
-            <option value="" disabled>Select source</option>
+            <option value="" disabled>Select Source</option>
             <option value="Technical">Technical</option>
             <option value="Cultural">Cultural</option>
             <option value="Sports">Sports</option>
@@ -275,7 +275,7 @@ const EventForm = () => {
             name="estimatedBudget"
             value={formData.estimatedBudget}
             onChange={handleChange}
-            placeholder="Estimated budget (in INR)"
+            placeholder="Estimated Budget (in INR)"
             required
           />
         </div>
@@ -289,7 +289,7 @@ const EventForm = () => {
             name="nameOfTheOrganizer"
             value={formData.nameOfTheOrganizer}
             onChange={handleChange}
-            placeholder="Organizer name"
+            placeholder="Organizer Name"
             required
           />
         </div>
@@ -450,6 +450,7 @@ const EventForm = () => {
 
         {/* Disable the button if the agreement checkbox is not checked */}
         <button type="button" className="mb-3 btn btn-primary" onClick={handleGeneratePDF} disabled={!isAgreementChecked}>
+
           Generate PDF
         </button>
 

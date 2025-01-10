@@ -368,7 +368,7 @@ export const getRejectedApplications = async (req, res) => {
   }
 };
 
-//approve an event function 
+//approve an event function
 
 // Function to approve an application based on the role
 export const approveApplication = async (req, res) => {

@@ -4,6 +4,12 @@
   overflow: hidden; /* Prevent overflow from affecting the page layout */
 }
 
+.dashboardHeader {
+  text-align: center;
+  background-color: orange;
+  border-radius: 5px;
+}
+
 .sidebar {
   background-color: #f7f7f7;
   padding: 20px;
@@ -16,7 +22,6 @@
 .sidebar-title {
   font-size: 24px;
   margin-bottom: 20px;
-
 }
 
 .sidebar-menu {
@@ -26,25 +31,45 @@
 
 .sidebar-button {
   background: none;
-  color: #000;
   border: none;
-  font-size: 18px;
+  font-size: 30px;
   cursor: pointer;
-  padding: 10px 0;
+  padding: 10px 0px 10px 3px;
   transition: color 0.3s;
   display: block;
   width: 100%; /* Full width */
   text-align: left;
+  margin: 0px 0px 5px 0px;
 }
 
+.sidebar-title-button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 10px 0px 0px 0px;
+  transition: color 0.3s;
+  display: block;
+  width: 100%; /* Full width */
+  text-align: center;
+}
+
+/* .sidebar-otions {
+  background-color: #007bff;
+
+} */
+ 
 .sidebar-button:hover {
   color: #007bff;
-  background: none;
+  background-color: #eee;
+  border-radius:5px;
 }
 
 .active {
   font-weight: bold;
   color: #007bff;
+  background-color: #ddd;
+  border-radius:5px;
 }
 
 .logout-button {
@@ -101,4 +126,16 @@
     max-height: 70vh; /* Adjust to avoid overflow */
     overflow-y: auto; /* Allow vertical scrolling */
   }
+}
+.sidebar-title {
+  text-align: center;
+}
+
+.sidebar-button div {
+  line-height: 1.5; /* Adjust spacing between lines if needed */
+}
+
+.sidebar-button {
+  font-size: 1.2rem; /* Adjust the size */
+  font-weight: normal;
 }
