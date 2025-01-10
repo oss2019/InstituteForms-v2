@@ -10,6 +10,7 @@ import { generatePDF } from "../../utils/pdfGenerator";
 const EventDetails = () => {
   const { id } = useParams(); // Extract event ID from the route params
   const [eventDetails, setEventDetails] = useState(null); // State for event data
+  const [isPDFGenerated, setIsPDFGenerated] = useState(false); // State for PDF visibility
   const [isLoading, setIsLoading] = useState(true); // State for loading indicator
   const navigate = useNavigate(); // Initialize navigate hook
   const role = localStorage.getItem("role"); // Fetch role from localStorage
@@ -53,6 +54,7 @@ const EventDetails = () => {
   const handleGeneratePDF = () => {
     const headerImageURL = "/form_header.png"; // Path to the header image
     generatePDF(eventDetails, headerImageURL);
+    setIsPDFGenerated(true); // Show the iframe after PDF is generated
   };
 
   if (isLoading) return <div>Loading event details...</div>;
@@ -122,11 +124,14 @@ const EventDetails = () => {
         <button className="btn btn-primary mb-1" onClick={handleGeneratePDF}>
           Generate & Preview PDF
         </button>
-        <iframe
-          id="pdf-preview"
-          className="pdf-preview"
-          style={{ width: "100%", height: "500px", border: "none" }}
-        ></iframe>
+        {/* Conditionally render the iframe only after generating PDF */}
+        {isPDFGenerated && (
+          <iframe
+            id="pdf-preview"
+            className="pdf-preview"
+            style={{ width: "100%", height: "500px", border: "none" }}
+          ></iframe>
+        )}
       </div>
     </div>
   );
