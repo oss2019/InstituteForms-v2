@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ProfilePage from '../../Components/ProfilePage/ProfilePage';
-import ApplyLeave from '../../Components/ApplyLeave/ApplyLeave';
-import ApplyOuting from '../../Components/ApplyOuting/ApplyOuting';
-import './StudentDashboard.css'; // Import styles
-import Dashboard from '../../Components/StudentDashboard/Dashboard';
+import ProfilePage from '/src/Components/ProfilePage/ProfilePage';
+import EventForm from '/src/Components/EventForm/EventForm'; // Import EventForm component
+import '/src/Components/Sidebar/Sidebar.css'; // Import styles
+import Dashboard from '/src/Components/StudentDashboard/Dashboard';
+import toast, { Toaster } from "react-hot-toast";
 
 function StudentDashboard() {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -12,9 +12,16 @@ function StudentDashboard() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/');
+    toast.success("Logout successful!"); // Show toast immediately
+    setTimeout(() => {
+       localStorage.removeItem('token');
+       localStorage.removeItem('email');
+       localStorage.removeItem('user-info');
+       localStorage.removeItem('userID');
+      navigate(`/`);
+    }, 1700); // Navigate after 2 seconds
   };
+
 
   const handleSectionChange = (newSection) => {
     setDirection(newSection === 'dashboard' ? 'up' : 'down');
@@ -27,10 +34,8 @@ function StudentDashboard() {
         return <Dashboard />;
       case 'profile':
         return <ProfilePage />;
-      case 'applyLeave':
-        return <ApplyLeave />;
-      case 'applyOuting':
-        return <ApplyOuting />;
+      case 'eventForm':
+        return <EventForm />;
       default:
         return <Dashboard />;
     }
@@ -39,16 +44,19 @@ function StudentDashboard() {
   return (
     <div className="dashboard">
       <div className="sidebar">
-        <h2 className="sidebar-title">
-          <button 
-              className={`sidebar-button ${activeSection === 'dashboard' ? 'active' : ''}`}
-              onClick={() => handleSectionChange('dashboard')}
-            >
-              Student Dashboard
-          </button></h2>
+        <div className="dashboardHeader">
+          <button
+            className={`sidebar-title-button `}
+            onClick={() => handleSectionChange('dashboard')}
+          >
+            <div>Club Secretary</div>
+            <div>Dashboard</div>
+          </button>
+        </div>
+        <hr className="bg-black" style={{ border: 'none', height: '1px', backgroundColor: 'black' }} />
         <ul className="sidebar-menu">
           <li>
-            <button 
+            <button
               className={`sidebar-button ${activeSection === 'profile' ? 'active' : ''}`}
               onClick={() => handleSectionChange('profile')}
             >
@@ -56,19 +64,11 @@ function StudentDashboard() {
             </button>
           </li>
           <li>
-            <button 
-              className={`sidebar-button ${activeSection === 'applyLeave' ? 'active' : ''}`}
-              onClick={() => handleSectionChange('applyLeave')}
+            <button
+              className={`sidebar-button ${activeSection === 'eventForm' ? 'active' : ''}`}
+              onClick={() => handleSectionChange('eventForm')}
             >
-              Apply for Leave
-            </button>
-          </li>
-          <li>
-            <button 
-              className={`sidebar-button ${activeSection === 'applyOuting' ? 'active' : ''}`}
-              onClick={() => handleSectionChange('applyOuting')}
-            >
-              Apply for Outing
+              Submit Event Proposal
             </button>
           </li>
           <li>

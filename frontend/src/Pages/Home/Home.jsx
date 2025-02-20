@@ -1,71 +1,145 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
-import "bootstrap/dist/css/bootstrap.min.css"; // Import Bootstrap CSS
+import "bootstrap/dist/css/bootstrap.min.css";
 import "./Home.css";
 import collegeLogo from "/IITDHlogo.webp";
+import clubSecretaryIcon from "/student.png";
+import staffIcon from "/staff.png";
 import Footer from "../../Components/Footer/Footer";
 import axios from "axios";
+import { useGoogleLogin } from "@react-oauth/google";
+// import { googleAuth } from "./api";
+import { GoogleLogin } from "@react-oauth/google";
 
 const Home = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const navigate = useNavigate();
-  //FrontendStarts
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState(null);
+  const [error, setError] = useState("");
+
+
+  const responseGoogle = async (authResult) => {
     try {
-      const userData =
-        selectedRole === "security"
-          ? { email:"security1@iitdh.ac.in",
-            password: e.target[0].value,
-            rollNumber:"123",
-            role:"security"
-           } // Only password for security
-          : {
-              email: isSignup ? e.target[1].value : e.target[0].value, // Roll No / Email for student/warden
-              password: e.target[isSignup ? 2 : 1].value, // Password
-              rollNumber: isSignup ? e.target[0].value : undefined, // Roll number for signup
-            };
-
-      const response = await axios.post(
-        `http://localhost:4001/user/${isSignup ? 'signup' : 'login'}`,
-        userData
-      );
-      console.log(response)
-      if (response.data.user.role !== selectedRole) {
-        toast.error("Not Authorized for Login");
-        return;
-      }
-      toast.success("Login successful!");
-      // Store necessary data in local storage
-      
-      localStorage.setItem("token", response.data.token); // Replace with your actual token path
-
-      localStorage.setItem("userID", response.data.user._id); // or whatever response structure you have
+      if (authResult?.credential) {
+        // Send the JWT to the backend
+        const result = await axios.post("http://localhost:4001/user/google-login", {
+          token: authResult.credential,
+        });
+  
+        const { email, name, image, role, category } = result.data.user;
+        console.log(result.data)
+        const token = result.data.token;
     
-    setTimeout(()=>{
-      navigate(`/${selectedRole}`);
-    },1000);
-    } catch (error) {
-      if (error.response) {
-        console.log(error);
-        toast.error("Error: " + error.response.data.message);
-        setTimeout(() => {}, 1000);
+  
+        // Special roles that should be allowed to log in as staff
+        const allowedRolesForStaff = [
+          "president",
+          "treasurer",
+          "faculty-in-charge",
+          "associate-dean",
+          "general-secretary",
+        ];
+  
+        // If the role is in the allowedRolesForStaff, log them in as staff
+        if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
+          toast.success("Login successful!");
+          localStorage.setItem("user-info", JSON.stringify({ email, role, name, token, image, category }));
+          localStorage.setItem("token", token);
+          localStorage.setItem("email", email);
+          localStorage.setItem("role", role);
+          localStorage.setItem("category", category);
+  
+          // Fetch user details from the backend
+          try {
+            const response = await axios.post("http://localhost:4001/user/details", {
+              email: email,
+            });
+            setUserData(response.data);
+            localStorage.setItem("userID", response.data._id);
+          } catch (error) {
+            console.error("Error fetching user data:", error);
+            setError("Failed to load user data");
+          }
+  
+          setTimeout(() => navigate(`/staff`), 1000);
+        } else if (role === selectedRole) {
+          // If the role matches the selected role
+          toast.success("Login successful!");
+          localStorage.setItem("user-info", JSON.stringify({ email, name, token, image, role, category }));
+          localStorage.setItem("token", token);
+          localStorage.setItem("email", email);
+          localStorage.setItem("role", role);
+          localStorage.setItem("category", category);
+          try {
+            const response = await axios.post("http://localhost:4001/user/details", {
+              email: email,
+            });
+            setUserData(response.data);
+            localStorage.setItem("userID", response.data._id);
+          } catch (error) {
+            console.error("Error fetching user data:", error);
+            setError("Failed to load user data");
+          }
+  
+          setTimeout(() => navigate(`/${selectedRole}`), 1000);
+        } else {
+          toast.error("Not authorized for this role.");
+        }
+      } else {
+        throw new Error("Invalid Google Auth response");
       }
+    } catch (e) {
+      console.error("Error during Google Login:", e);
+      toast.error("Google Login failed. Please try again.");
+    }
+  };
+  
+  
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: responseGoogle,
+    onError: responseGoogle,
+    flow: "auth-code",
+  });
+
+  const googleLoginWrapper = () => {
+    if (!selectedRole) {
+      toast.error("Please select a role before logging in.");
+      return;
+    }
+    googleLogin();
+  };
+
+
+  const handleIconClick = (role) => {
+    if (selectedRole === role) {
+      setIsExpanded(!isExpanded);
+    } else {
+      setSelectedRole(role);
+      setIsExpanded(true);
     }
   };
 
-  const handleIconClick = (role) => {
-    setSelectedRole(role);
-    setIsExpanded(true);
-    setIsSignup(false); // Reset to login mode on icon click
+  const toggleForm = (e) => {
+    e.stopPropagation();
+    if (selectedRole === "club-secretary") {
+      setIsSignup((prev) => !prev);
+    }
   };
 
-  const toggleForm = (e) => {
-    e.stopPropagation(); // Prevent click from affecting other elements
-    setIsSignup((prev) => !prev);
+  const handleCategoryClick = (category) => {
+    setSelectedCategory(category);
+  };
+
+  const closeSignupForm = (e) => {
+    if (!e.target.closest(".form-container")) {
+      setIsSignup(false);
+    }
   };
 
   useEffect(() => {
@@ -74,6 +148,7 @@ const Home = () => {
         setIsExpanded(false);
         setSelectedRole(null);
       }
+      closeSignupForm(e);
     };
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -81,7 +156,7 @@ const Home = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-  //Frontend Ends
+
   return (
     <>
       <div className="login-page">
@@ -90,84 +165,44 @@ const Home = () => {
           <img src={collegeLogo} alt="College Logo" className="college-logo" />
         </div>
         <div className="icon-container">
-          {["student", "warden", "security"].map((role) => (
+          {["club-secretary", "staff"].map((role) => (
             <div
               key={role}
               className={`role-icon ${
                 isExpanded && selectedRole === role ? "expand" : ""
-              }`}
+              } ${isSignup && selectedRole === role ? "signup" : ""}`}
               onClick={() => handleIconClick(role)}
             >
-              {!(isExpanded && selectedRole === role) &&
-                (role === "student" ? "🎓" : role === "warden" ? "👨‍🏫" : "🛂")}
+              {selectedRole !== role && (
+                <img
+                  src={
+                    role === "club-secretary" ? clubSecretaryIcon : staffIcon
+                  }
+                  alt={`${role} Icon`}
+                  className="role-icon-image"
+                />
+              )}
               {isExpanded && selectedRole === role && (
                 <div
                   className="form-container"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <form className="login-form" onSubmit={handleLogin}>
-                    <h2
-                      className={`form-heading ${
-                        role === "student" ? "student-heading" : ""
-                      }`}
-                    >
-                      {isSignup
-                        ? "Sign Up"
-                        : `${
-                            role.charAt(0).toUpperCase() + role.slice(1)
-                          } Login`}
-                    </h2>
-                    {selectedRole !== "security" && (
-                      <>
-                        {isSignup && (
-                          <input
-                            type="text"
-                            placeholder="Roll Number" // Placeholder for Roll Number
-                            required
-                            className="form-control form-control-sm"
-                          />
-                        )}
-
-                        <input
-                          type="email" // Change the type to email for better validation
-                          placeholder="Email" // Placeholder for Email
-                          required
-                          className="form-control form-control-sm"
-                        />
-                      </>
-                    )}
-
-                    {/* Password field always shown */}
-                    <input
-                      type="password"
-                      placeholder="Password"
-                      required
-                      className="form-control form-control-sm"
+                  <h2 className="form-heading">
+                    {isSignup
+                      ? "Sign Up"
+                      : role === "club-secretary"
+                      ? "Club Secretary"
+                      : "Staff Portal"}
+                  </h2>
+                  <div className="toggle-container d-flex align-items-center mt-2">
+                    <GoogleLogin
+                      onSuccess={responseGoogle}
+                      onError={responseGoogle}
+                      theme="outline"
+                      text="signin_with"
+                      shape="square"
                     />
-                    <button type="submit" className="btn btn-primary btn-sm">
-                      {isSignup ? "Sign Up" : "Login"}
-                    </button>
-
-                    {role === "student" && (
-                      <div className="toggle-container d-flex align-items-center mt-2">
-                        <div className="form-check form-switch">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id="signupToggle"
-                            checked={isSignup}
-                            onChange={toggleForm}
-                          />
-                          <label
-                            htmlFor="signupToggle"
-                            className="form-check-label ml-2"
-                          >
-                            {isSignup ? "Login" : "Sign Up"}
-                          </label>
-                        </div>
-                      </div>
-                    )}
-                  </form>
+                  </div>
                 </div>
               )}
             </div>

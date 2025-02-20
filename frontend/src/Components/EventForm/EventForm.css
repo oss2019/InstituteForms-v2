@@ -1,0 +1,79 @@
+/* Styling for the container */
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Styling for the header */
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Styling for form labels */
+label {
+  font-weight: bold;
+  color: #555;
+}
+
+/* Styling for inputs and textareas */
+.form-control,
+.form-input {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+/* Styling for checkboxes */
+.form-check-input {
+  margin-right: 10px;
+}
+
+/* Button styling */
+.btn-primary {
+  background-color: #007bff;
+  border-color: #007bff;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+/* Add spacing between form groups */
+.mb-3 {
+  margin-bottom: 15px;
+}
+
+.date-inputs-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px; /* Add spacing between inputs */
+}
+
+.date-input-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Make both inputs take equal space */
+}
+
+.form-label {
+  margin-bottom: 5px; /* Add spacing below the label */
+}
+
+.form-input {
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}

@@ -1,10 +1,12 @@
 import User from "../models/user.model.js";
 import bcryptjs from 'bcryptjs';
 import jwt from "jsonwebtoken";
+import { oauth2Client } from "../googleClient.js";
+import axios from "axios";
 
 export const signup = async (req, res) => {
   try {
-    const { email, password, rollNumber } = req.body;
+    const { email, password, category } = req.body;
 
     // Check if the user already exists
     const existingUser = await User.findOne({ email });
@@ -18,13 +20,9 @@ export const signup = async (req, res) => {
       email,
       password: hashPassword,
       name: "",
-      rollNumber,
-      leaveApplication: "",
-      outingRequest: "",
-      roomNumber:"",
-      branch:"",
-      year: "",
-      course: ""
+      category,
+      eventApproval: "",
+      phnumber: "",
     });
 
     await newUser.save();
@@ -36,7 +34,7 @@ export const signup = async (req, res) => {
     res.status(201).json({
       message: "User created successfully",
       token,
-      user: { _id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role },
+      user: { _id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role, category: newUser.category },
     });
     
   } catch (error) {
@@ -77,17 +75,62 @@ export const login = async (req, res) => {
     }
   };
 
+//Google login function
+
+export const googleLogin = async (req, res) => {
+  const { token } = req.body; // JWT sent from the frontend
+
+  try {
+    // Verify the JWT
+    const ticket = await oauth2Client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID, // Replace with your client ID
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture } = payload;
+
+    // Find or create a user in the database
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({
+        name,
+        email,
+        image: picture,
+        category: "", // Default values
+        phnumber: "",
+      });
+    }
+
+    // Generate a JWT token for your application
+    const appToken = jwt.sign(
+      { userID: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.status(200).json({
+      message: "success",
+      token: appToken,
+      user,
+    });
+  } catch (error) {
+    console.error("Google Login Error:", error);
+    res.status(500).json({ message: "Google Login failed" });
+  }
+};
+
   export const getUserDetails = async (req, res) => {
     try {
-      const { userId, rollNumber } = req.body; // Destructure both userId and rollNumber from request body
+      const { userId, email } = req.body; // Destructure both userId and rollNumber from request body
   
       let user;
   
       // If userId is provided, find by userId; otherwise, find by rollNumber
       if (userId) {
-        user = await User.findById(userId, "leaveApplication outingRequest name rollNumber email phnumber hostel roomNumber course branch year");
-      } else if (rollNumber) {
-        user = await User.findOne({ rollNumber }, "name rollNumber email"); // Find by rollNumber
+        user = await User.findById(userId, "eventApproval name email phnumber category");
+      } else if (email) {
+        user = await User.findOne({ email }, "name eventApproval phnumber category"); 
       }
   
       // Check if user was found
@@ -108,7 +151,7 @@ export const login = async (req, res) => {
       const { userId, ...updates } = req.body; // Destructure userId and the rest as updates
   
       // Ensure only permitted fields can be updated
-      const allowedFields = ["name", "roomNumber", "branch", "year", "course", "hostel", "phnumber"];
+      const allowedFields = ["name", "category", "phnumber"];
   
       // Retrieve the existing user data
       const user = await User.findById(userId);

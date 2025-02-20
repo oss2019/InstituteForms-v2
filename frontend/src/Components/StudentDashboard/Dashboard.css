@@ -1,5 +1,6 @@
 /* Dashboard.css */
 
+/* General Dashboard Styles */
 .dashboard-container {
   display: flex;
   flex-direction: column;
@@ -17,18 +18,39 @@ h2 {
   margin-bottom: 1rem;
 }
 
+/* Card Container */
 .card-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 20px;
 }
 
+/* Card Styles */
 .card {
+  display: flex;
+  flex-direction: column; /* Align items vertically */
+  justify-content: space-between; /* Space between content and button */
+  align-items: flex-start; /* Align text to the left */
   background-color: #fff;
   border-radius: 8px;
   padding: 15px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
+  position: relative; /* Needed for absolute positioning, if required */
+  min-height: 200px; /* Ensure consistent height */
+}
+
+/* Card Status Colors */
+.card.rejected {
+  background-color: #ffcccc; /* Light red for rejected status */
+}
+
+.card.pending {
+  background-color: #fffacd; /* Light yellow for pending status */
+}
+
+.card.approved {
+  background-color: #d4edda; /* Light green for approved status */
 }
 
 .card h3 {
@@ -47,10 +69,32 @@ h2 {
   transform: translateY(-5px);
 }
 
+/* Message Card */
 .message-card {
   background-color: #f9f9f9;
   color: #888;
   text-align: center;
   padding: 20px;
   border: 1px solid #ddd;
+}
+
+/* View Details Button */
+.view-details-button {
+  margin-top: auto; /* Pushes the button to the bottom */
+  align-self: stretch; /* Make the button span the full width of the card */
+}
+
+.view-details-button Button {
+  width: 100%; /* Full-width button */
+  background-color: #007bff; /* Primary button color */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 0;
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease;
+}
+
+.view-details-button Button:hover {
+  background-color: #0056b3; /* Darker blue on hover */
 }
