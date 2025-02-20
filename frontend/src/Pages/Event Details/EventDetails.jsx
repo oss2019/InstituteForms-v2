@@ -20,7 +20,7 @@ const EventDetails = () => {
   const navigate = useNavigate(); // Initialize navigate hook
   const role = localStorage.getItem("role"); // Fetch role from localStorage
 
-const [openChatbox, setOpenChatbox] = useState(null);
+  const [openChatbox, setOpenChatbox] = useState(null);
   useEffect(() => {
     // Function to fetch event details by ID
     const fetchEventDetails = async () => {
@@ -67,11 +67,11 @@ const [openChatbox, setOpenChatbox] = useState(null);
   if (!eventDetails) return <div>Error: Event not found.</div>;
 
   const handleOpenChatbox = (chatboxId) => {
-    setOpenChatbox(chatboxId); 
+    setOpenChatbox(chatboxId);
   };
 
   const handleCloseChatbox = () => {
-    setOpenChatbox(null); 
+    setOpenChatbox(null);
   };
 
   return (
@@ -136,22 +136,48 @@ const [openChatbox, setOpenChatbox] = useState(null);
                 <td>{approval.status}</td>
                 <td>{approval.comment || "N/A"}</td>
                 <td>
-                {approval.role === `${role}` ? (
-                  <button onClick={() => handleOpenChatbox("general")}>General Chat</button>
-                ) : (
-                  <button onClick={() => handleOpenChatbox(approval.role)}>Chat with {approval.role}</button>
-                )}
-              </td>
+                  {approval.role === `${role}` ? (
+                    <button
+                      onClick={() => handleOpenChatbox("general")}
+                      style={{
+                        background: "white",
+                        color: "#ffad4a",
+                        padding: "8px 12px",
+                        border: "2px solid #ffad4a",
+                        borderRadius: "5px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        fontWeight: "bold",
+                        transition: "0.3s",
+                      }}
+                    >General Chat</button>
+                  ) : (
+                    <button
+                      onClick={() => handleOpenChatbox(approval.role)}
+                      style={{
+                        backgroundColor: "rgb(255 255 255)",
+                        color: " rgb(108, 27, 133)",
+                        padding: " 8px 12px",
+                        border: "2px solid rgb(108, 27, 133)",
+                        borderRadius: "5px",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        fontWeight: "bold",
+                        transition: "0.3s",
+                      }}
+                    >Chat with {approval.role}</button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
         <Chatbox chatboxId={"general"} isOpen={openChatbox == "general"} onClose={handleCloseChatbox} />
-        {eventDetails.approvals.map((approval,index) => (
-          approval.role !==`${role}` && (
-        <Chatbox key={index} chatboxId={approval.role} isOpen={openChatbox === approval.role} onClose={handleCloseChatbox} />
+        {eventDetails.approvals.map((approval, index) => (
+          approval.role !== `${role}` && (
+            <Chatbox key={index} chatboxId={approval.role} isOpen={openChatbox === approval.role} onClose={handleCloseChatbox} />
           )
-      ))}
+        ))}
         {/* Render Approve and Reject buttons only if the role is not 'club-secretary' */}
         {role !== "club-secretary" && (
           <>
