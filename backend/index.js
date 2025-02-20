@@ -4,7 +4,7 @@ import mongoose from "mongoose"
 import cors from "cors"
 
 import userRoute from "./route/user.route.js"
-import approvalRoute from "./route/approval.route.js"
+import eventRoute from "./route/event.route.js"
 
 
 const app = express()
@@ -27,8 +27,8 @@ mongoose.connect(URI, {
 });
 
  app.use("/user", userRoute);
- app.use("/approval", approvalRoute);
-// app.use("/out", outRoute);
+ app.use("/event", eventRoute);
+
 
 
 

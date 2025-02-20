@@ -1,7 +1,6 @@
-// src/Components/ProtectedRoute.jsx
 import { Navigate } from 'react-router-dom';
 
-const ProtectedRoute = ({ children, requiredRole }) => {
+const ProtectedRoute = ({ children, requiredRoles }) => {
     const token = localStorage.getItem('token');
     
     // Check for a condition to bypass authentication, e.g., a local development flag
@@ -10,9 +9,9 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     // Decode the token to get user info (you may use a library like jwt-decode)
     const decodedToken = token ? JSON.parse(atob(token.split('.')[1])) : null; // Basic decoding
 
-    // Check if the user is authenticated and has the required role
+    // Check if the user is authenticated and has one of the required roles
     const isAuthenticated = !!token;
-    const hasRequiredRole = decodedToken && decodedToken.role === requiredRole;
+    const hasRequiredRole = decodedToken && requiredRoles.includes(decodedToken.role);
 
     if (isDevMode) {
         // If in dev mode, allow access without authentication checks
@@ -23,8 +22,8 @@ const ProtectedRoute = ({ children, requiredRole }) => {
         return <Navigate to="/" />;
     }
 
-    if (requiredRole && !hasRequiredRole) {
-        return <Navigate to="/" />; // Redirect if user doesn't have the right role
+    if (requiredRoles && !hasRequiredRole) {
+        return <Navigate to="/" />; // Redirect if user doesn't have one of the right roles
     }
 
     return children; // Render the protected component

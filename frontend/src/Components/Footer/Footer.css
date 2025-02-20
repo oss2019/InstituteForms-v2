@@ -1,8 +1,39 @@
 
-footer{
-    background-color: #291334;
+footer {
+    /* background-color: #000000 !important; Ensure black background */
     color: #FFFFFF;
+    width: 100%;
 }
+
+.full-width-footer {
+    width: 100%;
+    margin: 0; /* Remove default margins */
+    padding: 0; /* Adjust padding if needed */
+    background-color: #291334; /* Ensure consistent background color */
+}
+
+.full-width-footer .container {
+    max-width: 100%; /* Override Bootstrap's default max-width */
+    padding: 0; /* Remove container padding for full-width effect */
+}
+
+.full-width-footer {
+    overflow-x: hidden;
+}
+
+
+footer.container {
+    max-width: 100%;
+    padding: 0;
+    border: 2px solid #F2911B; /* Optional: Add a border for separation */
+
+}
+.footer-main {
+    background-color: #291334; /* Change to black */
+    color: #FFFFFF; /* Text color */
+    padding: 20px; /* Optional: Add padding */
+}
+
 .foot-link{
     font-weight: 500;
     position: relative;
@@ -44,4 +75,9 @@ hr{
 }
 p{
     margin-bottom: 0;
+}
+
+div.copyright {
+    background-color: #291334; /* Change to black */
+    padding: 10px;
 }

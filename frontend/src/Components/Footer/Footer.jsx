@@ -4,9 +4,8 @@ import "./Footer.css"
 
 const Footer = () => {
     return (
-        <footer className="pt-5 pb-4">
-            <div className="container text-md-left">
-                <div className="row text-md-left">
+        <footer className="footer full-width-footer pt-5 pb-4">
+                <div className="row text-md-left footer-main">
                     <div className="col-md-3 col-lg-3 col-xl-4 mx-auto mt-3">
                         <img src="/IIT dh logo.png" className="footer-logo"/>
                         <p className="font-weight-bold">INDIAN INSTITUTE OF TECHNOLOGY DHARWAD<br/>PERMANENT CAMPUS<br/>CHIKKAMALLIGAWAD<br/>DHARWAD - 580007<br/>KARNATAKA,<br/>BHARATA (INDIA)</p>
@@ -58,13 +57,12 @@ const Footer = () => {
 						<p><a href="https://drive.google.com/drive/folders/1IG-ASfdc2aIXtKoou-B1YfNNG-0hkQfv" className="foot-link">VPN Access</a></p>
 					</div>
 				</div>
-				<hr className="mb-4"/>
-				<div className="row align-items-center">
-					<div className="col-md-7 col-lg-8">
+				<hr className="mb-4 "/>
+				<div className=" copyright row align-items-center">
+					<div className=" col-md-7 col-lg-8 ">
 						<p>	Copyright ©2024 All rights reserved by:</p>
 					</div>
 				</div>
-			</div>
 		</footer>
     )
 }
