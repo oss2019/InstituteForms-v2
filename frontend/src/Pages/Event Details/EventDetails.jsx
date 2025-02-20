@@ -4,10 +4,15 @@ import axios from "axios";
 import { toast } from "react-hot-toast";
 import jsPDF from "jspdf";
 import "./EventDetails.css";
+import Chatbox from "../../Components/Chatbox/Chatbox";
 
 import { generatePDF } from "../../utils/pdfGenerator";
 
+
+
+
 const EventDetails = () => {
+
   const { id } = useParams(); // Extract event ID from the route params
   const [eventDetails, setEventDetails] = useState(null); // State for event data
   const [isPDFGenerated, setIsPDFGenerated] = useState(false); // State for PDF visibility
@@ -15,6 +20,7 @@ const EventDetails = () => {
   const navigate = useNavigate(); // Initialize navigate hook
   const role = localStorage.getItem("role"); // Fetch role from localStorage
 
+const [openChatbox, setOpenChatbox] = useState(null);
   useEffect(() => {
     // Function to fetch event details by ID
     const fetchEventDetails = async () => {
@@ -59,6 +65,14 @@ const EventDetails = () => {
 
   if (isLoading) return <div>Loading event details...</div>;
   if (!eventDetails) return <div>Error: Event not found.</div>;
+
+  const handleOpenChatbox = (chatboxId) => {
+    setOpenChatbox(chatboxId); 
+  };
+
+  const handleCloseChatbox = () => {
+    setOpenChatbox(null); 
+  };
 
   return (
     <div className="event-details-container">
@@ -112,6 +126,7 @@ const EventDetails = () => {
               <th>Role</th>
               <th>Status</th>
               <th>Comment</th>
+              <th>Chat</th>
             </tr>
           </thead>
           <tbody>
@@ -120,11 +135,23 @@ const EventDetails = () => {
                 <td>{approval.role}</td>
                 <td>{approval.status}</td>
                 <td>{approval.comment || "N/A"}</td>
+                <td>
+                {approval.role === `${role}` ? (
+                  <button onClick={() => handleOpenChatbox("general")}>General Chat</button>
+                ) : (
+                  <button onClick={() => handleOpenChatbox(approval.role)}>Chat with {approval.role}</button>
+                )}
+              </td>
               </tr>
             ))}
           </tbody>
         </table>
-
+        <Chatbox chatboxId={"general"} isOpen={openChatbox == "general"} onClose={handleCloseChatbox} />
+        {eventDetails.approvals.map((approval,index) => (
+          approval.role !==`${role}` && (
+        <Chatbox key={index} chatboxId={approval.role} isOpen={openChatbox === approval.role} onClose={handleCloseChatbox} />
+          )
+      ))}
         {/* Render Approve and Reject buttons only if the role is not 'club-secretary' */}
         {role !== "club-secretary" && (
           <>

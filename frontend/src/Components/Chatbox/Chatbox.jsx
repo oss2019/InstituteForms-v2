@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./Chatbox.css";
-import close from "../assets/cb.png";
-import sb from "../assets/sb.png";
-import ub from "../assets/ub.png";
+import close from "../../assets/cb.png";
+import sb from "../../assets/sb.png";
+import ub from "../../assets/ub.png";
 
 const Chatbox = ({ isOpen, onClose, chatboxId }) => {
   const [messages, setMessages] = useState([]);
