@@ -39,7 +39,7 @@ const eventApprovalSchema = new Schema({
       },
       status: {
         type: String,
-        enum: ["Pending", "Approved", "Not Approved"],
+        enum: ["Pending", "Approved", "Rejected"],
         default: "Pending",
       },
       comment: { type: String, required: false }, // Optional comment for feedback

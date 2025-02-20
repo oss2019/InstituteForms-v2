@@ -44,14 +44,15 @@ function StudentDashboard() {
   return (
     <div className="dashboard">
       <div className="sidebar">
-        <h2 className="sidebar-title">
+        <div className="dashboardHeader">
           <button
-            className={`sidebar-title-button`}
+            className={`sidebar-title-button `}
             onClick={() => handleSectionChange('dashboard')}
           >
-            Student Dashboard
+            <div>Club Secretary</div>
+            <div>Dashboard</div>
           </button>
-        </h2>
+        </div>
         <hr className="bg-black" style={{ border: 'none', height: '1px', backgroundColor: 'black' }} />
         <ul className="sidebar-menu">
           <li>
