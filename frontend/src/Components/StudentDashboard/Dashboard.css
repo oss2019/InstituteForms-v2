@@ -18,10 +18,27 @@ h2 {
   margin-bottom: 1rem;
 }
 
+/* Search Section */
+.search-section {
+  max-width: 500px;
+}
+
+.filters-section {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.filters-section h5 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
 /* Card Container */
 .card-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 20px;
 }
 
@@ -52,7 +69,20 @@ h2 {
 .card.approved {
   background-color: #d4edda; /* Light green for approved status */
 }
+.card.query {
+  background-color: yellow;
+}
 
+/* Badge styling enhancements */
+.filters-section .badge {
+  font-weight: 500;
+  padding: 6px 10px;
+}
+
+@media (max-width: 768px) {
+  .filters-section .row > div { margin-bottom: 12px; }
+  .card-container { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+}
 .card h3 {
   margin: 0 0 10px;
   color: #333;

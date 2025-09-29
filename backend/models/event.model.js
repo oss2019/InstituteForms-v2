@@ -10,6 +10,8 @@ const eventApprovalSchema = new Schema({
   clubName: { type: String, required: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
+  semester: { type: String, required: false }, // Semester field (e.g., "Fall 2024", "Spring 2025")
+  academicYear: { type: String, required: false }, // Academic year (e.g., "2024-2025")
   eventVenue: { type: String, required: true },
   sourceOfBudget: { type: String, required: true },
   estimatedBudget: { type: Number, required: true },
@@ -39,10 +41,36 @@ const eventApprovalSchema = new Schema({
       },
       status: {
         type: String,
-        enum: ["Pending", "Approved", "Rejected"],
+        enum: ["Pending", "Approved", "Rejected", "Query"],
         default: "Pending",
       },
       comment: { type: String, required: false }, // Optional comment for feedback
+    },
+  ],
+  queries: [
+    {
+      queryId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() },
+      askerRole: {
+        type: String,
+        enum: [
+          "general-secretary",
+          "treasurer", 
+          "president",
+          "faculty-in-charge",
+          "associate-dean",
+        ],
+        required: true,
+      },
+      queryText: { type: String, required: true },
+      responderEmail: { type: String, required: true }, // Email of the organizer who should respond
+      response: { type: String, required: false },
+      status: {
+        type: String,
+        enum: ["Pending", "Answered"],
+        default: "Pending",
+      },
+      raisedAt: { type: Date, default: Date.now },
+      answeredAt: { type: Date, required: false },
     },
   ],
 }, { timestamps: true });

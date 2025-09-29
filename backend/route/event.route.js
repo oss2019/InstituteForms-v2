@@ -8,6 +8,12 @@ import {
   getRejectedApplications,
   getEventById,
   handleApprovalStatus, // Import the updated controller
+  raiseQuery,
+  getEventQueries,
+  replyToQuery,
+  getSemesterOptions,
+  getApprovedApplicationsWithFilters,
+  getPendingApprovalsWithFilters,
 } from "../controller/event.controller.js";
 
 const router = express.Router();
@@ -32,5 +38,23 @@ router.patch("/:applicationId/status", handleApprovalStatus);
 
 // Get event details by ID (GET)
 router.get("/:id", getEventById);
+
+// Raise a query for an event application (POST)
+router.post("/raise-query", raiseQuery);
+
+// Get all queries for an event (GET)
+router.get("/:eventId/queries", getEventQueries);
+
+// Reply to a query (POST)
+router.post("/reply-query", replyToQuery);
+
+// Get semester options for filtering (GET)
+router.get("/semesters/options", getSemesterOptions);
+
+// Get approved applications with filters and search (POST)
+router.post("/approved/filtered", getApprovedApplicationsWithFilters);
+
+// Get pending applications with filters and search (POST)
+router.post("/pending/filtered", getPendingApprovalsWithFilters);
 
 export default router;

@@ -1,24 +1,29 @@
-.cards-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px; /* Space between cards */
-    margin: 20px 0;
-  }
-  
-  .card {
-    background-color: #f9f9f9;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 15px;
-    width: 200px; /* Set a fixed width for cards */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-  
-  .card h3 {
-    margin: 0 0 10px;
-  }
-  
-  .card p {
-    margin: 5px 0;
-  }
+/* Pending Approvals Enhanced Styles */
+.filters-section {
+  background-color: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.dashboard-card {
+  border-radius: 10px;
+  transition: transform .25s ease, box-shadow .25s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  border: 1px solid #f0f0f0;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+}
+
+.dashboard-card .card-title {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+@media (max-width: 768px) {
+  .filters-section .row > div { margin-bottom: 12px; }
+}
   
