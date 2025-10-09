@@ -146,7 +146,7 @@ const EventForm = () => {
   };
 
   return (
-    <div className="container mt-5">
+    <div className="container mt-1">
       <Toaster />
       <h2>Event Proposal Form</h2>
       <form>

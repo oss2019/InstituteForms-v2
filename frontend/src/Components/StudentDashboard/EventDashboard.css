@@ -1,0 +1,48 @@
+.filters-section {
+  background-color: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.event-card {
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-height: 220px;
+  border-left: 5px solid var(--border-color);
+}
+
+.event-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.12);
+}
+
+/* Status Colors */
+.event-card.rejected { border-left-color: #dc3545; }
+.event-card.pending { border-left-color: #ffc107; }
+.event-card.approved { border-left-color: #198754; }
+.event-card.query { border-left-color: #0dcaf0; }
+
+.event-card h3 {
+  margin: 0 0 10px;
+  color: #333;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.event-card p {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 4px 0;
+}

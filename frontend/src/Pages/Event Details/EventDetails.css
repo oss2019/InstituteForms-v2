@@ -63,3 +63,84 @@
     border: none;
     margin-top: 20px;
   }  
+  /* === Modal Styles === */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1050;
+  padding: 1rem;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 1.5rem;
+}
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+  .event-details-container {
+    padding: 1rem;
+  }
+  
+  .event-details-content {
+    padding: 1rem;
+  }
+
+  .event-details-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  /* --- Responsive Table Logic --- */
+  .approval-table thead {
+    display: none; /* Hide table headers on mobile */
+  }
+
+  .approval-table, .approval-table tbody, .approval-table tr, .approval-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .approval-table tr {
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+  }
+
+  .approval-table td {
+    border: none;
+    padding-left: 50%; /* Create space for the label */
+    position: relative;
+    text-align: right;
+  }
+
+  .approval-table td::before {
+    content: attr(data-label); /* Use the data-label for the header text */
+    position: absolute;
+    left: 10px;
+    width: 45%;
+    padding-right: 10px;
+    white-space: nowrap;
+    text-align: left;
+    font-weight: bold;
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect,useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -8,89 +8,55 @@ import clubSecretaryIcon from "/student.png";
 import staffIcon from "/staff.png";
 import Footer from "../../Components/Footer/Footer";
 import axios from "axios";
-import { useGoogleLogin } from "@react-oauth/google";
-// import { googleAuth } from "./api";
 import { GoogleLogin } from "@react-oauth/google";
 
 const Home = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  // Note: The 'isSignup' logic might need adjustment with a pure hover interaction
   const [isSignup, setIsSignup] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState(null);
-  const [error, setError] = useState("");
-  const iconRef = useRef(null)
-
 
   const responseGoogle = async (authResult) => {
     try {
       if (authResult?.credential) {
-        // Send the JWT to the backend
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
         const result = await axios.post(`${apiUrl}/user/google-login`, {
           token: authResult.credential,
         });
-  
-        const { email, name, image, role, category } = result.data.user;
-        console.log(result.data)
-        const token = result.data.token;
-    
-  
-        // Special roles that should be allowed to log in as staff
-        const allowedRolesForStaff = [
-          "president",
-          "treasurer",
-          "faculty-in-charge",
-          "associate-dean",
-          "general-secretary"
-        ];
-  
-        // If the role is in the allowedRolesForStaff, log them in as staff
-        if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
-          toast.success("Login successful!");
-          localStorage.setItem("user-info", JSON.stringify({ email, role, name, token, image, category }));
-          localStorage.setItem("token", token);
-          localStorage.setItem("email", email);
-          localStorage.setItem("role", role);
-          localStorage.setItem("category", category);
-  
-          // Fetch user details from the backend
-          try {
-            const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
-            const response = await axios.post(`${apiUrl}/user/details`, {
-              email: email,
-            });
-            setUserData(response.data);
-            localStorage.setItem("userID", response.data._id);
-          } catch (error) {
-            console.error("Error fetching user data:", error);
-            setError("Failed to load user data");
-          }
 
-          setTimeout(() => navigate(`/staff`), 1000);
+        const { email, name, image, role, category } = result.data.user;
+        const token = result.data.token;
+
+        const allowedRolesForStaff = [
+          "president", "treasurer", "faculty-in-charge", 
+          "associate-dean", "general-secretary"
+        ];
+
+        const loginUser = (userRole) => {
+            toast.success("Login successful!");
+            localStorage.setItem("user-info", JSON.stringify({ email, name, token, image, role, category }));
+            localStorage.setItem("token", token);
+            localStorage.setItem("email", email);
+            localStorage.setItem("role", role);
+            localStorage.setItem("category", category);
+
+            axios.post(`${apiUrl}/user/details`, { email: email })
+              .then(response => {
+                  localStorage.setItem("userID", response.data._id);
+              })
+              .catch(error => {
+                  console.error("Error fetching user data:", error);
+                  toast.error("Failed to load user data");
+              });
+              
+            setTimeout(() => navigate(`/${userRole}`), 1000);
+        };
+
+        if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
+          loginUser("staff");
         } else if (role === selectedRole) {
-          // If the role matches the selected role
-          toast.success("Login successful!");
-          localStorage.setItem("user-info", JSON.stringify({ email, name, token, image, role, category }));
-          localStorage.setItem("token", token);
-          localStorage.setItem("email", email);
-          localStorage.setItem("role", role);
-          localStorage.setItem("category", category);
-          try {
-            const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
-            const response = await axios.post(`${apiUrl}/user/details`, {
-              email: email,
-            });
-            setUserData(response.data);
-            localStorage.setItem("userID", response.data._id);
-          } catch (error) {
-            console.error("Error fetching user data:", error);
-            setError("Failed to load user data");
-          }
-  
-          setTimeout(() => navigate(`/${selectedRole}`), 1000);
+          loginUser(selectedRole);
         } else {
           toast.error("Not authorized for this role.");
         }
@@ -102,64 +68,40 @@ const Home = () => {
       toast.error("Google Login failed. Please try again.");
     }
   };
-  
-  
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: responseGoogle,
-    onError: responseGoogle,
-    flow: "auth-code",
-  });
+  // --- KEY CHANGES START HERE ---
 
-  const googleLoginWrapper = () => {
-    if (!selectedRole) {
-      toast.error("Please select a role before logging in.");
-      return;
-    }
-    googleLogin();
+  // 1. Create separate, clear handlers for mouse enter and mouse leave.
+  const handleMouseEnter = (role) => {
+    setSelectedRole(role);
+    setIsExpanded(true);
   };
 
-
-  const handleIconClick = (role) => {
-    if (selectedRole === role) {
-      setIsExpanded(!isExpanded);
-    } else {
-      setSelectedRole(role);
-      setIsExpanded(true);
-    }
+  const handleMouseLeave = () => {
+    setSelectedRole(null);
+    setIsExpanded(false);
+    setIsSignup(false); // Also reset signup state if needed
   };
 
-  const toggleForm = (e) => {
-    e.stopPropagation();
-    if (selectedRole === "club-secretary") {
-      setIsSignup((prev) => !prev);
-    }
-  };
-
-  const handleCategoryClick = (category) => {
-    setSelectedCategory(category);
-  };
-
-  const closeSignupForm = (e) => {
-    if (!e.target.closest(".form-container")) {
-      setIsSignup(false);
-    }
-  };
-
+  // 2. The useEffect for handling clicks outside is no longer needed for hover functionality.
+  //    You can remove it to simplify the component.
+  /*
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (!e.target.closest(".expand")) {
         setIsExpanded(false);
         setSelectedRole(null);
       }
-      closeSignupForm(e);
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+  */
+  
+  // --- KEY CHANGES END HERE ---
+
 
   return (
     <>
@@ -172,12 +114,15 @@ const Home = () => {
           {["club-secretary", "staff"].map((role) => (
             <div
               key={role}
-              ref = {iconRef}
+              // 3. Add onMouseLeave and update onMouseEnter to use the new handlers.
+              onMouseEnter={() => handleMouseEnter(role)}
+              onMouseLeave={handleMouseLeave}
               className={`role-icon ${
                 isExpanded && selectedRole === role ? "expand" : ""
               } ${isSignup && selectedRole === role ? "signup" : ""}`}
-              onMouseEnter={() => handleIconClick(role)}>
-              {selectedRole !== role && (
+            >
+              {/* This logic now works correctly on hover */}
+              {!isExpanded || selectedRole !== role ? (
                 <img
                   src={
                     role === "club-secretary" ? clubSecretaryIcon : staffIcon
@@ -185,11 +130,10 @@ const Home = () => {
                   alt={`${role} Icon`}
                   className="role-icon-image"
                 />
-              )}
-              {isExpanded && selectedRole === role && (
+              ) : (
                 <div
                   className="form-container"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()} // Prevents event bubbling
                 >
                   <h2 className="form-heading">
                     {isSignup
@@ -201,7 +145,7 @@ const Home = () => {
                   <div className="toggle-container d-flex align-items-center mt-2">
                     <GoogleLogin
                       onSuccess={responseGoogle}
-                      onError={responseGoogle}
+                      onError={() => toast.error("Login failed")}
                       theme="outline"
                       text="signin_with"
                       shape="square"

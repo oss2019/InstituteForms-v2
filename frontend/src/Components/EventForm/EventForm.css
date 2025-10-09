@@ -77,3 +77,9 @@ label {
   border: 1px solid #ccc;
   border-radius: 4px;
 }
+
+@media (max-width: 380px) {
+  .date-inputs-row {
+    flex-direction: column;
+  }
+}

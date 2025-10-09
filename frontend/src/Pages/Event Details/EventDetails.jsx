@@ -56,15 +56,15 @@ const EventDetails = () => {
   // Helper function to get approvals up to rejection point
   const getApprovalsToDisplay = (approvals) => {
     const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "faculty-in-charge", "associate-dean"];
-    
+
     // Find the first rejection in the hierarchy
     const rejectionIndex = approvals.findIndex(approval => approval.status === "Rejected");
-    
+
     if (rejectionIndex === -1) {
       // No rejection found, show all approvals
       return approvals;
     }
-    
+
     // Show approvals up to and including the rejection
     return approvals.slice(0, rejectionIndex + 1);
   };
@@ -72,13 +72,13 @@ const EventDetails = () => {
   // Helper function to check if current user can approve/reject
   const canCurrentUserApprove = (approvals) => {
     const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "faculty-in-charge", "associate-dean"];
-    
+
     // If there's a rejection, no one can approve anymore
     const hasRejection = approvals.some(approval => approval.status === "Rejected");
     if (hasRejection) {
       return false;
     }
-    
+
     // Check if current user's role has a pending status
     const currentUserApproval = approvals.find(approval => approval.role === role);
     return currentUserApproval && currentUserApproval.status === "Pending";
@@ -88,7 +88,7 @@ const EventDetails = () => {
     try {
       const userCategory = localStorage.getItem("category"); // Get user's category
       console.log("Sending request with:", { applicationId, role, status, comment, userCategory }); // Debug log
-      
+
       if (status === "Query") {
         // Use the raise-query endpoint for queries
         const response = await axios.post(
@@ -97,11 +97,11 @@ const EventDetails = () => {
         );
         console.log("Query raised successfully:", response.data);
         toast.success("Query raised successfully.");
-        
+
         // Refresh queries after raising one
         const queriesResponse = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:4001"}/event/${applicationId}/queries`);
         setQueries(queriesResponse.data.queries || []);
-        
+
         // Refresh event details to update approval status
         const eventResponse = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:4001"}/event/${applicationId}`);
         setEventDetails(eventResponse.data);
@@ -168,15 +168,15 @@ const EventDetails = () => {
       });
 
       toast.success("Query response submitted successfully!");
-      
+
       // Refresh queries
       const response = await axios.get(`${apiUrl}/event/${id}/queries`);
       setQueries(response.data.queries || []);
-      
+
       // Refresh event details to update approval status
       const eventResponse = await axios.get(`${apiUrl}/event/${id}`);
       setEventDetails(eventResponse.data);
-      
+
       setShowQueryModal(false);
       setQueryResponse("");
       setSelectedQuery(null);
@@ -203,7 +203,7 @@ const EventDetails = () => {
 
   // Determine the action label for the modal
   const getActionLabel = (action) => {
-    switch(action) {
+    switch (action) {
       case "Approved": return "Approve";
       case "Rejected": return "Reject";
       case "Query": return "Raise Query";
@@ -269,9 +269,10 @@ const EventDetails = () => {
           <tbody>
             {getApprovalsToDisplay(eventDetails.approvals).map((approval, index) => (
               <tr key={index}>
-                <td>{approval.role}</td>
-                <td>{approval.status}</td>
-                <td>{approval.comment || "N/A"}</td>
+                {/* Add the data-label attributes like this: */}
+                <td data-label="Role">{approval.role}</td>
+                <td data-label="Status">{approval.status}</td>
+                <td data-label="Comment">{approval.comment || "N/A"}</td>
               </tr>
             ))}
           </tbody>
@@ -283,7 +284,7 @@ const EventDetails = () => {
             <h4>Queries</h4>
             <div className="queries-section">
               {queries.map((query, index) => (
-                <div key={query.queryId} className="query-card mb-3 p-3" style={{border: "1px solid #ddd", borderRadius: "5px"}}>
+                <div key={query.queryId} className="query-card mb-3 p-3" style={{ border: "1px solid #ddd", borderRadius: "5px" }}>
                   <div className="query-header">
                     <strong>Query from {query.askerRole}:</strong>
                     <span className="text-muted ms-2">
@@ -305,7 +306,7 @@ const EventDetails = () => {
                     </div>
                   )}
                   {query.status === "Pending" && role === "club-secretary" && (
-                    <button 
+                    <button
                       className="btn btn-sm btn-primary mt-2"
                       onClick={() => handleQueryReply(query)}
                     >
@@ -377,7 +378,7 @@ const EventDetails = () => {
             }}>
               <h4>{action} Event</h4>
               <p>You are about to <strong>{action.toLowerCase()}</strong> this event application.</p>
-              
+
               <div className="form-group mb-3">
                 <label htmlFor="comment">
                   {approvalAction === "Query" ? "Query Text (Required):" : "Comment (Optional):"}
@@ -389,8 +390,8 @@ const EventDetails = () => {
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder={
-                    approvalAction === "Query" 
-                      ? "Please describe your query or concern about this event..." 
+                    approvalAction === "Query"
+                      ? "Please describe your query or concern about this event..."
                       : `Add your ${action.toLowerCase()} comment...`
                   }
                   required={approvalAction === "Query"}
@@ -408,11 +409,10 @@ const EventDetails = () => {
                   Cancel
                 </button>
                 <button
-                  className={`btn ${
-                    approvalAction === "Approved" ? "btn-success" : 
-                    approvalAction === "Rejected" ? "btn-danger" : 
-                    "btn-warning"
-                  }`}
+                  className={`btn ${approvalAction === "Approved" ? "btn-success" :
+                      approvalAction === "Rejected" ? "btn-danger" :
+                        "btn-warning"
+                    }`}
                   onClick={handleModalSubmit}
                   disabled={approvalAction === "Query" && !comment.trim()}
                 >
@@ -448,12 +448,12 @@ const EventDetails = () => {
               {selectedQuery && (
                 <div className="mb-3">
                   <p><strong>Query from {selectedQuery.askerRole}:</strong></p>
-                  <p style={{fontStyle: "italic", background: "#f8f9fa", padding: "10px", borderRadius: "5px"}}>
+                  <p style={{ fontStyle: "italic", background: "#f8f9fa", padding: "10px", borderRadius: "5px" }}>
                     {selectedQuery.queryText}
                   </p>
                 </div>
               )}
-              
+
               <div className="form-group mb-3">
                 <label htmlFor="queryResponse">Your Response (Required):</label>
                 <textarea
