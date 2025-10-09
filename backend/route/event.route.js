@@ -4,6 +4,7 @@ import {
   getUserEvents,
   approveApplication,
   getApprovedApplications,
+  editEventDetails,
   getPendingApprovals,
   getRejectedApplications,
   getEventById,
@@ -47,6 +48,9 @@ router.get("/:eventId/queries", getEventQueries);
 
 // Reply to a query (POST)
 router.post("/reply-query", replyToQuery);
+
+// Edit all event details (PATCH)
+router.patch("/edit", editEventDetails);
 
 // Get semester options for filtering (GET)
 router.get("/semesters/options", getSemesterOptions);

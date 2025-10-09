@@ -972,3 +972,57 @@ export const getPendingApprovalsWithFilters = async (req, res) => {
     res.status(500).json({ message: "Internal server error." });
   }
 };
+
+
+
+// Edit all event details (only allowed by club-secretary and only if approvals are still pending at general-secretary)
+export const editEventDetails = async (req, res) => {
+  const { eventId, userID, updates } = req.body;
+
+  try {
+    // Find the event
+    const event = await EventApproval.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    const user = await User.findById(userID);
+    if (!user || user.role !== "club-secretary") {
+      return res.status(403).json({ message: "Only club-secretary can edit event details." });
+    }
+
+    if (!event.userID.equals(userID)) {
+      return res.status(403).json({ message: "You are not authorized to edit this event." });
+    }
+    
+
+    // List of fields that can be updated
+    const editableFields = [
+      "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
+      "eventVenue", "sourceOfBudget", "estimatedBudget", "nameOfTheOrganizer", "designation",
+      "email", "phoneNumber", "requirements", "anyAdditionalAmenities", "eventDescription",
+      "internalParticipants", "externalParticipants", "listOfCollaboratingOrganizations"
+    ];
+
+    // Update only allowed fields
+    editableFields.forEach(field => {
+      if (updates[field] !== undefined) {
+        event[field] = updates[field];
+      }
+    });
+
+    // If startDate changed, update semester/academicYear
+    if (updates.startDate) {
+      const semesterInfo = getSemesterInfo(updates.startDate);
+      event.semester = semesterInfo.semester;
+      event.academicYear = semesterInfo.academicYear;
+    }
+
+    await event.save();
+
+    res.status(200).json({ message: "Event details updated successfully.", event });
+  } catch (error) {
+    console.error("Error editing event details:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
