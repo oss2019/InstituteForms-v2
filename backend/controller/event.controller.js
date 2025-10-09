@@ -991,7 +991,7 @@ export const editEventDetails = async (req, res) => {
       return res.status(403).json({ message: "Only club-secretary can edit event details." });
     }
 
-    if (!event.userID.equals(userID)) {
+    if (event.userID.toString() !== userID.toString()) {
       return res.status(403).json({ message: "You are not authorized to edit this event." });
     }
     

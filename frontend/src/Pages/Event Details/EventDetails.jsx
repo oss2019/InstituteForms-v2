@@ -384,12 +384,16 @@ const EventDetails = () => {
               </div>
               <div className="form-group mb-2">
                 <label>Part of Gymkhana Calendar</label>
-                <input
+                <select
                   className="form-control"
                   name="partOfGymkhanaCalendar"
                   value={editForm.partOfGymkhanaCalendar || ""}
                   onChange={handleEditChange}
-                />
+                >
+                  <option value="">Select</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                </select>
               </div>
               <div className="form-group mb-2">
                 <label>Event Type</label>
