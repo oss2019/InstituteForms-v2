@@ -12,14 +12,23 @@ const EventDetails = () => {
   const [eventDetails, setEventDetails] = useState(null); // State for event data
   const [isPDFGenerated, setIsPDFGenerated] = useState(false); // State for PDF visibility
   const [isLoading, setIsLoading] = useState(true); // State for loading indicator
+  const [showModal, setShowModal] = useState(false);
+  const [comment, setComment] = useState("");
+  const [approvalAction, setApprovalAction] = useState(null);
+  const [queries, setQueries] = useState([]); // State for queries
+  const [showQueryModal, setShowQueryModal] = useState(false); // State for query modal
+  const [queryResponse, setQueryResponse] = useState(""); // State for query response
+  const [selectedQuery, setSelectedQuery] = useState(null); // State for selected query
   const navigate = useNavigate(); // Initialize navigate hook
   const role = localStorage.getItem("role"); // Fetch role from localStorage
+  const userEmail = localStorage.getItem("email") || localStorage.getItem("userEmail"); // Get user email
 
   useEffect(() => {
     // Function to fetch event details by ID
     const fetchEventDetails = async () => {
       try {
-        const response = await axios.get(`http://localhost:4001/event/${id}`); // Correct API endpoint
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+        const response = await axios.get(`${apiUrl}/event/${id}`); // Correct API endpoint
         setEventDetails(response.data); // Update state with the fetched event data
       } catch (error) {
         toast.error("Error fetching event details!"); // Display error toast
@@ -29,26 +38,158 @@ const EventDetails = () => {
       }
     };
 
+    // Function to fetch queries for this event
+    const fetchQueries = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+        const response = await axios.get(`${apiUrl}/event/${id}/queries`);
+        setQueries(response.data.queries || []);
+      } catch (error) {
+        console.error("Error fetching queries:", error);
+      }
+    };
+
     fetchEventDetails(); // Call the fetch function
+    fetchQueries(); // Fetch queries as well
   }, [id]); // Dependency array to re-run the effect when `id` changes
 
-  const handleStatusUpdate = async (applicationId, role, status) => {
-    try {
-      console.log("Sending request with:", { applicationId, role, status }); // Debug log
-      const response = await axios.patch(
-        `http://localhost:4001/event/${applicationId}/status`,
-        { applicationId, role, status }
-      );
-      console.log("Response received:", response.data); // Debug log
+  // Helper function to get approvals up to rejection point
+  const getApprovalsToDisplay = (approvals) => {
+    const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "faculty-in-charge", "associate-dean"];
+    
+    // Find the first rejection in the hierarchy
+    const rejectionIndex = approvals.findIndex(approval => approval.status === "Rejected");
+    
+    if (rejectionIndex === -1) {
+      // No rejection found, show all approvals
+      return approvals;
+    }
+    
+    // Show approvals up to and including the rejection
+    return approvals.slice(0, rejectionIndex + 1);
+  };
 
-      // Navigate back to the previous page after successful update
-      toast.success(`Event ${status} successfully.`);
-      navigate(-1); // Navigate back to the previous page
+  // Helper function to check if current user can approve/reject
+  const canCurrentUserApprove = (approvals) => {
+    const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "faculty-in-charge", "associate-dean"];
+    
+    // If there's a rejection, no one can approve anymore
+    const hasRejection = approvals.some(approval => approval.status === "Rejected");
+    if (hasRejection) {
+      return false;
+    }
+    
+    // Check if current user's role has a pending status
+    const currentUserApproval = approvals.find(approval => approval.role === role);
+    return currentUserApproval && currentUserApproval.status === "Pending";
+  };
+
+  const handleStatusUpdate = async (applicationId, role, status, comment = "") => {
+    try {
+      const userCategory = localStorage.getItem("category"); // Get user's category
+      console.log("Sending request with:", { applicationId, role, status, comment, userCategory }); // Debug log
+      
+      if (status === "Query") {
+        // Use the raise-query endpoint for queries
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL || "http://localhost:4001"}/event/raise-query`,
+          { applicationId, role, queryText: comment }
+        );
+        console.log("Query raised successfully:", response.data);
+        toast.success("Query raised successfully.");
+        
+        // Refresh queries after raising one
+        const queriesResponse = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:4001"}/event/${applicationId}/queries`);
+        setQueries(queriesResponse.data.queries || []);
+        
+        // Refresh event details to update approval status
+        const eventResponse = await axios.get(`${import.meta.env.VITE_API_URL || "http://localhost:4001"}/event/${applicationId}`);
+        setEventDetails(eventResponse.data);
+      } else {
+        // Use the existing endpoint for approve/reject
+        const response = await axios.patch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:4001"}/event/${applicationId}/status`,
+          { applicationId, role, status, comment, userCategory }
+        );
+        console.log("Response received:", response.data); // Debug log
+        toast.success(`Event ${status} successfully.`);
+        navigate(-1); // Navigate back to the previous page only for approve/reject
+      }
     } catch (error) {
       console.error("Error updating status:", error);
-      setError("Failed to update status. Please try again.");
-      toast.error("Failed to update status. Please try again.");
+      if (error.response?.status === 403) {
+        toast.error(error.response.data.message || "You are not authorized to approve this event.");
+      } else {
+        toast.error("Failed to update status. Please try again.");
+      }
     }
+  };
+
+  const handleApprovalClick = (action) => {
+    setApprovalAction(action);
+    setShowModal(true);
+  };
+
+  const handleModalSubmit = () => {
+    if (approvalAction && eventDetails) {
+      handleStatusUpdate(eventDetails._id, role, approvalAction, comment);
+      setShowModal(false);
+      setComment("");
+      setApprovalAction(null);
+    }
+  };
+
+  const handleModalCancel = () => {
+    setShowModal(false);
+    setComment("");
+    setApprovalAction(null);
+  };
+
+  const handleQueryReply = (query) => {
+    setSelectedQuery(query);
+    setQueryResponse("");
+    setShowQueryModal(true);
+  };
+
+  const handleQueryModalSubmit = async () => {
+    if (!queryResponse.trim()) {
+      toast.error("Please enter a response");
+      return;
+    }
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      await axios.post(`${apiUrl}/event/reply-query`, {
+        eventId: id,
+        queryId: selectedQuery.queryId,
+        response: queryResponse,
+        userRole: role,
+        userEmail: userEmail
+      });
+
+      toast.success("Query response submitted successfully!");
+      
+      // Refresh queries
+      const response = await axios.get(`${apiUrl}/event/${id}/queries`);
+      setQueries(response.data.queries || []);
+      
+      // Refresh event details to update approval status
+      const eventResponse = await axios.get(`${apiUrl}/event/${id}`);
+      setEventDetails(eventResponse.data);
+      
+      setShowQueryModal(false);
+      setQueryResponse("");
+      setSelectedQuery(null);
+    } catch (error) {
+      console.error("Error submitting query response:", error);
+      toast.error("Failed to submit response. Please try again.");
+    }
+  };
+
+  const handleQueryModalCancel = () => {
+    setShowQueryModal(false);
+    setQueryResponse("");
+    setSelectedQuery(null);
   };
 
   const handleGeneratePDF = () => {
@@ -59,6 +200,17 @@ const EventDetails = () => {
 
   if (isLoading) return <div>Loading event details...</div>;
   if (!eventDetails) return <div>Error: Event not found.</div>;
+
+  // Determine the action label for the modal
+  const getActionLabel = (action) => {
+    switch(action) {
+      case "Approved": return "Approve";
+      case "Rejected": return "Reject";
+      case "Query": return "Raise Query";
+      default: return action;
+    }
+  };
+  const action = getActionLabel(approvalAction);
 
   return (
     <div className="event-details-container">
@@ -115,7 +267,7 @@ const EventDetails = () => {
             </tr>
           </thead>
           <tbody>
-            {eventDetails.approvals.map((approval, index) => (
+            {getApprovalsToDisplay(eventDetails.approvals).map((approval, index) => (
               <tr key={index}>
                 <td>{approval.role}</td>
                 <td>{approval.status}</td>
@@ -125,20 +277,67 @@ const EventDetails = () => {
           </tbody>
         </table>
 
-        {/* Render Approve and Reject buttons only if the role is not 'club-secretary' */}
-        {role !== "club-secretary" && (
+        {/* Queries Section */}
+        {queries.length > 0 && (
+          <>
+            <h4>Queries</h4>
+            <div className="queries-section">
+              {queries.map((query, index) => (
+                <div key={query.queryId} className="query-card mb-3 p-3" style={{border: "1px solid #ddd", borderRadius: "5px"}}>
+                  <div className="query-header">
+                    <strong>Query from {query.askerRole}:</strong>
+                    <span className="text-muted ms-2">
+                      {new Date(query.raisedAt).toLocaleDateString()}
+                    </span>
+                    <span className={`badge ms-2 ${query.status === "Pending" ? "bg-warning" : "bg-success"}`}>
+                      {query.status}
+                    </span>
+                  </div>
+                  <div className="query-text mt-2">
+                    <p><strong>Query:</strong> {query.queryText}</p>
+                  </div>
+                  {query.response && (
+                    <div className="query-response mt-2">
+                      <p><strong>Response:</strong> {query.response}</p>
+                      <small className="text-muted">
+                        Responded on: {new Date(query.answeredAt).toLocaleDateString()}
+                      </small>
+                    </div>
+                  )}
+                  {query.status === "Pending" && role === "club-secretary" && (
+                    <button 
+                      className="btn btn-sm btn-primary mt-2"
+                      onClick={() => handleQueryReply(query)}
+                    >
+                      Reply to Query
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Render Approve and Reject buttons only if the role is not 'club-secretary' and user can approve */}
+        {role !== "club-secretary" && canCurrentUserApprove(eventDetails.approvals) && (
           <>
             <button
-              className="btn btn-success mb-1"
-              onClick={() => handleStatusUpdate(eventDetails._id, role, "Approved")}
+              className="btn btn-success mb-1 me-2"
+              onClick={() => handleApprovalClick("Approved")}
             >
               Approve
             </button>
             <button
-              className="btn btn-danger mb-1"
-              onClick={() => handleStatusUpdate(eventDetails._id, role, "Rejected")}
+              className="btn btn-danger mb-1 me-2"
+              onClick={() => handleApprovalClick("Rejected")}
             >
               Reject
+            </button>
+            <button
+              className="btn btn-warning mb-1 me-2"
+              onClick={() => handleApprovalClick("Query")}
+            >
+              Raise Query
             </button>
           </>
         )}
@@ -153,6 +352,141 @@ const EventDetails = () => {
             className="pdf-preview"
             style={{ width: "100%", height: "500px", border: "none" }}
           ></iframe>
+        )}
+
+        {/* Comment Modal */}
+        {showModal && (
+          <div className="modal-overlay" style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000
+          }}>
+            <div className="modal-content" style={{
+              backgroundColor: "white",
+              padding: "20px",
+              borderRadius: "8px",
+              minWidth: "400px",
+              maxWidth: "600px"
+            }}>
+              <h4>{action} Event</h4>
+              <p>You are about to <strong>{action.toLowerCase()}</strong> this event application.</p>
+              
+              <div className="form-group mb-3">
+                <label htmlFor="comment">
+                  {approvalAction === "Query" ? "Query Text (Required):" : "Comment (Optional):"}
+                </label>
+                <textarea
+                  id="comment"
+                  className="form-control"
+                  rows="4"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder={
+                    approvalAction === "Query" 
+                      ? "Please describe your query or concern about this event..." 
+                      : `Add your ${action.toLowerCase()} comment...`
+                  }
+                  required={approvalAction === "Query"}
+                />
+                {approvalAction === "Query" && !comment.trim() && (
+                  <small className="text-danger">Query text is required</small>
+                )}
+              </div>
+
+              <div className="modal-buttons">
+                <button
+                  className="btn btn-secondary me-2 mb-2"
+                  onClick={handleModalCancel}
+                >
+                  Cancel
+                </button>
+                <button
+                  className={`btn ${
+                    approvalAction === "Approved" ? "btn-success" : 
+                    approvalAction === "Rejected" ? "btn-danger" : 
+                    "btn-warning"
+                  }`}
+                  onClick={handleModalSubmit}
+                  disabled={approvalAction === "Query" && !comment.trim()}
+                >
+                  Confirm {action}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Query Response Modal */}
+        {showQueryModal && (
+          <div className="modal-overlay" style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000
+          }}>
+            <div className="modal-content" style={{
+              backgroundColor: "white",
+              padding: "20px",
+              borderRadius: "8px",
+              minWidth: "400px",
+              maxWidth: "600px"
+            }}>
+              <h4>Reply to Query</h4>
+              {selectedQuery && (
+                <div className="mb-3">
+                  <p><strong>Query from {selectedQuery.askerRole}:</strong></p>
+                  <p style={{fontStyle: "italic", background: "#f8f9fa", padding: "10px", borderRadius: "5px"}}>
+                    {selectedQuery.queryText}
+                  </p>
+                </div>
+              )}
+              
+              <div className="form-group mb-3">
+                <label htmlFor="queryResponse">Your Response (Required):</label>
+                <textarea
+                  id="queryResponse"
+                  className="form-control"
+                  rows="4"
+                  value={queryResponse}
+                  onChange={(e) => setQueryResponse(e.target.value)}
+                  placeholder="Please provide a detailed response to address the query..."
+                  required
+                />
+                {!queryResponse.trim() && (
+                  <small className="text-danger">Response is required</small>
+                )}
+              </div>
+
+              <div className="modal-buttons">
+                <button
+                  className="btn btn-secondary me-2 mb-2"
+                  onClick={handleQueryModalCancel}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleQueryModalSubmit}
+                  disabled={!queryResponse.trim()}
+                >
+                  Submit Response
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

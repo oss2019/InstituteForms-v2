@@ -16,7 +16,8 @@ const ProfilePage = () => {
     const fetchUserData = async () => {
       const userID = localStorage.getItem("userID");
       try {
-        const response = await axios.post("http://localhost:4001/user/details", {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+        const response = await axios.post(`${apiUrl}/user/details`, {
           userId: userID
         });
         setUserData(response.data);
@@ -46,7 +47,8 @@ const ProfilePage = () => {
     const userID = localStorage.getItem("userID");
     try {
       // Send updated data to the backend
-      await axios.put(`http://localhost:4001/user/edit`, { userId: userID, ...formData });
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      await axios.put(`${apiUrl}/user/edit`, { userId: userID, ...formData });
       setIsEditing(false);
       setUserData(formData); // Update the displayed data after editing
     } catch (error) {

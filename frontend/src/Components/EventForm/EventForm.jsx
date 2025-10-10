@@ -172,7 +172,7 @@ const EventForm = () => {
             value={formData.partOfGymkhanaCalendar}
             onChange={handleChange}
           >
-            <option value="" disabled>YES or NO</option>
+            <option value="" disabled>Select</option>
             <option value="YES">YES</option>
             <option value="NO">NO</option>
           </select>

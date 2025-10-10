@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect,useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -21,13 +21,15 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState("");
+  const iconRef = useRef(null)
 
 
   const responseGoogle = async (authResult) => {
     try {
       if (authResult?.credential) {
         // Send the JWT to the backend
-        const result = await axios.post("http://localhost:4001/user/google-login", {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+        const result = await axios.post(`${apiUrl}/user/google-login`, {
           token: authResult.credential,
         });
   
@@ -42,7 +44,7 @@ const Home = () => {
           "treasurer",
           "faculty-in-charge",
           "associate-dean",
-          "general-secretary",
+          "general-secretary"
         ];
   
         // If the role is in the allowedRolesForStaff, log them in as staff
@@ -56,7 +58,8 @@ const Home = () => {
   
           // Fetch user details from the backend
           try {
-            const response = await axios.post("http://localhost:4001/user/details", {
+            const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+            const response = await axios.post(`${apiUrl}/user/details`, {
               email: email,
             });
             setUserData(response.data);
@@ -65,7 +68,7 @@ const Home = () => {
             console.error("Error fetching user data:", error);
             setError("Failed to load user data");
           }
-  
+
           setTimeout(() => navigate(`/staff`), 1000);
         } else if (role === selectedRole) {
           // If the role matches the selected role
@@ -76,7 +79,8 @@ const Home = () => {
           localStorage.setItem("role", role);
           localStorage.setItem("category", category);
           try {
-            const response = await axios.post("http://localhost:4001/user/details", {
+            const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+            const response = await axios.post(`${apiUrl}/user/details`, {
               email: email,
             });
             setUserData(response.data);
@@ -168,11 +172,11 @@ const Home = () => {
           {["club-secretary", "staff"].map((role) => (
             <div
               key={role}
+              ref = {iconRef}
               className={`role-icon ${
                 isExpanded && selectedRole === role ? "expand" : ""
               } ${isSignup && selectedRole === role ? "signup" : ""}`}
-              onClick={() => handleIconClick(role)}
-            >
+              onMouseEnter={() => handleIconClick(role)}>
               {selectedRole !== role && (
                 <img
                   src={

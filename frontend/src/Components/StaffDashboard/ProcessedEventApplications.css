@@ -3,12 +3,30 @@
   background-color: #f9f9f9;
 }
 
+/* Filter Section Styles */
+.filters-section {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.filters-section h5 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
 .dashboard-card {
   margin-bottom: 20px;
   background-color: #ffffff;
   border-radius: 15px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   width: 100%;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
 }
 
 .dashboard-card ul {

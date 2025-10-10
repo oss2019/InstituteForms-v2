@@ -5,6 +5,32 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Utility function to determine semester and academic year based on date
+const getSemesterInfo = (date) => {
+  const eventDate = new Date(date);
+  const month = eventDate.getMonth(); // 0-11
+  const year = eventDate.getFullYear();
+  
+  let semester, academicYear;
+  
+  // Assuming academic year starts in August and ends in July next year
+  // Fall semester: August - December
+  // Spring semester: January - July
+  
+  if (month >= 7) { // August (7) to December (11)
+    semester = "Autumn";
+    academicYear = `${year}-${year + 1}`;
+  } else { // January (0) to July (6)
+    semester = "Spring";
+    academicYear = `${year - 1}-${year}`;
+  }
+  
+  return {
+    semester: `${semester} ${academicYear.split('-')[semester === 'Autumn' ? 0 : 1]}`,
+    academicYear
+  };
+};
+
 // Configure nodemailer
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -15,7 +41,7 @@ const transporter = nodemailer.createTransport({
 });
 
 
-const sendEmail = (to, subject, text) => {
+const sendEmail = async (to, subject, text, retries = 3) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to,
@@ -23,7 +49,7 @@ const sendEmail = (to, subject, text) => {
     text
   };
 
-  console.log('Attempting to send email to:', to);
+  console.log('Attempting to send email to:', to, 'with', retries, 'retries remaining');
 
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
@@ -37,13 +63,13 @@ const sendEmail = (to, subject, text) => {
 
 //emails of all members
 const roleEmails = [
-  { role: "general-secretary-technical", email: "me23bt009@iitdh.ac.in" },
-  { role: "general-secretary-cultural", email: "cs23bt028@iitdh.ac.in" },
+  { role: "general-secretary-technical", email: "gstech@iitdh.ac.in" },
+  { role: "general-secretary-cultural", email: "nidhishadoshi05@gmail.com" },
   { role: "general-secretary-sports", email: "sports.secretary@example.com" },
-  { role: "treasurer", email: "me23bt009@iitdh.ac.in" },
-  { role: "president", email: "president@example.com" },
-  { role: "faculty-in-charge", email: "faculty.incharge@example.com" },
-  { role: "associate-dean", email: "associate.dean@example.com" },
+  { role: "treasurer", email: "cs23bt009@iitdh.ac.in" },
+  { role: "president", email: "cs23bt009@iitdh.ac.in" },
+  { role: "faculty-in-charge", email: "nidhishadoshi05@gmail.com" },
+  { role: "associate-dean", email: "cs23bt009@iitdh.ac.in" },
 ];
 
 const getEmailForRole = (role) => {
@@ -106,6 +132,9 @@ export const applyForEventApproval = async (req, res) => {
       return res.status(400).json({ message: "You already have a pending event approval request." });
     }
 
+    // Determine semester and academic year based on start date
+    const semesterInfo = getSemesterInfo(startDate);
+
     // Create the initial approvals array
     const approvals = [
       { role: "club-secretary", status: "Approved", comment: "" },
@@ -125,6 +154,8 @@ export const applyForEventApproval = async (req, res) => {
       clubName,
       startDate,
       endDate,
+      semester: semesterInfo.semester,
+      academicYear: semesterInfo.academicYear,
       eventVenue,
       sourceOfBudget,
       estimatedBudget,
@@ -148,12 +179,17 @@ export const applyForEventApproval = async (req, res) => {
     user.eventApproval = savedApproval._id;
     await user.save();
     if (categoryEmail) {
-      sendEmail(
-        categoryEmail,
-        `Event Approval Needed: ${eventName},`,
-        `A new ${category} event approval request has been submitted. Please review it at your earliest convenience.`
-      );
-      console.log(`Email sent to ${categoryEmail} for ${category} event approval.`);
+      try {
+        await sendEmail(
+          categoryEmail,
+          `Event Approval Needed: ${eventName}`,
+          `A new ${category} event approval request has been submitted. Please review it at your earliest convenience.`
+        );
+        console.log(`Email sent successfully to ${categoryEmail} for ${category} event approval.`);
+      } catch (emailError) {
+        console.error(`Failed to send email to ${categoryEmail}:`, emailError.message);
+        // Don't fail the entire request due to email issues
+      }
     } else {
       console.error(`No email found for category: ${category}`);
     }
@@ -218,12 +254,12 @@ export const getPendingApprovals = async (req, res) => {
       return res.status(200).json({ message: "No applications found." });
     }
 
-    // Filter out those with a status of 'Pending'
+    // Filter out those with a status of 'Pending' or 'Query'
     pendingApprovals = pendingApprovals.filter((approval) => {
       const approvalStatus = approval.approvals.find(
         (app) => app.role === role
       );
-      return approvalStatus && approvalStatus.status === "Pending";
+      return approvalStatus && (approvalStatus.status === "Pending" || approvalStatus.status === "Query");
     });
 
     // Ensure previous roles in the hierarchy are approved
@@ -422,12 +458,12 @@ export const approveApplication = async (req, res) => {
 // In your event.controller.js file
 
 export const handleApprovalStatus = async (req, res) => {
-  const { applicationId, role, status } = req.body;
+  const { applicationId, role, status, comment } = req.body;
 
   try {
-    console.log("Received request:", { applicationId, role, status }); // Debug log
+    console.log("Received request:", { applicationId, role, status, comment }); // Debug log
 
-    if (!role || !['Approved', 'Rejected'].includes(status)) {
+    if (!role || !['Approved', 'Rejected', 'Query'].includes(status)) {
       console.log("Invalid role or status"); // Debug log
       return res.status(400).json({ message: "Invalid role or status." });
     }
@@ -449,22 +485,490 @@ export const handleApprovalStatus = async (req, res) => {
     }
 
     eventApproval.approvals[approvalIndex].status = status;
+    eventApproval.approvals[approvalIndex].comment = comment || "";
+    
+    if(status === "Rejected"){
+      try {
+        await sendEmail(
+          eventApproval.email,
+          `Event Rejected: ${eventApproval.eventName}`,
+          `Your event "${eventApproval.eventName}" has been rejected by ${role}. Reason: ${comment || "No reason provided."}`
+        );
+        console.log(`Rejection email sent to organizer: ${eventApproval.email}`);
+      } catch (emailError) {
+        console.error(`Failed to send rejection email to organizer:`, emailError.message);
+      }
+    }
+    else if(status === "Approved"){
     const nextRoleIndex = roleHierarchy.indexOf(role) + 1;
     if (nextRoleIndex < roleHierarchy.length) {
       const nextRole = roleHierarchy[nextRoleIndex];
+      const nextRoleEmail = getEmailForRole(nextRole);
       
-      sendEmail(
-        `${getEmailForRole(nextRole)}`, // Replace with actual email
-        `Event Approval Needed: ${eventApproval.eventName}`,
-        `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.`
-      ); 
-  }
+      if (nextRoleEmail) {
+        try {
+          await sendEmail(
+            nextRoleEmail,
+            `Event Approval Needed: ${eventApproval.eventName}`,
+            `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.`
+          );
+          console.log(`Notification email sent to ${nextRole} at ${nextRoleEmail}`);
+        } catch (emailError) {
+          console.error(`Failed to send notification email to ${nextRole}:`, emailError.message);
+        }
+      } else {
+        console.error(`No email found for next role: ${nextRole}`);
+      }
+    } else if (nextRoleIndex === roleHierarchy.length) {
+      try {
+        await sendEmail(
+          eventApproval.email,
+          `Event Fully Approved: ${eventApproval.eventName}`,
+          `Congratulations! Your event "${eventApproval.eventName}" has been fully approved by all authorities.
+          Event Details:
+        - Event Name: ${eventApproval.eventName}
+        - Event Type: ${eventApproval.eventType}
+        - Date: ${new Date(eventApproval.startDate).toLocaleDateString()} to ${new Date(eventApproval.endDate).toLocaleDateString()}
+        - Venue: ${eventApproval.eventVenue}
+        - Organizer: ${eventApproval.nameOfTheOrganizer}
+
+        Your event is now ready to proceed. Please ensure all arrangements are made as per the approved proposal.
+
+        Best regards,
+        Event Approval Committee`
+        );
+        console.log(`Final approval notification sent to organizer: ${eventApproval.email}`);
+      } catch (emailError) {
+        console.error(`Failed to send final approval email to organizer:`, emailError.message);
+      }
+    }
+}
     await eventApproval.save();
 
     console.log("Application updated successfully:", { applicationId, status }); // Debug log
     res.status(200).json({ message: `Application ${status} successfully.` });
   } catch (error) {
     console.error("Error updating application status:", error); // Log full error
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Raise a query for an event application
+export const raiseQuery = async (req, res) => {
+  const { applicationId, role, queryText } = req.body;
+
+  try {
+    if (!applicationId || !role || !queryText) {
+      return res.status(400).json({ message: "Application ID, role, and query text are required." });
+    }
+
+    const eventApproval = await EventApproval.findById(applicationId);
+    if (!eventApproval) {
+      return res.status(404).json({ message: "Event approval not found." });
+    }
+
+    // Check if the role can raise queries (not club-secretary)
+    if (role === "club-secretary") {
+      return res.status(403).json({ message: "Club secretary cannot raise queries." });
+    }
+
+    // Check if there's a pending approval for this role
+    const approvalIndex = eventApproval.approvals.findIndex(
+      (app) => app.role === role && app.status === "Pending"
+    );
+
+    if (approvalIndex === -1) {
+      return res.status(400).json({ message: "No pending approval found for this role." });
+    }
+
+    // Update the approval status to "Query"
+    eventApproval.approvals[approvalIndex].status = "Query";
+    eventApproval.approvals[approvalIndex].comment = `Query raised: ${queryText}`;
+
+    // Add the query to the queries array
+    const newQuery = {
+      askerRole: role,
+      queryText,
+      responderEmail: eventApproval.email,
+      status: "Pending",
+      raisedAt: new Date(),
+    };
+
+    eventApproval.queries.push(newQuery);
+    await eventApproval.save();
+
+    // Send email notification to the organizer
+    try {
+      await sendEmail(
+        eventApproval.email,
+        `Query Raised for Event: ${eventApproval.eventName}`,
+        `A query has been raised for your event "${eventApproval.eventName}" by ${role}.
+
+Query: ${queryText}
+
+Please log into the application to respond to this query.
+
+Event Details:
+- Event Name: ${eventApproval.eventName}
+- Event Type: ${eventApproval.eventType}
+- Date: ${new Date(eventApproval.startDate).toLocaleDateString()} to ${new Date(eventApproval.endDate).toLocaleDateString()}
+
+Please respond at your earliest convenience.
+
+Best regards,
+Event Approval Committee`
+      );
+      console.log(`Query notification email sent to organizer: ${eventApproval.email}`);
+    } catch (emailError) {
+      console.error(`Failed to send query notification email to organizer:`, emailError.message);
+    }
+
+    res.status(200).json({ message: "Query raised successfully.", query: newQuery });
+  } catch (error) {
+    console.error("Error raising query:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Get all queries for an event
+export const getEventQueries = async (req, res) => {
+  const { eventId } = req.params;
+
+  try {
+    const eventApproval = await EventApproval.findById(eventId, 'queries');
+    if (!eventApproval) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    res.status(200).json({ queries: eventApproval.queries });
+  } catch (error) {
+    console.error("Error fetching queries:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Reply to a query (only for club-secretary or organizer)
+export const replyToQuery = async (req, res) => {
+  const { eventId, queryId, response, userRole, userEmail } = req.body;
+
+  try {
+    if (!eventId || !queryId || !response) {
+      return res.status(400).json({ message: "Event ID, query ID, and response are required." });
+    }
+
+    const eventApproval = await EventApproval.findById(eventId);
+    if (!eventApproval) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Find the query
+    const queryIndex = eventApproval.queries.findIndex(
+      (query) => query.queryId.toString() === queryId && query.status === "Pending"
+    );
+
+    if (queryIndex === -1) {
+      return res.status(404).json({ message: "Query not found or already answered." });
+    }
+
+    const query = eventApproval.queries[queryIndex];
+
+    // Check if the user is authorized to reply (only club-secretary)
+    if (userRole !== "club-secretary") {
+      return res.status(403).json({ message: "Only club-secretary can reply to queries." });
+    }
+
+    // Update the query with response
+    eventApproval.queries[queryIndex].response = response;
+    eventApproval.queries[queryIndex].status = "Answered";
+    eventApproval.queries[queryIndex].answeredAt = new Date();
+
+    // Reset the approval status back to Pending for the role that raised the query
+    const approvalIndex = eventApproval.approvals.findIndex(
+      (approval) => approval.role === query.askerRole
+    );
+
+    if (approvalIndex !== -1) {
+      eventApproval.approvals[approvalIndex].status = "Pending";
+      eventApproval.approvals[approvalIndex].comment = "";
+    }
+
+    await eventApproval.save();
+
+    // Send email notification to the role that raised the query
+    const roleEmail = getEmailForRole(query.askerRole);
+    if (roleEmail) {
+      try {
+        await sendEmail(
+          roleEmail,
+          `Query Response Received: ${eventApproval.eventName}`,
+          `Your query for event "${eventApproval.eventName}" has been responded to.
+
+Original Query: ${query.queryText}
+Response: ${response}
+
+You can now review the event application again and take appropriate action.
+
+Best regards,
+Event Approval Committee`
+        );
+        console.log(`Query response notification sent to ${query.askerRole} at ${roleEmail}`);
+      } catch (emailError) {
+        console.error(`Failed to send query response notification to ${query.askerRole}:`, emailError.message);
+      }
+    } else {
+      console.error(`No email found for role: ${query.askerRole}`);
+    }
+
+    res.status(200).json({ message: "Query response submitted successfully." });
+  } catch (error) {
+    console.error("Error replying to query:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Get all unique semesters and academic years for filtering
+export const getSemesterOptions = async (req, res) => {
+  try {
+    const { role, category } = req.query;
+
+    let matchQuery = {};
+    
+    // Add role-based filtering if needed
+    if (role && role !== 'club-secretary') {
+      matchQuery[`approvals.role`] = role;
+    }
+
+    // Add category filtering for general-secretary
+    if (role === 'general-secretary' && category) {
+      matchQuery.eventType = category;
+    }
+
+    const semesterOptions = await EventApproval.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: {
+            semester: "$semester",
+            academicYear: "$academicYear"
+          }
+        }
+      },
+      {
+        $sort: { "_id.academicYear": -1, "_id.semester": 1 }
+      }
+    ]);
+
+    const formattedOptions = semesterOptions.map(option => ({
+      semester: option._id.semester,
+      academicYear: option._id.academicYear,
+      display: option._id.semester || `${option._id.academicYear} Academic Year`
+    }));
+
+    res.status(200).json(formattedOptions);
+  } catch (error) {
+    console.error("Error fetching semester options:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Enhanced function to get approved applications with semester filtering and search
+export const getApprovedApplicationsWithFilters = async (req, res) => {
+  const { role, category, semester, academicYear, search, page = 1, limit = 10 } = req.body;
+
+  try {
+    if (!role) {
+      return res.status(400).json({ message: "Role is required." });
+    }
+
+    // Base query for approved applications
+    let query = {
+      "approvals": {
+        $elemMatch: {
+          role: role,
+          status: "Approved"
+        }
+      }
+    };
+
+    // Add semester filtering
+    if (semester) {
+      query.semester = semester;
+    }
+
+    // Add academic year filtering
+    if (academicYear) {
+      query.academicYear = academicYear;
+    }
+
+    // Add category filtering for general-secretary
+    if (role === "general-secretary" && category) {
+      query.eventType = category;
+    }
+
+    // Add search functionality
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { eventName: searchRegex },
+        { clubName: searchRegex },
+        { nameOfTheOrganizer: searchRegex },
+        { eventVenue: searchRegex },
+        { eventDescription: searchRegex }
+      ];
+    }
+
+    // Filter out past events
+    const currentDate = new Date();
+    query.endDate = { $gte: currentDate };
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // Execute query with pagination
+    const approvedApplications = await EventApproval.find(query)
+      .sort({ startDate: -1 }) // Sort by start date, newest first
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Get total count for pagination
+    const totalCount = await EventApproval.countDocuments(query);
+
+    // Group by semester for better organization
+    const groupedBySemester = approvedApplications.reduce((groups, app) => {
+      const semesterKey = app.semester || `${app.academicYear} Academic Year`;
+      if (!groups[semesterKey]) {
+        groups[semesterKey] = [];
+      }
+      groups[semesterKey].push(app);
+      return groups;
+    }, {});
+
+    res.status(200).json({
+      applications: approvedApplications,
+      groupedBySemester,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount,
+        hasNext: skip + approvedApplications.length < totalCount,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching approved applications with filters:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Enhanced function to get pending applications with semester filtering and search
+export const getPendingApprovalsWithFilters = async (req, res) => {
+  const { role, category, semester, academicYear, search, page = 1, limit = 10 } = req.body;
+
+  try {
+    if (!role) {
+      return res.status(400).json({ message: "Role is required." });
+    }
+
+    const roleIndex = roleHierarchy.indexOf(role);
+    if (roleIndex === -1) {
+      return res.status(400).json({ message: "Invalid role." });
+    }
+
+    // Base query for pending applications
+    let query = {
+      "approvals.role": role,
+    };
+
+    // Add semester filtering
+    if (semester) {
+      query.semester = semester;
+    }
+
+    // Add academic year filtering
+    if (academicYear) {
+      query.academicYear = academicYear;
+    }
+
+    // Add category filtering for general-secretary
+    if (role === "general-secretary" && category) {
+      query.eventType = category;
+    }
+
+    // Add search functionality
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { eventName: searchRegex },
+        { clubName: searchRegex },
+        { nameOfTheOrganizer: searchRegex },
+        { eventVenue: searchRegex },
+        { eventDescription: searchRegex }
+      ];
+    }
+
+    // Find all applications matching the base criteria
+    let pendingApprovals = await EventApproval.find(query);
+
+    if (pendingApprovals.length === 0) {
+      return res.status(200).json({
+        applications: [],
+        groupedBySemester: {},
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalCount: 0,
+          hasNext: false,
+          hasPrev: false
+        }
+      });
+    }
+
+    // Filter for pending or query status
+    pendingApprovals = pendingApprovals.filter((approval) => {
+      const approvalStatus = approval.approvals.find(
+        (app) => app.role === role
+      );
+      return approvalStatus && (approvalStatus.status === "Pending" || approvalStatus.status === "Query");
+    });
+
+    // Ensure previous roles in the hierarchy are approved
+    pendingApprovals = pendingApprovals.filter((approval) => {
+      return roleHierarchy.slice(0, roleIndex).every((prevRole) => {
+        const prevApproval = approval.approvals.find((app) => app.role === prevRole);
+        return prevApproval && prevApproval.status === "Approved";
+      });
+    });
+
+    // Apply pagination
+    const totalCount = pendingApprovals.length;
+    const skip = (page - 1) * limit;
+    const paginatedApprovals = pendingApprovals
+      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+      .slice(skip, skip + parseInt(limit));
+
+    // Group by semester
+    const groupedBySemester = paginatedApprovals.reduce((groups, app) => {
+      const semesterKey = app.semester || `${app.academicYear} Academic Year`;
+      if (!groups[semesterKey]) {
+        groups[semesterKey] = [];
+      }
+      groups[semesterKey].push(app);
+      return groups;
+    }, {});
+
+    res.status(200).json({
+      applications: paginatedApprovals,
+      groupedBySemester,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount,
+        hasNext: skip + paginatedApprovals.length < totalCount,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching pending approvals with filters:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };

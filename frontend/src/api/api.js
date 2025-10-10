@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:4001", // Adjust as per your backend server URL
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:4001", // Use environment variable for production
 });
 
 export const googleAuth = (code) => api.get(`/user/google?code=${code}`);

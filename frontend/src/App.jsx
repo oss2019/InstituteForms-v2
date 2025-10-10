@@ -9,7 +9,7 @@ import PageNotFound from "./Pages/Page Not Found/PageNotFound.jsx";
 import { GoogleOAuthProvider } from "@react-oauth/google"; // Import GoogleOAuthProvider
 
 function App() {
-  const GOOGLE_CLIENT_ID =
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ||
     "126283465709-v64j607pjhd396kjsrn7qprhk2dns9ou.apps.googleusercontent.com";
 
   return (
