@@ -1028,17 +1028,6 @@ export const editEventDetails = async (req, res) => {
 
     await event.save();
 
-    // Send email to general-secretary
-    const gsApproval = event.approvals.find(a => a.role === "general-secretary");
-    if (gsApproval) {
-      const gsEmail = getEmailForRole("general-secretary");
-      await sendEmail(
-        gsEmail,
-        `Event Edited: ${event.eventName}`,
-        `The event "${event.eventName}" has been edited by the club-secretary and requires your attention for approval. Please review the updated details.`
-      );
-    }
-
     res.status(200).json({ message: "Event details updated and approval pipeline reset.", event });
   } catch (error) {
     console.error("Error editing event details:", error);
