@@ -1018,11 +1018,59 @@ export const editEventDetails = async (req, res) => {
       event.academicYear = semesterInfo.academicYear;
     }
 
+    // Reset approvals after club-secretary to Pending
+    event.approvals = event.approvals.map(a => {
+      if (a.role !== "club-secretary") {
+        return { ...a, status: "Edited"};
+      }
+      return a;
+    });
+
     await event.save();
 
-    res.status(200).json({ message: "Event details updated successfully.", event });
+    // Send email to general-secretary
+    const gsApproval = event.approvals.find(a => a.role === "general-secretary");
+    if (gsApproval) {
+      const gsEmail = getEmailForRole("general-secretary");
+      await sendEmail(
+        gsEmail,
+        `Event Edited: ${event.eventName}`,
+        `The event "${event.eventName}" has been edited by the club-secretary and requires your attention for approval. Please review the updated details.`
+      );
+    }
+
+    res.status(200).json({ message: "Event details updated and approval pipeline reset.", event });
   } catch (error) {
     console.error("Error editing event details:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+export const closeEvent = async (req, res) => {
+  const { eventId, userID, closerName } = req.body;
+
+  try {
+    // Find the user and check role
+    const user = await User.findById(userID);
+    if (!user || !["ARSW", "associate-dean", "dean"].includes(user.role)) {
+      return res.status(403).json({ message: "Only ARSW, associate-dean or dean can close events." });
+    }
+
+    // Find the event
+    const event = await EventApproval.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Set status to Closed and record who closed it
+    event.status = "Closed";
+    event.closedBy = closerName || user.name || "Unknown";
+
+    await event.save();
+
+    res.status(200).json({ message: "Event closed successfully.", event });
+  } catch (error) {
+    console.error("Error closing event:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };

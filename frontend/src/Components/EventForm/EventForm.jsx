@@ -1,4 +1,5 @@
 import { useState } from "react";
+import {useNagigate} from "react-router-dom";
 import { jsPDF } from "jspdf";
 import "bootstrap/dist/css/bootstrap.min.css";
 import toast, { Toaster } from "react-hot-toast";
@@ -7,6 +8,8 @@ import API from '/src/api/api';  // Go back two directories to access src/api/ap
 
 import { generatePDF } from "../../utils/pdfGenerator";
 
+
+const navigate = useNavigate();
 const EventForm = () => {
   const [formData, setFormData] = useState({
 
@@ -139,6 +142,9 @@ const EventForm = () => {
     try {
       const response = await API.post("/event/apply", requestData);
       toast.success(response.data.message);
+      setTimeout(() => {
+      navigate("/club-secretary"); 
+    }, 1200);
     } catch (error) {
       console.error("Error submitting event approval:", error.message);
       toast.error(error.response?.data?.message || "Failed to submit the event approval.");
