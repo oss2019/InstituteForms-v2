@@ -91,7 +91,6 @@ export const applyForEventApproval = async (req, res) => {
       userID,
       eventName,
       partOfGymkhanaCalendar,
-      eventType,
       clubName,
       startDate,
       endDate,
@@ -113,14 +112,21 @@ export const applyForEventApproval = async (req, res) => {
     console.log("Incoming Payload:", req.body);
 
     const userID_ = req.body.userID; // Ensure this is retrieved correctly (e.g., from the request or session).
-    const  category  = req.body.eventType;
-    const categoryEmail = getEmailForCategory(category);
 
     // Fetch user details to ensure they exist
     const user = await User.findById(userID_);
     if (!user) {
       return res.status(404).json({ message: "User not found. Please log in again." });
     }
+
+    // Set eventType based on user's type if club-secretary, else fallback to req.body.eventType
+    let eventType = req.body.eventType;
+    if (user.role === "club-secretary") {
+      eventType = user.type;
+    }
+
+    const category = eventType;
+    const categoryEmail = getEmailForCategory(category);
 
     // Check for any existing event approval in progress for this user
     const existingEvent = await EventApproval.findOne({
@@ -150,7 +156,7 @@ export const applyForEventApproval = async (req, res) => {
       userID,
       eventName,
       partOfGymkhanaCalendar,
-      eventType,
+      eventType, // Use the determined eventType
       clubName,
       startDate,
       endDate,
