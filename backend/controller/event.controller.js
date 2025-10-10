@@ -91,7 +91,6 @@ export const applyForEventApproval = async (req, res) => {
       userID,
       eventName,
       partOfGymkhanaCalendar,
-      eventType,
       clubName,
       startDate,
       endDate,
@@ -113,14 +112,21 @@ export const applyForEventApproval = async (req, res) => {
     console.log("Incoming Payload:", req.body);
 
     const userID_ = req.body.userID; // Ensure this is retrieved correctly (e.g., from the request or session).
-    const  category  = req.body.eventType;
-    const categoryEmail = getEmailForCategory(category);
 
     // Fetch user details to ensure they exist
     const user = await User.findById(userID_);
     if (!user) {
       return res.status(404).json({ message: "User not found. Please log in again." });
     }
+
+    // Set eventType based on user's type if club-secretary, else fallback to req.body.eventType
+    let eventType = req.body.eventType;
+    if (user.role === "club-secretary") {
+      eventType = user.type;
+    }
+
+    const category = eventType;
+    const categoryEmail = getEmailForCategory(category);
 
     // Check for any existing event approval in progress for this user
     const existingEvent = await EventApproval.findOne({
@@ -150,7 +156,7 @@ export const applyForEventApproval = async (req, res) => {
       userID,
       eventName,
       partOfGymkhanaCalendar,
-      eventType,
+      eventType, // Use the determined eventType
       clubName,
       startDate,
       endDate,
@@ -969,6 +975,97 @@ export const getPendingApprovalsWithFilters = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching pending approvals with filters:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+
+
+// Edit all event details (only allowed by club-secretary and only if approvals are still pending at general-secretary)
+export const editEventDetails = async (req, res) => {
+  const { eventId, userID, updates } = req.body;
+
+  try {
+    // Find the event
+    const event = await EventApproval.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    const user = await User.findById(userID);
+    if (!user || user.role !== "club-secretary") {
+      return res.status(403).json({ message: "Only club-secretary can edit event details." });
+    }
+
+    if (event.userID.toString() !== userID.toString()) {
+      return res.status(403).json({ message: "You are not authorized to edit this event." });
+    }
+    
+
+    // List of fields that can be updated
+    const editableFields = [
+      "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
+      "eventVenue", "sourceOfBudget", "estimatedBudget", "nameOfTheOrganizer", "designation",
+      "email", "phoneNumber", "requirements", "anyAdditionalAmenities", "eventDescription",
+      "internalParticipants", "externalParticipants", "listOfCollaboratingOrganizations"
+    ];
+
+    // Update only allowed fields
+    editableFields.forEach(field => {
+      if (updates[field] !== undefined) {
+        event[field] = updates[field];
+      }
+    });
+
+    // If startDate changed, update semester/academicYear
+    if (updates.startDate) {
+      const semesterInfo = getSemesterInfo(updates.startDate);
+      event.semester = semesterInfo.semester;
+      event.academicYear = semesterInfo.academicYear;
+    }
+
+    // Reset approvals after club-secretary to Pending
+    event.approvals = event.approvals.map(a => {
+      if (a.role !== "club-secretary") {
+        return { ...a, status: "Edited"};
+      }
+      return a;
+    });
+
+    await event.save();
+
+    res.status(200).json({ message: "Event details updated and approval pipeline reset.", event });
+  } catch (error) {
+    console.error("Error editing event details:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+export const closeEvent = async (req, res) => {
+  const { eventId, userID, closerName } = req.body;
+
+  try {
+    // Find the user and check role
+    const user = await User.findById(userID);
+    if (!user || !["ARSW", "associate-dean", "dean"].includes(user.role)) {
+      return res.status(403).json({ message: "Only ARSW, associate-dean or dean can close events." });
+    }
+
+    // Find the event
+    const event = await EventApproval.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Set status to Closed and record who closed it
+    event.status = "Closed";
+    event.closedBy = closerName || user.name || "Unknown";
+
+    await event.save();
+
+    res.status(200).json({ message: "Event closed successfully.", event });
+  } catch (error) {
+    console.error("Error closing event:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };
