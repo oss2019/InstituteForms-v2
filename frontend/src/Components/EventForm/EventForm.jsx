@@ -98,7 +98,6 @@ const EventForm = () => {
       "endDate",
       "eventVenue",
       "sourceOfBudget",
-      "othersSourceOfBudget",
       "estimatedBudget",
       "nameOfTheOrganizer",
       "designation",
@@ -111,7 +110,7 @@ const EventForm = () => {
 
     for (let field of requiredFields) {
       if (!formData[field]) {
-        return false;  // Return false if any required field is empty
+        return false;  // Return false if any //required field is empty
       }
     }
 
@@ -154,7 +153,7 @@ const EventForm = () => {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      toast.error("All fields are required to be filled!");
+      toast.error("All fields are //required to be filled!");
       return; // Do not proceed if the form is not valid
     }
 
@@ -192,7 +191,7 @@ const EventForm = () => {
             value={formData.eventName}
             onChange={handleChange}
             placeholder="Event Name"
-            required
+            //required
           />
         </div>
 
@@ -235,7 +234,7 @@ const EventForm = () => {
             value={formData.clubName}
             onChange={handleChange}
             placeholder="Club Name"
-            required
+            //required
           />
         </div>
 
@@ -251,7 +250,7 @@ const EventForm = () => {
                 onBlur={handleDateValidation}
                 value={formData.startDate}
                 min={today}
-                required
+                //required
                 className="form-input"
               />
             </div>
@@ -263,7 +262,7 @@ const EventForm = () => {
                 onChange={handleChange}
                 onBlur={handleDateValidation}
                 value={formData.endDate}
-                required
+                //required
                 className="form-input"
               />
             </div>
@@ -279,7 +278,7 @@ const EventForm = () => {
             value={formData.eventVenue}
             onChange={handleChange}
             placeholder="Event Venue (If multiple venues, mention all venues separted by comma)"
-            required
+            //required
           />
         </div>
 
@@ -309,7 +308,7 @@ const EventForm = () => {
               value={formData.othersSourceOfBudget}
               onChange={handleChange}
               placeholder="Since you have selected others, mention the source of budget:"
-              required
+              //required
             />
           </div>
         ) : (
@@ -326,9 +325,8 @@ const EventForm = () => {
           name="estimatedBudget"
           value={formData.estimatedBudget}
           placeholder="Total will be calculated from the breakup table"
-          readOnly //Since the total budget is calculated automatically from the table hence
-          read-only
-          required
+          //readOnly //Since the total budget is calculated automatically from the table hence
+          //required
         />
       </div>
 
@@ -355,7 +353,7 @@ const EventForm = () => {
                     value={item.expenseHead}
                     onChange={(e) => handleBudgetChange(index, e)}
                     placeholder="e.g., Refreshments"
-                    required
+                    //required
                   />
                 </td>
                 <td>
@@ -367,7 +365,7 @@ const EventForm = () => {
                     onChange={(e) => handleBudgetChange(index, e)}
                     placeholder="0"
                     min="0"
-                    required
+                    //required
                   />
                 </td>
                 {
@@ -408,7 +406,7 @@ const EventForm = () => {
             value={formData.nameOfTheOrganizer}
             onChange={handleChange}
             placeholder="Organizer Name"
-            required
+            //required
           />
         </div>
 
@@ -421,7 +419,7 @@ const EventForm = () => {
             value={formData.designation}
             onChange={handleChange}
             placeholder="Organizer Designation"
-            required
+            //required
           />
         </div>
 
@@ -434,7 +432,7 @@ const EventForm = () => {
             value={formData.email}
             onChange={handleChange}
             placeholder="Organizer Email Address"
-            required
+            //required
           />
         </div>
 
@@ -447,7 +445,7 @@ const EventForm = () => {
             value={formData.phoneNumber}
             onChange={handleChange}
             placeholder="Organizer Phone Number"
-            required
+            //required
           />
         </div>
 
@@ -491,7 +489,7 @@ const EventForm = () => {
             value={formData.eventDescription}
             onChange={handleChange}
             placeholder="Give a brief description of the event."
-            required
+            //required
           ></textarea>
         </div>
 
@@ -506,7 +504,7 @@ const EventForm = () => {
             value={formData.externalParticipants}
             onChange={handleChange}
             placeholder="Expected Number of External Participants"
-            required
+            //required
           />
         </div>
 
@@ -520,7 +518,7 @@ const EventForm = () => {
               value={formData.listOfCollaboratingOrganizations}
               onChange={handleChange}
               placeholder="Since external participants are invited, list of collaborating organizations:"
-              required
+              //required
             />
           </div>
         ) : (
@@ -548,7 +546,7 @@ const EventForm = () => {
             value={formData.internalParticipants}
             onChange={handleChange}
             placeholder="Expected Number of Internal Participants"
-            required
+            //required
           />
         </div>
 
