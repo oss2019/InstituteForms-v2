@@ -1,5 +1,5 @@
 import { useState } from "react";
-import {useNagigate} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
 import "bootstrap/dist/css/bootstrap.min.css";
 import toast, { Toaster } from "react-hot-toast";
@@ -7,9 +7,9 @@ import "./EventForm.css";
 import API from '/src/api/api';  // Go back two directories to access src/api/api.js
 
 import { generatePDF } from "../../utils/pdfGenerator";
+import StudentDashboard from "../StudentDashboard/Dashboard.jsx"; // Import StudentDashboard
 
 
-const navigate = useNavigate();
 const EventForm = () => {
   const [formData, setFormData] = useState({
 
@@ -123,6 +123,8 @@ const EventForm = () => {
     return true;
   };
 
+  const [isFormSubmitted, setIsFormSubmitted] = useState(false); // Track submission
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       toast.error("All fields are required to be filled!");
@@ -143,13 +145,18 @@ const EventForm = () => {
       const response = await API.post("/event/apply", requestData);
       toast.success(response.data.message);
       setTimeout(() => {
-      navigate("/club-secretary"); 
-    }, 1200);
+        // navigate("/club-secretary"); 
+        setIsFormSubmitted(true); // Set form as submitted
+      }, 1200);
     } catch (error) {
       console.error("Error submitting event approval:", error.message);
       toast.error(error.response?.data?.message || "Failed to submit the event approval.");
     }
   };
+
+  if (isFormSubmitted) {
+    return <StudentDashboard />; // Render StudentDashboard after submission
+  }
 
   return (
     <div className="container mt-5">
