@@ -1,82 +1,48 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { jsPDF } from "jspdf";
+import { jsPDF } from "jspdf"; // Assuming this is used within generatePDF
 import "bootstrap/dist/css/bootstrap.min.css";
 import toast, { Toaster } from "react-hot-toast";
-import "./EventForm.css";
-import API from '/src/api/api';  // Go back two directories to access src/api/api.js
-
+import API from '/src/api/api';
 import { generatePDF } from "../../utils/pdfGenerator";
-import StudentDashboard from "../StudentDashboard/Dashboard.jsx"; // Import StudentDashboard
-
+import StudentDashboard from "../StudentDashboard/EventDashboard.jsx";
+import "./EventForm.css";
 
 const EventForm = () => {
   const [formData, setFormData] = useState({
-
-    //Event Details:
-    eventName: "", //1a (index no as in official form)
-    partOfGymkhanaCalendar: "",//1b
-    eventType: "", //extra variable: Not in official form, just to track type of event
-    clubName: "", //2
-    startDate: "", //3a
-    endDate: "", //3b
-    eventVenue: "", //4
-    sourceOfBudget: "", //5
-    estimatedBudget: "", //6
-
-    //Organizer Details:
-    nameOfTheOrganizer: "", //1
-    designation: "", //2
-    email: "", //3
-    phoneNumber: "", //4
-
-    //Requirements
+    eventName: "",
+    partOfGymkhanaCalendar: "",
+    eventType: "",
+    clubName: "",
+    startDate: "",
+    endDate: "",
+    eventVenue: "",
+    sourceOfBudget: "",
+    estimatedBudget: "",
+    // Organizer Details
+    nameOfTheOrganizer: "",
+    designation: "",
+    email: "",
+    phoneNumber: "",
+    // Requirements
     requirements: [],
     anyAdditionalAmenities: "",
-
-    //Brief Description of the Event:
+    // Event Description
     eventDescription: "",
-
-    //Expected Number of Participants
+    // Participants
     internalParticipants: "",
     externalParticipants: "",
     listOfCollaboratingOrganizations: ""
   });
 
+  const [isAgreementChecked, setisAgreementChecked] = useState(false);
+  const [isFormSubmitted, setIsFormSubmitted] = useState(false);
+
+  // Get today's date in YYYY-MM-DD format for min attribute in date inputs
+  const today = new Date().toISOString().split("T")[0];
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-  };
-
-  // State to track if the agreement checkbox is checked
-  const [isAgreementChecked, setisAgreementChecked] = useState(false);
-
-  // Function to handle agreement checkbox change
-  const handleAgreementCheckboxChange = () => {
-    setisAgreementChecked(!isAgreementChecked);
-  };
-
-  const today = new Date().toISOString().split("T")[0];
-
-  const handleDateValidation = () => {
-    // Validate that `startDate` is not in the past
-    if (formData.startDate && new Date(formData.startDate) < new Date(today)) {
-      toast.error("Start Date cannot be in the past.");
-      setFormData({ ...formData, startDate: "" });
-      return;
-    }
-  
-    // Validate that `endDate` is not before `startDate`
-    if (formData.endDate && new Date(formData.endDate) < new Date(formData.startDate)) {
-      toast.error("End Date cannot be before the Start Date.");
-      setFormData({ ...formData, endDate: "" });
-      return;
-    }
-  };
-
-  const handleGeneratePDF = () => {
-    const headerImageURL = "/form_header.png"; // Path to the header image
-    generatePDF(formData, headerImageURL);
   };
 
   const handleCheckboxChange = (e) => {
@@ -89,401 +55,388 @@ const EventForm = () => {
     }));
   };
 
+  const handleDateValidation = () => {
+    // Validate that endDate is not before startDate
+    if (formData.startDate && formData.endDate && new Date(formData.endDate) < new Date(formData.startDate)) {
+      toast.error("End Date cannot be before the Start Date.");
+      setFormData({ ...formData, endDate: "" });
+    }
+  };
+
   const validateForm = () => {
     const requiredFields = [
-      "eventName",
-      "partOfGymkhanaCalendar",
-      "eventType",
-      "clubName",
-      "startDate",
-      "endDate",
-      "eventVenue",
-      "sourceOfBudget",
-      "estimatedBudget",
-      "nameOfTheOrganizer",
-      "designation",
-      "email",
-      "phoneNumber",
-      "eventDescription",
-      "externalParticipants",
-      "internalParticipants"
+      "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
+      "eventVenue", "sourceOfBudget", "estimatedBudget", "nameOfTheOrganizer", "designation",
+      "email", "phoneNumber", "eventDescription", "externalParticipants", "internalParticipants"
     ];
 
-    for (let field of requiredFields) {
-      if (!formData[field]) {
-        return false;  // Return false if any required field is empty
-      }
+    if (requiredFields.some(field => !formData[field])) {
+      return false;
     }
 
-    // Additional check for listOfCollaboratingOrganizations if externalParticipants > 0
-    if (formData.externalParticipants > 0 && !formData.listOfCollaboratingOrganizations) {
+    // Conditionally require listOfCollaboratingOrganizations
+    if (Number(formData.externalParticipants) > 0 && !formData.listOfCollaboratingOrganizations) {
       return false;
     }
 
     return true;
   };
 
-  const [isFormSubmitted, setIsFormSubmitted] = useState(false); // Track submission
+  const handleGeneratePDF = () => {
+    const headerImageURL = "/form_header.png";
+    generatePDF(formData, headerImageURL);
+  };
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      toast.error("All fields are required to be filled!");
-      return; // Do not proceed if the form is not valid
+      toast.error("Please fill out all required fields.");
+      return;
     }
 
     const userID = localStorage.getItem("userID");
-
-    // Include userID and match backend schema
-    const requestData = {
-      ...formData,
-      userID,
-      startDate: formData.startDate,
-      endDate: formData.endDate,
-    };
+    const requestData = { ...formData, userID };
 
     try {
       const response = await API.post("/event/apply", requestData);
-      toast.success(response.data.message);
+      toast.success(response.data.message || "Event proposal submitted successfully!");
       setTimeout(() => {
-        // navigate("/club-secretary"); 
-        setIsFormSubmitted(true); // Set form as submitted
+        setIsFormSubmitted(true);
       }, 1200);
     } catch (error) {
-      console.error("Error submitting event approval:", error.message);
-      toast.error(error.response?.data?.message || "Failed to submit the event approval.");
+      console.error("Error submitting event:", error);
+      toast.error(error.response?.data?.message || "Failed to submit the proposal.");
     }
   };
 
   if (isFormSubmitted) {
-    return <StudentDashboard />; // Render StudentDashboard after submission
+    return <StudentDashboard />;
   }
 
   return (
-    <div className="container mt-1">
-      <Toaster />
-      <h2>Event Proposal Form</h2>
-      <form>
-
+    <div className="event-form-container container my-4">
+      <Toaster position="top-center" />
+      <h2 className="text-center mb-4">Event Proposal Form</h2>
+      <form noValidate>
+        {/* Event Details Section */}
         <div className="mb-3">
-          <label>Event Name</label>
+          <label htmlFor="eventName" className="form-label">Event Name</label>
           <input
             type="text"
             className="form-control"
+            id="eventName"
             name="eventName"
             value={formData.eventName}
             onChange={handleChange}
-            placeholder="Event Name"
             required
           />
         </div>
 
-        <div className="mb-3">
-          <label>Is it part of the Gymkhana Calendar ?</label>
-          <select
-            className="form-control"
-            name="partOfGymkhanaCalendar"
-            value={formData.partOfGymkhanaCalendar}
-            onChange={handleChange}
-          >
-            <option value="" disabled>Select</option>
-            <option value="YES">YES</option>
-            <option value="NO">NO</option>
-          </select>
-        </div>
-
-        <div className="mb-3">
-          <label>Event Type</label>
-          <select
-            className="form-control"
-            name="eventType"
-            value={formData.eventType}
-            onChange={handleChange}
-          >
-            <option value="" disabled>Event Type</option>
-            <option value="Technical">Technical</option>
-            <option value="Cultural">Cultural</option>
-            <option value="Sports">Sports</option>
-            <option value="Others">Others</option>
-          </select>
-        </div>
-
-        <div className="mb-3">
-          <label>Club Name</label>
-          <input
-            type="text"
-            className="form-control"
-            name="clubName"
-            value={formData.clubName}
-            onChange={handleChange}
-            placeholder="Club Name"
-            required
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Event Dates</label>
-          <div className="date-inputs-row">
-            <div className="date-input-container">
-              <label className="form-label"><i>Start Date</i></label>
-              <input
-                type="date"
-                name="startDate"
-                onChange={handleChange}
-                onBlur={handleDateValidation}
-                value={formData.startDate}
-                min={today}
-                required
-                className="form-input"
-              />
-            </div>
-            <div className="date-input-container">
-              <label className="form-label"><i>End Date</i></label>
-              <input
-                type="date"
-                name="endDate"
-                onChange={handleChange}
-                onBlur={handleDateValidation}
-                value={formData.endDate}
-                required
-                className="form-input"
-              />
-            </div>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="partOfGymkhanaCalendar" className="form-label">Part of Gymkhana Calendar?</label>
+            <select
+              className="form-select"
+              id="partOfGymkhanaCalendar"
+              name="partOfGymkhanaCalendar"
+              value={formData.partOfGymkhanaCalendar}
+              onChange={handleChange}
+              required
+            >
+              <option value="" disabled>Select...</option>
+              <option value="YES">Yes</option>
+              <option value="NO">No</option>
+            </select>
+          </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="eventType" className="form-label">Event Type</label>
+            <select
+              className="form-select"
+              id="eventType"
+              name="eventType"
+              value={formData.eventType}
+              onChange={handleChange}
+              required
+            >
+              <option value="" disabled>Select...</option>
+              <option value="Technical">Technical</option>
+              <option value="Cultural">Cultural</option>
+              <option value="Sports">Sports</option>
+              <option value="Others">Others</option>
+            </select>
           </div>
         </div>
 
         <div className="mb-3">
-          <label>Event Venue</label>
+          <label htmlFor="clubName" className="form-label">Club Name</label>
           <input
             type="text"
             className="form-control"
-            name="eventVenue"
-            value={formData.eventVenue}
+            id="clubName"
+            name="clubName"
+            value={formData.clubName}
             onChange={handleChange}
-            placeholder="Event Venue"
             required
           />
         </div>
 
-        <div className="mb-3">
-          <label>Source of Budget/Fund</label>
-          <select
-            className="form-control"
-            name="sourceOfBudget"
-            value={formData.sourceOfBudget}
-            onChange={handleChange}
-          >
-            <option value="" disabled>Select Source</option>
-            <option value="Technical">Technical</option>
-            <option value="Cultural">Cultural</option>
-            <option value="Sports">Sports</option>
-            <option value="Others">Others</option>
-          </select>
-        </div>
-
-        <div className="mb-3">
-          <label>Estimated Budget</label>
-          <input
-            type="number"
-            className="form-control"
-            name="estimatedBudget"
-            value={formData.estimatedBudget}
-            onChange={handleChange}
-            placeholder="Estimated Budget (in INR)"
-            required
-          />
-        </div>
-
-        {/* Organizer Details */}
-        <div className="mb-3">
-          <label>Name</label>
-          <input
-            type="text"
-            className="form-control"
-            name="nameOfTheOrganizer"
-            value={formData.nameOfTheOrganizer}
-            onChange={handleChange}
-            placeholder="Organizer Name"
-            required
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>Designation</label>
-          <input
-            type="text"
-            className="form-control"
-            name="designation"
-            value={formData.designation}
-            onChange={handleChange}
-            placeholder="Organizer Designation"
-            required
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>Email</label>
-          <input
-            type="email"
-            className="form-control"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="Organizer Email Address"
-            required
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>Phone Number</label>
-          <input
-            type="text"
-            className="form-control"
-            name="phoneNumber"
-            value={formData.phoneNumber}
-            onChange={handleChange}
-            placeholder="Organizer Phone Number"
-            required
-          />
-        </div>
-
-        {/* Requirements */}
-        <div className="mb-3">
-          <label>Requirements:</label>
-          {["Security", "Transport", "IPS Related", "Housekeeping", "Refreshment", "Ambulance", "Networking"].map(
-            (help) => (
-              <div key={help} className="form-check">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  value={help}
-                  onChange={handleCheckboxChange}
-                />
-                <label className="form-check-label">{help}</label>
-              </div>
-            )
-          )}
-
-          <div className="mb-3 mt-3">
-            <label>Any additional amenities:</label>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="startDate" className="form-label">Start Date</label>
             <input
-              type="text"
+              type="date"
               className="form-control"
-              name="anyAdditionalAmenities"
-              value={formData.anyAdditionalAmenities}
+              id="startDate"
+              name="startDate"
+              value={formData.startDate}
               onChange={handleChange}
-            // placeholder=""
+              min={today}
+              required
+            />
+          </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="endDate" className="form-label">End Date</label>
+            <input
+              type="date"
+              className="form-control"
+              id="endDate"
+              name="endDate"
+              value={formData.endDate}
+              onChange={handleChange}
+              onBlur={handleDateValidation}
+              min={formData.startDate || today}
+              required
             />
           </div>
         </div>
 
-        {/* Event Description */}
         <div className="mb-3">
-          <label> Brief Description of the Event:</label>
+          <label htmlFor="eventVenue" className="form-label">Event Venue</label>
+          <input
+            type="text"
+            className="form-control"
+            id="eventVenue"
+            name="eventVenue"
+            value={formData.eventVenue}
+            onChange={handleChange}
+            required
+          />
+        </div>
+
+        <div className="row">
+            <div className="col-md-6 mb-3">
+                <label htmlFor="sourceOfBudget" className="form-label">Source of Budget/Fund</label>
+                <select
+                    className="form-select"
+                    id="sourceOfBudget"
+                    name="sourceOfBudget"
+                    value={formData.sourceOfBudget}
+                    onChange={handleChange}
+                    required
+                >
+                    <option value="" disabled>Select Source...</option>
+                    <option value="Technical">Technical</option>
+                    <option value="Cultural">Cultural</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Others">Others</option>
+                </select>
+            </div>
+            <div className="col-md-6 mb-3">
+                <label htmlFor="estimatedBudget" className="form-label">Estimated Budget (in INR)</label>
+                <input
+                    type="number"
+                    className="form-control"
+                    id="estimatedBudget"
+                    name="estimatedBudget"
+                    value={formData.estimatedBudget}
+                    onChange={handleChange}
+                    placeholder="e.g., 5000"
+                    min="0"
+                    required
+                />
+            </div>
+        </div>
+
+
+        {/* Organizer Details Section */}
+        <h4 className="mt-4 mb-3">Organizer Details</h4>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="nameOfTheOrganizer" className="form-label">Name</label>
+            <input
+              type="text"
+              className="form-control"
+              id="nameOfTheOrganizer"
+              name="nameOfTheOrganizer"
+              value={formData.nameOfTheOrganizer}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="designation" className="form-label">Designation</label>
+            <input
+              type="text"
+              className="form-control"
+              id="designation"
+              name="designation"
+              value={formData.designation}
+              onChange={handleChange}
+              required
+            />
+          </div>
+        </div>
+        <div className="row">
+          <div className="col-md-6 mb-3">
+            <label htmlFor="email" className="form-label">Email</label>
+            <input
+              type="email"
+              className="form-control"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="phoneNumber" className="form-label">Phone Number</label>
+            <input
+              type="tel"
+              className="form-control"
+              id="phoneNumber"
+              name="phoneNumber"
+              value={formData.phoneNumber}
+              onChange={handleChange}
+              required
+            />
+          </div>
+        </div>
+
+        {/* Requirements Section */}
+        <div className="mb-3">
+          <label className="form-label d-block">Requirements:</label>
+          {["Security", "Transport", "IPS Related", "Housekeeping", "Refreshment", "Ambulance", "Networking"].map(
+            (req) => (
+              <div key={req} className="form-check form-check-inline">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  id={`req-${req}`}
+                  value={req}
+                  onChange={handleCheckboxChange}
+                />
+                <label className="form-check-label" htmlFor={`req-${req}`}>{req}</label>
+              </div>
+            )
+          )}
+        </div>
+
+        <div className="mb-3">
+            <label htmlFor="anyAdditionalAmenities" className="form-label">Any Additional Amenities</label>
+            <input
+              type="text"
+              className="form-control"
+              id="anyAdditionalAmenities"
+              name="anyAdditionalAmenities"
+              value={formData.anyAdditionalAmenities}
+              onChange={handleChange}
+            />
+        </div>
+
+
+        {/* Event Description Section */}
+        <div className="mb-3">
+          <label htmlFor="eventDescription" className="form-label">Brief Description of the Event</label>
           <textarea
             className="form-control"
+            id="eventDescription"
             name="eventDescription"
             rows="4"
             value={formData.eventDescription}
             onChange={handleChange}
-            placeholder="A 4 line description is to be furnished."
+            placeholder="A brief description of the event's purpose, activities, and goals."
             required
           ></textarea>
         </div>
 
-        {/* Expected Number of Participants */}
-        <label className="mb-1">Expected Number of Participants</label>
-        <div className="mb-3">
-          <label><i>External</i></label>
-          <input
-            type="text"
-            className="form-control"
-            name="externalParticipants"
-            value={formData.externalParticipants}
-            onChange={handleChange}
-            placeholder="Expected Number of External Participants"
-            required
-          />
+        {/* Participants Section */}
+        <h4 className="mt-4 mb-3">Expected Number of Participants</h4>
+        <div className="row">
+            <div className="col-md-6 mb-3">
+                <label htmlFor="internalParticipants" className="form-label">Internal Participants</label>
+                <input
+                    type="number"
+                    className="form-control"
+                    id="internalParticipants"
+                    name="internalParticipants"
+                    value={formData.internalParticipants}
+                    onChange={handleChange}
+                    min="0"
+                    required
+                />
+            </div>
+            <div className="col-md-6 mb-3">
+                <label htmlFor="externalParticipants" className="form-label">External Participants</label>
+                <input
+                    type="number"
+                    className="form-control"
+                    id="externalParticipants"
+                    name="externalParticipants"
+                    value={formData.externalParticipants}
+                    onChange={handleChange}
+                    min="0"
+                    required
+                />
+            </div>
         </div>
 
-        {formData.externalParticipants > 0 ? (
+        {Number(formData.externalParticipants) > 0 && (
           <div className="mb-3">
-            <label>List of Collaborating Organizations:</label>
+            <label htmlFor="listOfCollaboratingOrganizations" className="form-label">List of Collaborating Organizations</label>
             <input
               type="text"
               className="form-control"
+              id="listOfCollaboratingOrganizations"
               name="listOfCollaboratingOrganizations"
               value={formData.listOfCollaboratingOrganizations}
               onChange={handleChange}
-              placeholder="Since external participants are invited, list of collaborating organizations:"
+              placeholder="List organizations separated by commas"
               required
             />
           </div>
-        ) : (
-          <div className="mb-3">
-            {/* <label>List of Collaborating Organizations:</label>
-            <input
-              type="number"
-              className="form-control"
-              name="listOfCollaboratingOrganizations"
-              value={formData.listOfCollaboratingOrganizations}
-              onChange={handleChange}
-              placeholder="Since external participants are invited, list of collaborating organizations:"
-              disabled
-            /> */}
-          </div>
-        )
-        }
+        )}
 
-        <div className="mb-3">
-          <label><i>Internal</i></label>
-          <input
-            type="text"
-            className="form-control"
-            name="internalParticipants"
-            value={formData.internalParticipants}
-            onChange={handleChange}
-            placeholder="Expected Number of Internal Participants"
-            required
-          />
-        </div>
-
-        {/* Checkbox for agreement */}
-        <div className="form-check d-flex align-items-center">
+        {/* Agreement and Submission */}
+        <div className="form-check my-4">
           <input
             className="form-check-input"
             type="checkbox"
             id="responsibilityCheck"
             checked={isAgreementChecked}
-            onChange={handleAgreementCheckboxChange}
+            onChange={() => setisAgreementChecked(!isAgreementChecked)}
           />
-          <label className="form-check-label ms-2" htmlFor="responsibilityCheck">
-            I, {formData.nameOfTheOrganizer}, Designation: {formData.designation}, will take responsibility to organize and conduct the event to the best of my ability and as per the institute rules.
+          <label className="form-check-label" htmlFor="responsibilityCheck">
+            I, <strong>{formData.nameOfTheOrganizer || "[Organizer Name]"}</strong>, will take full responsibility to organize and conduct the event to the best of my ability and as per institute rules.
           </label>
         </div>
 
-        {/* Disable the button if the agreement checkbox is not checked */}
-        <button type="button" className="mb-3 btn btn-primary" onClick={handleGeneratePDF} disabled={!isAgreementChecked}>
-
-          Generate PDF
-        </button>
-
-        {/* Submit button */}
-        <button
-          type="button"
-          className="btn btn-success"
-          onClick={handleSubmit}
-          disabled={!isAgreementChecked}
-        >
-          Submit for Approval
-        </button>
+        <div className="d-flex justify-content-start gap-2">
+          <button type="button" className="btn btn-primary" onClick={handleGeneratePDF} disabled={!isAgreementChecked}>
+            Generate PDF
+          </button>
+          <button
+            type="button"
+            className="btn btn-success"
+            onClick={handleSubmit}
+            disabled={!isAgreementChecked}
+          >
+            Submit for Approval
+          </button>
+        </div>
       </form>
 
-      <br></br>
-
-      <iframe id="pdf-preview" style={{ width: "100%", height: "500px" }}></iframe>
-
+      <iframe id="pdf-preview" title="PDF Preview" style={{ width: "100%", height: "500px", marginTop: '20px', border: '1px solid #dee2e6' }}></iframe>
     </div>
-
   );
 };
 
