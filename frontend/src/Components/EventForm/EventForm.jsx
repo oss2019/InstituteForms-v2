@@ -318,17 +318,17 @@ const EventForm = () => {
         )
         }
         <div className="mb-3">
-        <label>Estimated Budget (Total)</label>
-        <input
-          type="number"
-          className="form-control"
-          name="estimatedBudget"
-          value={formData.estimatedBudget}
-          placeholder="Total will be calculated from the breakup table"
-          //readOnly //Since the total budget is calculated automatically from the table hence
-          required
-        />
-      </div>
+            <label>Estimated Budget (Total)</label>
+            <input
+              type="number"
+              className="form-control"
+              name="estimatedBudget"
+              value={formData.estimatedBudget}
+              placeholder="Total will be calculated from the breakup table"
+              readOnly // This prop prevents the warning
+              required
+            />
+        </div>
 
       {/* Budget Breakup Table */}
       <div className="mb-3">
