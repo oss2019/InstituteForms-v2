@@ -60,17 +60,17 @@ export const generatePDF = async (formData, headerImageURL) => {
     doc.line(marginLeft, currentY, pageWidth - marginLeft, currentY);
     currentY += 5;
 
-    formData.budgetBreakup.forEach((item, index) => {
-        const expenseLines = doc.splitTextToSize(item.expenseHead || "N/A", 120);
-        const amount = Number(item.estimatedAmount || 0).toFixed(2);
-        const textHeight = expenseLines.length * 5;
+    // formData.budgetBreakup.forEach((item, index) => {
+    //     const expenseLines = doc.splitTextToSize(item.expenseHead || "N/A", 120);
+    //     const amount = Number(item.estimatedAmount || 0).toFixed(2);
+    //     const textHeight = expenseLines.length * 5;
 
-        doc.text(`${index + 1}.`, 15, currentY);
-        doc.text(expenseLines, 40, currentY);
-        doc.text(amount, 195, currentY, { align: 'right' });
+    //     doc.text(`${index + 1}.`, 15, currentY);
+    //     doc.text(expenseLines, 40, currentY);
+    //     doc.text(amount, 195, currentY, { align: 'right' });
         
-        currentY += textHeight + 2;
-    });
+    //     currentY += textHeight + 2;
+    // });
 
     doc.line(marginLeft, currentY, pageWidth - marginLeft, currentY);
     currentY += 5;
@@ -92,18 +92,18 @@ export const generatePDF = async (formData, headerImageURL) => {
     doc.text("आवश्यकताएं / Requirements:", col2X, startYColumns);
     const allRequirements = ["Security", "Transport", "IPS Related", "Housekeeping", "Refreshment", "Ambulance", "Networking"];
     let reqY = startYColumns + 7;
-    allRequirements.forEach((req) => {
-        const value = formData.requirements.includes(req) ? "Yes" : "No";
-        doc.text(`${req}: ${value}`, col2X, reqY);
-        reqY += 5;
-    });
+    // allRequirements.forEach((req) => {
+    //     const value = formData.requirements.includes(req) ? "Yes" : "No";
+    //     doc.text(`${req}: ${value}`, col2X, reqY);
+    //     reqY += 5;
+    // });
     doc.text(`Any additional amenities: ${formData.anyAdditionalAmenities || "No"}`, col2X, reqY);
     
     currentY = reqY + 10;
     
     doc.text("Brief Description of the Event:", marginLeft, currentY);
     currentY += 5;
-    doc.text(formData.eventDescription, marginLeft, currentY, { maxWidth: pageWidth - 20 });
+    // doc.text(formData.eventDescription, marginLeft, currentY, { maxWidth: pageWidth - 20 });
     currentY += 21;
 
     doc.text(`Expected Number of Participants: (External: ${formData.externalParticipants} Internal: ${formData.internalParticipants})`, marginLeft, currentY);

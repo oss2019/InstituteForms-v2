@@ -13,7 +13,7 @@ const EventForm = () => {
     //Event Details:
     eventName: "", //1a (index no as in official form)
     partOfGymkhanaCalendar: "",//1b
-    eventType: "", //extra variable: Not in official form, just to track type of event
+    // eventType: "", //extra variable: Not in official form, just to track type of event
     clubName: "", //2
     startDate: "", //3a
     endDate: "", //3b
@@ -71,7 +71,7 @@ const EventForm = () => {
 
   const validateForm = () => {
     const requiredFields = [
-      "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
+      "eventName", "partOfGymkhanaCalendar", "clubName", "startDate", "endDate",
       "eventVenue", "sourceOfBudget", "estimatedBudget", "nameOfTheOrganizer", "designation",
       "email", "phoneNumber", "eventDescription", "externalParticipants", "internalParticipants"
     ];
@@ -368,7 +368,7 @@ const EventForm = () => {
       </div>
 
         {/* Organizer Details */}
-        <div className="mb-3">
+        {/* <div className="mb-3">
           <label>Name of the Organizer</label>
           <input
             type="text"
@@ -379,7 +379,7 @@ const EventForm = () => {
             placeholder="Organizer Name"
             required
           />
-        </div>
+        </div> */}
 
 
         {/* Organizer Details Section */}
@@ -546,7 +546,7 @@ const EventForm = () => {
         </div>
 
         <div className="d-flex justify-content-start gap-2">
-          <button type="button" className="btn btn-primary" onClick={handleGeneratePDF} disabled={!isAgreementChecked}>
+          <button type="button" className="btn btn-primary" onClick={generatePDF} disabled={!isAgreementChecked}>
             Generate PDF
           </button>
           <button

@@ -95,6 +95,7 @@ export const applyForEventApproval = async (req, res) => {
       startDate,
       endDate,
       eventVenue,
+      budgetBreakup,
       sourceOfBudget,
       estimatedBudget,
       nameOfTheOrganizer,
@@ -120,7 +121,7 @@ export const applyForEventApproval = async (req, res) => {
     }
 
     // Set eventType based on user's type if club-secretary, else fallback to req.body.eventType
-    let eventType = req.body.eventType;
+    let eventType = req.body.eventType || null;
     if (user.role === "club-secretary") {
       eventType = user.type;
     }
@@ -163,6 +164,7 @@ export const applyForEventApproval = async (req, res) => {
       semester: semesterInfo.semester,
       academicYear: semesterInfo.academicYear,
       eventVenue,
+      budgetBreakup,
       sourceOfBudget,
       estimatedBudget,
       nameOfTheOrganizer,
@@ -1007,7 +1009,7 @@ export const editEventDetails = async (req, res) => {
       "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
       "eventVenue", "sourceOfBudget", "estimatedBudget", "nameOfTheOrganizer", "designation",
       "email", "phoneNumber", "requirements", "anyAdditionalAmenities", "eventDescription",
-      "internalParticipants", "externalParticipants", "listOfCollaboratingOrganizations"
+      "internalParticipants", "externalParticipants", "listofCollaboratingOrganizations", "budgetBreakup"
     ];
 
     // Update only allowed fields
@@ -1022,6 +1024,11 @@ export const editEventDetails = async (req, res) => {
       const semesterInfo = getSemesterInfo(updates.startDate);
       event.semester = semesterInfo.semester;
       event.academicYear = semesterInfo.academicYear;
+    }
+
+     // Update budgetBreakup if provided
+    if (updates.budgetBreakup) {
+      event.budgetBreakup = updates.budgetBreakup;  // Replace the existing budgetBreakup with the new one
     }
 
     // Reset approvals after club-secretary to Pending

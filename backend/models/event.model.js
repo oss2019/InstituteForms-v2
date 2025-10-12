@@ -26,6 +26,13 @@ const eventApprovalSchema = new Schema(
     internalParticipants: { type: Number, required: true },
     externalParticipants: { type: Number, required: true },
     listOfCollaboratingOrganizations: { type: String, default: "N/A" },
+    // Budget breakup array of objects with expenseHead and estimatedAmount
+    budgetBreakup: [
+      {
+        expenseHead: { type: String, required: true },
+        estimatedAmount: { type: Number, required: true }
+      }
+    ],
     approvals: [
       {
         role: {
