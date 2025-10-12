@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { notoSansDevanagariBase64 } from './fonts/notoFont.js'; // Import the Base64 string from the new file
 
 /**
  * Generate a PDF using the provided form data and header image URL.
@@ -7,165 +8,193 @@ import { jsPDF } from "jspdf";
  */
 export const generatePDF = async (formData, headerImageURL) => {
   const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const headerHeight = 40; // Adjust as needed
-  const headerWidth = 180; // Adjust as needed
+  
+  // Register the custom font directly from the Base64 string
+  doc.addFileToVFS('NotoSansDevanagari-normal.ttf', notoSansDevanagariBase64);
+  doc.addFont('NotoSansDevanagari-normal.ttf', 'NotoSansDevanagari', 'normal');
+  
+  // Set the new font for the entire document
+  doc.setFont('NotoSansDevanagari');
 
-  // Load the header image
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const headerHeight = 40;
+  const headerWidth = 180;
+
   const imgData = await fetch(headerImageURL).then((res) => res.blob());
   const reader = new FileReader();
-
   reader.readAsDataURL(imgData);
 
   reader.onloadend = () => {
     const base64data = reader.result;
-
-    // Calculate centered position for the header image
     const xPosition = (pageWidth - headerWidth) / 2;
+    const marginLeft = 10;
 
-    // Add Header to Page 1
+    // --- PAGE 1 ---
     doc.addImage(base64data, "JPEG", xPosition, 0, headerWidth, headerHeight);
 
-     // Content for Page 1
-     doc.setFontSize(14).setFont(undefined, 'bold')
-     doc.text("Gymkhana Event Permission Request Form", 105, 45, { align: "center" });
-     doc.setFontSize(11);
-     doc.text("Event Details:", 10, 55);
+    doc.setFontSize(14).setFont('NotoSansDevanagari', 'normal');
+    doc.text("जिमखाना कार्यक्रम अनुमति अनुरोध प्रपत्र / Gymkhana Event Permission Request Form", 105, 45, { align: "center" });
+    
+    doc.setFontSize(11).setFont('NotoSansDevanagari', 'normal');
+    doc.text("आयोजन विवरण / Event Details:", marginLeft, 55);
 
-     // currentY is the Y - position of the next line to print
-     let currentY = 60;
-     doc.setFont(undefined, 'normal');
-     doc.text(`1) Event Name: ${formData.eventName}`, 10, currentY); currentY += 7;
-     doc.text(`Is it part of Gymkhana Calendar?: ${formData.partOfGymkhanaCalendar}`, 10, currentY); currentY += 7;
-     doc.text(`2) Club Name: ${formData.clubName}`, 10, currentY); currentY += 7;
-     doc.text(`3) Date/Duration (in days) of the Event proposed: ${formData.startDate} to ${formData.endDate}`, 10, currentY); currentY += 7;
-     doc.text(`4) Venue: (Mention all in case of multiple venues): ${formData.eventVenue}`, 10, currentY); currentY += 7;
-     doc.text(`5) Source of Budget/Fund: ${formData.sourceOfBudget}`, 10, currentY); currentY += 7;
-//       doc.text("   1) Sports Budget   2) Cultural Budget   3) Technical Budget   4) Others", 10, 120);
-     doc.text(`6) Estimated Budget: ${formData.estimatedBudget}`, 10, currentY); currentY += 7;
+    let currentY = 60;
+    doc.text(`1) Event Name: ${formData.eventName}`, marginLeft, currentY); currentY += 7;
+    doc.text(`Is it part of Gymkhana Calendar?: ${formData.partOfGymkhanaCalendar}`, marginLeft, currentY); currentY += 7;
+    doc.text(`2) Club Name: ${formData.clubName}`, marginLeft, currentY); currentY += 7;
+    doc.text(`3) Date/Duration of the Event proposed: ${formData.startDate} to ${formData.endDate}`, marginLeft, currentY); currentY += 7;
+    doc.text(`4) Venue(s): ${formData.eventVenue}`, marginLeft, currentY); currentY += 7;
+    doc.text(`5) Source of Budget/Fund: ${formData.sourceOfBudget === 'Others' ? formData.othersSourceOfBudget : formData.sourceOfBudget}`, marginLeft, currentY); currentY += 7;
+    doc.text(`6) Estimated Budget: ₹ ${Number(formData.estimatedBudget).toFixed(2)}`, marginLeft, currentY); currentY += 7;
 
+    // --- Budget Breakup Table ---
+    currentY += 5;
+    doc.text("Budget Breakup:", marginLeft, currentY);
+    currentY += 7;
 
-     // Content for the Two Columns Layout (all in Bold)
-     doc.setFont(undefined, 'bold')
-     const marginLeftCol1 = 15;
-     const marginLeftCol2 = pageWidth / 2 + 5; // Second column starting position
+    doc.setFontSize(10);
+    doc.text("Sl.No", 15, currentY);
+    doc.text("Expense Head", 40, currentY);
+    doc.text("Estimated Amount (₹)", 195, currentY, { align: 'right' });
+    currentY += 2;
+    doc.line(marginLeft, currentY, pageWidth - marginLeft, currentY);
+    currentY += 5;
 
-     // Column 1: Organizer Details
-     currentY += 6;
-     doc.text("Organizer Details:", marginLeftCol1, currentY); currentY += 7;
-     doc.text(`1) Name of the Organizer: ${formData.nameOfTheOrganizer}`, marginLeftCol1, currentY); currentY += 5;
-     doc.text(`2) Designation: ${formData.designation}`, marginLeftCol1, currentY); currentY += 5;
-     doc.text(`3) Email: ${formData.email}`, marginLeftCol1, currentY); currentY += 5;
-     doc.text(`4) Phone No.: ${formData.phoneNumber}`, marginLeftCol1, currentY);
+    formData.budgetBreakup.forEach((item, index) => {
+        const expenseLines = doc.splitTextToSize(item.expenseHead || "N/A", 120);
+        const amount = Number(item.estimatedAmount || 0).toFixed(2);
+        const textHeight = expenseLines.length * 5;
 
-     // Column 2: Requirements
-     currentY -= 22;
-     doc.text("Requirements:", marginLeftCol2, currentY); currentY += 7;
-     const allRequirements = ["Security", "Transport", "IPS Related", "Housekeeping", "Refreshment", "Ambulance", "Networking", "Any Additional Amenities"];
-     allRequirements.forEach((req, index) => {
-       const value = formData.requirements.includes(req) ? "Yes" : "No";
-       doc.text(`${index + 1}. ${req}: ${value}`, marginLeftCol2, currentY + index * 5);
-     });
+        doc.text(`${index + 1}.`, 15, currentY);
+        doc.text(expenseLines, 40, currentY);
+        doc.text(amount, 195, currentY, { align: 'right' });
+        
+        currentY += textHeight + 2;
+    });
 
-     currentY += 8 * 5
-     doc.text(formData.anyAdditionalAmenities || "N/A", marginLeftCol2, currentY);
+    doc.line(marginLeft, currentY, pageWidth - marginLeft, currentY);
+    currentY += 5;
+    doc.text("TOTAL", 40, currentY);
+    doc.text(`₹ ${Number(formData.estimatedBudget).toFixed(2)}`, 195, currentY, { align: 'right' });
+    currentY += 10;
 
-     // Draw border for Organizer Details
-     currentY -= 55;
-     doc.rect(10, currentY, pageWidth / 2 - 10, 60); // x, y, width, height
-     // Draw border for Requirements section
-     doc.rect(pageWidth / 2, currentY, pageWidth / 2 - 10, 60); // x, y, width, height
+    const col1X = 15;
+    const col2X = pageWidth / 2 + 5;
+    const startYColumns = currentY;
 
-     //Description of the Event
-     const marginLeft = 10;
-     currentY += 68;
-     doc.text("Brief Description of the Event: ", marginLeft, currentY).setFont(undefined, 'normal').text(" (A 4-line description is to be furnished)", marginLeft + 63, currentY, { maxWidth: pageWidth - 40 });
-     currentY += 7;
+    doc.setFontSize(11);
+    doc.text("आयोजक विवरण / Organizer Details:", col1X, startYColumns);
+    doc.text(`1) Name: ${formData.nameOfTheOrganizer}`, col1X, startYColumns + 7);
+    doc.text(`2) Designation: ${formData.designation}`, col1X, startYColumns + 12);
+    doc.text(`3) Email: ${formData.email}`, col1X, startYColumns + 17);
+    doc.text(`4) Phone No.: ${formData.phoneNumber}`, col1X, startYColumns + 22);
 
-     doc.setFontSize(11)
-     // Wrap the text with maxWidth parameter
-     const maxWidth = pageWidth - 20;  // Adjust max width based on your page layout
-     // Text wrapping for event description
-     doc.text(`${formData.eventDescription}`, marginLeft, currentY, { maxWidth: pageWidth - 40 });
-     currentY += 21;
+    doc.text("आवश्यकताएं / Requirements:", col2X, startYColumns);
+    const allRequirements = ["Security", "Transport", "IPS Related", "Housekeeping", "Refreshment", "Ambulance", "Networking"];
+    let reqY = startYColumns + 7;
+    allRequirements.forEach((req) => {
+        const value = formData.requirements.includes(req) ? "Yes" : "No";
+        doc.text(`${req}: ${value}`, col2X, reqY);
+        reqY += 5;
+    });
+    doc.text(`Any additional amenities: ${formData.anyAdditionalAmenities || "No"}`, col2X, reqY);
+    
+    currentY = reqY + 10;
+    
+    doc.text("Brief Description of the Event:", marginLeft, currentY);
+    currentY += 5;
+    doc.text(formData.eventDescription, marginLeft, currentY, { maxWidth: pageWidth - 20 });
+    currentY += 21;
 
-     doc.setFont(undefined, 'bold');
-     doc.text(`Expected Number of Participants: (External: ${formData.externalParticipants}      Internal: ${formData.internalParticipants} )`, marginLeft, currentY); currentY += 7;
-     doc.setFont(undefined, 'normal');
-     doc.text(`If the external participants are invited, list of collaborating organizations: ${formData.listOfCollaboratingOrganizations}`, marginLeft, currentY); currentY += 7;
+    doc.text(`Expected Number of Participants: (External: ${formData.externalParticipants} Internal: ${formData.internalParticipants})`, marginLeft, currentY);
+    currentY += 7;
+    doc.text(`If external participants are invited, list of collaborating organizations: ${formData.listOfCollaboratingOrganizations}`, marginLeft, currentY);
+    currentY += 7;
 
-     //Declaration by the organizer
-     doc.text([`I, ${formData.nameOfTheOrganizer}, Designation ${formData.designation} will take responsibility to organize and conduct the event to the best of my ability and as per the institute rules.`], marginLeft, currentY, { maxWidth: pageWidth - 40 });
-     currentY += 10;
+    doc.text(`I, ${formData.nameOfTheOrganizer}, (Designation: ${formData.designation}), will take responsibility to organize and conduct the event to the best of my ability and as per the institute rules.`, marginLeft, currentY, { maxWidth: pageWidth - 20 });
+    currentY += 10;
 
-     doc.setFont(undefined, 'normal');
-     doc.setFontSize(10)
-     doc.text(["Please read the instructions overleaf. Please submit this form to the Students Welfare Office at least 2 weeks prior to the proposed event date. Seek the approval from the competent authority."], marginLeft, currentY,  { maxWidth: pageWidth - 40 });
+    currentY += 10;
+    const sigX1 = 20, sigX2 = 70, sigX3 = 120, sigX4 = 170;
+    doc.setFontSize(10);
+    doc.text("क्लब सचिव / Club Secretary", sigX1, currentY, {align: "center"});
+    doc.text("महासचिव / General Secretary", sigX2, currentY, {align: "center"});
+    doc.text("कोषाध्यक्ष / Treasurer", sigX3, currentY, {align: "center"});
+    doc.text("अध्यक्ष / President", sigX4, currentY, {align: "center"});
+    currentY += 20;
+    doc.text("प्रभारी संकाय / Faculty in Charge", 55, currentY, {align: "center"});
+    doc.text("एसोसिएट डीन / Associate Dean", 155, currentY, {align: "center"});
 
-     //Signatures
-     //Upper Row (1)
-     currentY += 30;
-     doc.setFontSize(12)
-     doc.text("Club Secretary", marginLeft + 10, currentY);
-     doc.text("General Secretary", marginLeft + 55, currentY);
-     doc.text("Treasurer", marginLeft + 110, currentY);
-     doc.text("President", marginLeft + 150, currentY);
+    doc.setFontSize(7).text("Page-1 (to be completed by the applicant/student)", marginLeft, 295);
 
-     //Lower Row (2)
-     currentY += 25;
-     doc.text("Faculty In Charge", marginLeft + 25, currentY);
-     doc.text("Associate Dean", marginLeft + 130, currentY);
+    // --- PAGE 2 ---
+    doc.addPage();
+    doc.addImage(base64data, "JPEG", xPosition, 0, headerWidth, headerHeight);
 
-     doc.setFontSize(7)
-     doc.setFont(undefined, 'normal');
-     doc.text("Page-1 (to be completed by the applicant/student)", marginLeft, 295);
+    currentY = 50;
+    doc.setFontSize(12);
+    doc.text("कार्यालय उपयोग के लिए / For Office Use: प्रशासनिक अनुमोदन / Administrative approval/ बजट अनुमोदन / Budget Approval", pageWidth / 2, currentY, { align: "center" });
+    currentY += 70;
+    doc.text("डीन / Dean", pageWidth/2 + 50, currentY, {align: "center"});
+    doc.text("छात्र कल्याण / Student Welfare", pageWidth/2 + 50, currentY + 5, {align: "center"});
 
+    doc.line(marginLeft, currentY + 15, pageWidth - marginLeft, currentY + 15);
+    currentY += 25;
+    
+    doc.setFontSize(12).text("छात्रों को निर्देश / Instructions to the Students:", marginLeft, currentY);
+    currentY += 7;
 
+    doc.setFontSize(10);
+    const instructions = [
+      "For reserving classrooms in CLT please contact the Academics Office with the approval form.",
+      "For any Audio/Visual assistance please contact the Academic Office/Classroom maintenance staff.",
+      "For reserving rooms for external participants in Hostel blocks please contact SW Office.",
+      "For Network Issues/requirements please contact the CCS Office with this prior approval.",
+      "Event organizer team is requested to provide the Visitors ID to the all-external participants.",
+      "All the events are to end by 11PM as notified in Hostels Rules and Regulations.",
+      "All the Accounts need to be settled within 2 weeks of the event conclusion, which will be the responsibility of concerned GS, Treasurer, and President.",
+      "A report is to be submitted to the SW Office by the organizer after the conclusion of the event within 2 weeks.",
+      "If the external experts/dignitaries are invited, please mention the details.",
+      "Please ensure all invoices submitted to the SW office are GST-compliant. Invoices must include GSTIN, invoice number and date, supplier and recipient details, tax breakdown, total amount, place of supply, seal, and signature.",
+      "To avoid delays, ensure invoices are accurate and meet all GST requirements. Anyone receiving advances must submit a settlement bill with any unspent balance within 15 days of withdrawal."
+    ];
+    
+    instructions.forEach((instruction, index) => {
+        const lines = doc.splitTextToSize(`${index + 1}. ${instruction}`, pageWidth - 30);
+        doc.text(lines, marginLeft + 5, currentY);
+        currentY += (lines.length * 5) + 2;
+    });
 
-     // SECOND PAGE
-     doc.addPage();
-     doc.addImage(base64data, "JPEG", xPosition, 0, headerWidth, headerHeight);
+    currentY += 5;
+    doc.setFontSize(12).text("अतिरिक्त नोट्स और विशेष निर्देश / Additional Notes & Special Instructions:", marginLeft, currentY);
+    currentY += 7;
+    doc.setFontSize(10);
+    
+    const additionalInstructions = [
+        "Ensure all relevant permissions from security, transport, and other logistics are coordinated well in advance.",
+        "If media coverage is expected, inform the Public Relations/Media Cell through the SW office.",
+        "Obtain all necessary approval if any cash awards, gifts, or mementos are to be distributed.",
+        "Submit soft copies of event posters/flyers for brand review to SW office before circulation.",
+        "If the event involves competitions, clearly outline the rules and evaluation criteria in advance. The result sheet must also be submitted.",
+        "Coordinate with the Institute Wellness Center if an ambulance or medical support is required.",
+        "Maintain proper documentation of expenses, including bills, receipts, and vendor invoices.",
+        "Clearly demarcate and manage entry/exit points if external attendees are expected.",
+        "If the event spans multiple days, ensure a daily schedule is submitted for review.",
+        "Use sustainable practices where possible (e.g., avoid plastic, use digital communication).",
+        "Any loss or damage to institute property during the event will be the sole responsibility of the General Secretary and the Event Organizer.",
+        "For stage play activities (dramas, skits), prior script approval must be obtained from the concerned authorities."
+    ];
+    
+    additionalInstructions.forEach((instruction, index) => {
+        const lines = doc.splitTextToSize(`${index + 1}. ${instruction}`, pageWidth - 30);
+        doc.text(lines, marginLeft + 5, currentY);
+        currentY += (lines.length * 5) + 2;
+        if (currentY > 280) {
+            doc.addPage();
+            currentY = 20;
+        }
+    });
 
-     // Content for Page 2
-     doc.setFontSize(12)
-     doc.text("For Office Use: Administrative approval/Budget Approval", marginLeft + 40, 60);
-
-     // Administrative approval section (empty fields for office use)
-     // doc.setDrawColor(0);
-     // doc.rect(10, 60, pageWidth - 20, 50); // x, y, width, height (adjust as needed for spacing)
-     doc.text("Dean", pageWidth / 2, 150, { align: "center" });
-     doc.text("Student Welfare", pageWidth / 2, 155, { align: "center" });
-
-     // Add separator
-     doc.setDrawColor(0);
-     doc.line(10, 160, pageWidth - 10, 160); // Horizontal line
-
-     // Instructions to Students Section
-     doc.setFont(undefined, "bold");
-     doc.text("Instructions to the Students:", pageWidth / 2, 170, { align: "center" });
-     doc.setFont(undefined, "normal");
-     doc.text(["You are requested to adhere to the below points and make appropriate arrangements ", "and submit the Form at least 2 weeks prior."], marginLeft, 175)
-     const instructions = [
-       "For reserving classrooms in CLT please contact the Academics Office with the approval form.",
-       "For any Audio/Visual assistance please contact the Academic Office/Classroom maintenance staff.",
-       "For reserving rooms for external participants in Hostel blocks please contact SW Office.",
-       "For Network Issues/requirements please contact the CCS Office with this prior approval.",
-       "Event organizer team is requested to provide the Visitors ID to the all-external participants.",
-       "All the events are to end by 11PM as notified in Hostels Rules and Regulations.",
-       "All the Accounts need to be settled within 2 weeks of the event conclusion, which will be the responsibility of concerned GS, Treasurer, and President.",
-       "A report is to be submitted to the SW Office by the organizer after the conclusion of the event within 2 weeks.",
-       "If the external experts/dignitaries are invited, please mention the details.",
-     ];
-     let yPosition = 185;
-     let cnt = 1;
-     instructions.forEach((instruction) => {
-       doc.text(`${cnt}. ${instruction}`, marginLeft + 10, yPosition, { maxWidth: pageWidth - 40 });
-       yPosition += 10; // Adjust line spacing as needed
-       cnt += 1;
-     });
-
-
-    // Generate the PDF Blob and display it in an iframe
     const pdfBlob = doc.output("blob");
     const pdfUrl = URL.createObjectURL(pdfBlob);
     const previewElement = document.getElementById("pdf-preview");

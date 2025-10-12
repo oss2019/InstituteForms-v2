@@ -8,22 +8,28 @@ import StudentDashboard from "../StudentDashboard/EventDashboard.jsx";
 import "./EventForm.css";
 
 const EventForm = () => {
-  const [formData, setFormData] = useState({
-    eventName: "",
-    partOfGymkhanaCalendar: "",
-    eventType: "",
-    clubName: "",
-    startDate: "",
-    endDate: "",
-    eventVenue: "",
-    sourceOfBudget: "",
-    estimatedBudget: "",
-    // Organizer Details
-    nameOfTheOrganizer: "",
-    designation: "",
-    email: "",
-    phoneNumber: "",
-    // Requirements
+  const [formData, setFormData] = useState(
+
+    //Event Details:
+    eventName: "", //1a (index no as in official form)
+    partOfGymkhanaCalendar: "",//1b
+    eventType: "", //extra variable: Not in official form, just to track type of event
+    clubName: "", //2
+    startDate: "", //3a
+    endDate: "", //3b
+    eventVenue: "", //3c
+    sourceOfBudget: "", //4a
+    othersSourceOfBudget: "", //4b
+    estimatedBudget: 0, //5 - Set initial value to 0
+    budgetBreakup: [{ expenseHead: "", estimatedAmount: "" }], //array to hold the data of the "Budget Breakup" Table's rows
+
+    //Organizer Details:
+    nameOfTheOrganizer: "", //1
+    designation: "", //2
+    email: "", //3
+    phoneNumber: "", //4
+
+    //Requirements
     requirements: [],
     anyAdditionalAmenities: "",
     // Event Description
@@ -82,9 +88,33 @@ const EventForm = () => {
     return true;
   };
 
-  const handleGeneratePDF = () => {
-    const headerImageURL = "/form_header.png";
-    generatePDF(formData, headerImageURL);
+  // Handlers for the Budget Breakup Table
+  const handleBudgetChange = (index, e) => {
+    const { name, value } = e.target;
+    const list = [...formData.budgetBreakup];
+    list[index][name] = value;
+
+    // Recalculate the total budget
+    const total = list.reduce((acc, curr) => acc + Number(curr.estimatedAmount || 0), 0);
+
+    setFormData({ ...formData, budgetBreakup: list, estimatedBudget: total });
+  };
+
+  const handleAddRow = () => {
+    setFormData({
+      ...formData,
+      budgetBreakup: [...formData.budgetBreakup, { expenseHead: "", estimatedAmount: "" }],
+    });
+  };
+
+  const handleRemoveRow = (index) => {
+    const list = [...formData.budgetBreakup];
+    list.splice(index, 1);
+
+    // Recalculate the total budget
+    const total = list.reduce((acc, curr) => acc + Number(curr.estimatedAmount || 0), 0);
+    
+    setFormData({ ...formData, budgetBreakup: list, estimatedBudget: total });
   };
 
   const handleSubmit = async () => {
@@ -218,42 +248,137 @@ const EventForm = () => {
             name="eventVenue"
             value={formData.eventVenue}
             onChange={handleChange}
+            placeholder="Event Venue (If multiple venues, mention all venues separted by comma)"
             required
           />
         </div>
 
-        <div className="row">
-            <div className="col-md-6 mb-3">
-                <label htmlFor="sourceOfBudget" className="form-label">Source of Budget/Fund</label>
-                <select
-                    className="form-select"
-                    id="sourceOfBudget"
-                    name="sourceOfBudget"
-                    value={formData.sourceOfBudget}
-                    onChange={handleChange}
+        <div className="mb-3">
+          <label>Source of Budget/Fund</label>
+          <select
+            className="form-control"
+            name="sourceOfBudget"
+            value={formData.sourceOfBudget}
+            onChange={handleChange}
+          >
+            <option value="" disabled>Select Source</option>
+            <option value="Technical">Technical</option>
+            <option value="Cultural">Cultural</option>
+            <option value="Sports">Sports</option>
+            <option value="Others">Others (Mention below)</option>
+          </select>
+        </div>
+
+        {formData.sourceOfBudget === "Others" ? (
+          <div className="mb-3">
+            <label>Mention the source of budget</label>
+            <input
+              type="text"
+              className="form-control"
+              name="othersSourceOfBudget"
+              value={formData.othersSourceOfBudget}
+              onChange={handleChange}
+              placeholder="Since you have selected others, mention the source of budget:"
+              required
+            />
+          </div>
+        ) : (
+          <div className="mb-3">
+            {/*Hidden*/}
+          </div>
+        )
+        }
+        <div className="mb-3">
+            <label>Estimated Budget (Total)</label>
+            <input
+              type="number"
+              className="form-control"
+              name="estimatedBudget"
+              value={formData.estimatedBudget}
+              placeholder="Total will be calculated from the breakup table"
+              readOnly // This prop prevents the warning
+              required
+            />
+        </div>
+
+      {/* Budget Breakup Table */}
+      <div className="mb-3">
+        <label>Budget Breakup:(As per the Budget Copy)</label>
+        <table className="table table-bordered">
+          <thead>
+            <tr>
+              <th>Sl.No</th>
+              <th>Expense Head</th>
+              <th>Estimated Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {formData.budgetBreakup.map((item, index) => (
+              <tr key={index}>
+                <td className="align-middle text-center">{index + 1}</td>
+                <td>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="expenseHead"
+                    value={item.expenseHead}
+                    onChange={(e) => handleBudgetChange(index, e)}
+                    placeholder="e.g., Refreshments"
                     required
-                >
-                    <option value="" disabled>Select Source...</option>
-                    <option value="Technical">Technical</option>
-                    <option value="Cultural">Cultural</option>
-                    <option value="Sports">Sports</option>
-                    <option value="Others">Others</option>
-                </select>
-            </div>
-            <div className="col-md-6 mb-3">
-                <label htmlFor="estimatedBudget" className="form-label">Estimated Budget (in INR)</label>
-                <input
+                  />
+                </td>
+                <td>
+                  <input
                     type="number"
                     className="form-control"
-                    id="estimatedBudget"
-                    name="estimatedBudget"
-                    value={formData.estimatedBudget}
-                    onChange={handleChange}
-                    placeholder="e.g., 5000"
+                    name="estimatedAmount"
+                    value={item.estimatedAmount}
+                    onChange={(e) => handleBudgetChange(index, e)}
+                    placeholder="0"
                     min="0"
                     required
-                />
-            </div>
+                  />
+                </td>
+                {
+
+                }
+                
+                <td className="align-middle text-center">
+                  {formData.budgetBreakup.length > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-danger"
+                      onClick={() => handleRemoveRow(index)}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button
+          type="button"
+          className="btn btn-sm btn-secondary"
+          onClick={handleAddRow}
+        >
+          + Add Row
+        </button>
+      </div>
+
+        {/* Organizer Details */}
+        <div className="mb-3">
+          <label>Name of the Organizer</label>
+          <input
+            type="text"
+            className="form-control"
+            name="nameOfTheOrganizer"
+            value={formData.nameOfTheOrganizer}
+            onChange={handleChange}
+            placeholder="Organizer Name"
+            required
+          />
         </div>
 
 
@@ -354,7 +479,7 @@ const EventForm = () => {
             rows="4"
             value={formData.eventDescription}
             onChange={handleChange}
-            placeholder="A brief description of the event's purpose, activities, and goals."
+            placeholder="Give a brief description of the event."
             required
           ></textarea>
         </div>
