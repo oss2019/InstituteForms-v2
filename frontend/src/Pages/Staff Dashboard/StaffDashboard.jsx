@@ -1,93 +1,110 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import PendingApprovals from '/src/Components/PendingApprovals/PendingApprovals'; // Import the ListOfLeaves component
-import '/src/Components/Sidebar/Sidebar.css'; // Import styles
-import Dashboard from '../../Components/StaffDashboard/ProcessedEventApplications';
 import toast, { Toaster } from "react-hot-toast";
 
+
+import PendingApprovals from '../../Components/PendingApprovals/PendingApprovals';
+import ProcessedApplications from '../../Components/StaffDashboard/ProcessedEventApplications'; 
+
+import { FiMail, FiCheckSquare, FiLogOut, FiX, FiMenu } from 'react-icons/fi';
+
+import './StaffDashboard.css';
+
 function StaffDashboard() {
-  const [activeSection, setActiveSection] = useState('pendingApprovals'); // Set default active section
-  const [direction, setDirection] = useState('down');
+  const [activeSection, setActiveSection] = useState('pendingApprovals');
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [role, setRole] = useState('Staff');
   const navigate = useNavigate();
-  const [role, setRole] = useState('General Secretary');
 
-  const handleLogout = () => {
-    toast.success("Logout successful!"); // Show toast immediately
-    setTimeout(() => {
-      localStorage.removeItem('token');
-      navigate(`/`);
-    }, 1700); // Navigate after 2 seconds
-  };
-
-  const roleMapping = {
-    'general-secretary': 'General Secretary',
-    'treasurer': 'Treasurer',
-    'president': 'President',
-    'faculty-in-charge': 'Faculty In Charge',
-    'associate-dean': 'Associate Dean',
-  };
-
+  // Fetches the user's role from localStorage on component mount
   useEffect(() => {
+    const roleMapping = {
+      'general-secretary': 'General Secretary',
+      'treasurer': 'Treasurer',
+      'president': 'President',
+      'faculty-in-charge': 'Faculty In Charge',
+      'associate-dean': 'Associate Dean',
+    };
     const storedRole = localStorage.getItem('role');
     if (storedRole) {
-      const displayRole = roleMapping[storedRole] || 'Staff'; // Map role or fallback to default
-      setRole(displayRole);
+      setRole(roleMapping[storedRole] || 'Staff');
     }
   }, []);
 
+  const handleLogout = () => {
+    toast.success("Logout successful!");
+    setTimeout(() => {
+      localStorage.clear();
+      navigate(`/`);
+    }, 1700);
+  };
 
   const handleSectionChange = (newSection) => {
-    setDirection(newSection === 'dashboard' ? 'up' : 'down'); // Set animation direction based on section
-    setTimeout(() => setActiveSection(newSection), 300); // Change section after the animation
+    setActiveSection(newSection);
+    setSidebarOpen(false);
   };
+  
+  // Navigation items are now defined in an array for clean rendering
+  const navItems = [
+    { id: 'pendingApprovals', label: 'Pending Applications', icon: <FiMail />, action: () => handleSectionChange('pendingApprovals') },
+    { id: 'processedApplications', label: 'Processed Applications', icon: <FiCheckSquare />, action: () => handleSectionChange('processedApplications') },
+    { id: 'logout', label: 'Logout', icon: <FiLogOut />, action: handleLogout, className: 'logout-nav-item' }
+  ];
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'dashboard':
-        return <Dashboard />;
       case 'pendingApprovals':
-        return <PendingApprovals />; // Render ListOfLeaves component
-      case 'listOfOutings':
-        return <ListOfOutings />; // Render ListOfOutings component
+        return <PendingApprovals />;
+      case 'processedApplications':
+        return <ProcessedApplications />;
       default:
-        return <Dashboard />; // Fallback to dashboard
+        return <PendingApprovals />;
     }
   };
+  
+  const activeLabel = navItems.find(i => i.id === activeSection)?.label || "Dashboard";
 
   return (
-    <div className="dashboard">
-      <div className="sidebar">
-        <div className='dashboardHeader'>
-          <div>{role}</div>
-          <div>Dashboard</div>
-        </div>
-        <hr className="bg-black" style={{ border: 'none', height: '1px', backgroundColor: 'black' }} />
-        <ul className="sidebar-menu">
-          <li className='sidebar-options'>
-          <button
-            className={`sidebar-button ${activeSection === 'listOfLeaves' ? 'active' : ''}`}
-            onClick={() => handleSectionChange('pendingApprovals')} // Change section to List of Leaves
-          >
-            Pending Applications
-          </button>
-          </li>
-          <li className='sidebar-options'>
-          <button
-            className={`sidebar-button ${activeSection === 'dashboard' ? 'active' : ''}`}
-            onClick={() => handleSectionChange('dashboard')}
-          >
-            Processed Event Applications
-          </button>
+    <div className="staff-dashboard-layout">
+      <Toaster position="top-center" reverseOrder={false} />
+      
+      {isSidebarOpen && <div className="overlay" onClick={() => setSidebarOpen(false)}></div>}
 
-          </li>
-          <li>
-            <button className="logout-button" onClick={handleLogout}>Logout</button>
-          </li>
+      <nav className={`sidebar-nav ${isSidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <h2 className="sidebar-title">{role}</h2>
+          <button onClick={() => setSidebarOpen(false)} className="sidebar-close-button">
+            <FiX />
+          </button>
+        </div>
+
+        <ul className="sidebar-menu">
+          {navItems.map((item) => (
+            <li key={item.id}>
+              <button
+                className={`sidebar-button ${activeSection === item.id ? 'active' : ''} ${item.className || ''}`}
+                onClick={item.action}
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </button>
+            </li>
+          ))}
         </ul>
-      </div>
-      <div className={`content ${direction}`}>
-        {renderContent()} {/* Render the content based on the active section */}
-      </div>
+      </nav>
+
+      <main className="main-content">
+        <header className="mobile-header">
+          <button onClick={() => setSidebarOpen(true)} className="mobile-menu-toggle">
+            <FiMenu />
+          </button>
+          <h1 className="mobile-header-title">{activeLabel}</h1>
+        </header>
+
+        <div className="content-area">
+          {renderContent()}
+        </div>
+      </main>
     </div>
   );
 }

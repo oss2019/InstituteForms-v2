@@ -4,6 +4,7 @@ import {
   getUserEvents,
   approveApplication,
   getApprovedApplications,
+  editEventDetails,
   getPendingApprovals,
   getRejectedApplications,
   getEventById,
@@ -13,6 +14,7 @@ import {
   replyToQuery,
   getSemesterOptions,
   getApprovedApplicationsWithFilters,
+  closeEvent,
   getPendingApprovalsWithFilters,
 } from "../controller/event.controller.js";
 
@@ -47,6 +49,12 @@ router.get("/:eventId/queries", getEventQueries);
 
 // Reply to a query (POST)
 router.post("/reply-query", replyToQuery);
+
+//Close an event (PATCH)
+router.patch("/close", closeEvent);
+
+// Edit all event details (PATCH)
+router.patch("/edit", editEventDetails);
 
 // Get semester options for filtering (GET)
 router.get("/semesters/options", getSemesterOptions);

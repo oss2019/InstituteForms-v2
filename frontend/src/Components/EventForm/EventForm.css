@@ -1,79 +1,90 @@
-/* Styling for the container */
-.container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: #f9f9f9;
+/* Container styling for the form */
+.event-form-container {
+  max-width: 850px;
+  background-color: #ffffff;
+  padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-/* Styling for the header */
-h2 {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #333;
+.event-form-container h2 {
+  font-weight: 600;
+  color: #343a40;
 }
 
-/* Styling for form labels */
-label {
-  font-weight: bold;
-  color: #555;
+.event-form-container h4 {
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 0.5rem;
+    margin-top: 2rem; 
 }
 
-/* Styling for inputs and textareas */
-.form-control,
-.form-input {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 10px;
-  font-size: 14px;
+.form-label {
+  font-weight: 500;
+  color: #495057;
 }
 
-/* Styling for checkboxes */
-.form-check-input {
-  margin-right: 10px;
+.form-control:focus,
+.form-select:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
 }
 
-/* Button styling */
+.btn {
+  padding: 0.5rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease-in-out;
+}
+
 .btn-primary {
   background-color: #007bff;
   border-color: #007bff;
-  padding: 10px 20px;
-  font-size: 16px;
-  font-weight: bold;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
 .btn-primary:hover {
   background-color: #0056b3;
+  border-color: #0056b3;
+  transform: translateY(-2px); 
 }
 
-/* Add spacing between form groups */
-.mb-3 {
-  margin-bottom: 15px;
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
 }
 
-.date-inputs-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px; /* Add spacing between inputs */
+.btn-success:hover {
+    background-color: #1e7e34;
+    border-color: #1e7e34;
+    transform: translateY(-2px);
+  }
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
-.date-input-container {
-  display: flex;
-  flex-direction: column;
-  flex: 1; /* Make both inputs take equal space */
+.form-check-label {
+  line-height: 1.5;
+  color: #333;
 }
 
-.form-label {
-  margin-bottom: 5px; /* Add spacing below the label */
+.form-check-input {
+  margin-top: 0.4em; 
 }
 
-.form-input {
-  padding: 8px;
-  font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+@media (max-width: 576px) {
+  .event-form-container {
+    padding: 1.5rem;
+  }
+
+  .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .d-flex.justify-content-start {
+    flex-direction: column;
+  }
 }

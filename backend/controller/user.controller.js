@@ -4,76 +4,76 @@ import jwt from "jsonwebtoken";
 import { oauth2Client } from "../googleClient.js";
 import axios from "axios";
 
-export const signup = async (req, res) => {
-  try {
-    const { email, password, category } = req.body;
+// export const signup = async (req, res) => {
+//   try {
+//     const { email, password, category } = req.body;
 
-    // Check if the user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
+//     // Check if the user already exists
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//       return res.status(400).json({ message: "User already exists" });
+//     }
 
-    // Hash the password and create a new user
-    const hashPassword = await bcryptjs.hash(password, 8);
-    const newUser = new User({
-      email,
-      password: hashPassword,
-      name: "",
-      category,
-      eventApproval: "",
-      phnumber: "",
-    });
+//     // Hash the password and create a new user
+//     const hashPassword = await bcryptjs.hash(password, 8);
+//     const newUser = new User({
+//       email,
+//       password: hashPassword,
+//       name: "",
+//       category,
+//       eventApproval: "",
+//       phnumber: "",
+//     });
 
-    await newUser.save();
-    const token = jwt.sign(
-      { userID: newUser._id, role: newUser.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" } // Set your preferred token expiry time
-    );
-    res.status(201).json({
-      message: "User created successfully",
-      token,
-      user: { _id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role, category: newUser.category },
-    });
+//     await newUser.save();
+//     const token = jwt.sign(
+//       { userID: newUser._id, role: newUser.role },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1h" } // Set your preferred token expiry time
+//     );
+//     res.status(201).json({
+//       message: "User created successfully",
+//       token,
+//       user: { _id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role, category: newUser.category },
+//     });
     
-  } catch (error) {
-    console.log("error:", error.message);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
+//   } catch (error) {
+//     console.log("error:", error.message);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// };
 
-//login function
+// //login function
 
-export const login = async (req, res) => {
-    try {
-      const { email, password } = req.body;
+// export const login = async (req, res) => {
+//     try {
+//       const { email, password } = req.body;
   
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res.status(400).json({ message: "User not found" });
-      }
+//       const user = await User.findOne({ email });
+//       if (!user) {
+//         return res.status(400).json({ message: "User not found" });
+//       }
   
-      const isMatch = await bcryptjs.compare(password, user.password);
-      if (!isMatch) {
-        return res.status(400).json({ message: "Invalid credentials" });
-      }
+//       const isMatch = await bcryptjs.compare(password, user.password);
+//       if (!isMatch) {
+//         return res.status(400).json({ message: "Invalid credentials" });
+//       }
   
-      // Create a JWT token
-      const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-        expiresIn: '1h', 
-      });
+//       // Create a JWT token
+//       const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+//         expiresIn: '1h', 
+//       });
   
-      res.status(200).json({
-        message: "Login successful",
-        token,
-        user: { _id: user._id, name: user.name, email: user.email, role: user.role },
-      });
-    } catch (error) {
-      console.log("error:", error.message);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  };
+//       res.status(200).json({
+//         message: "Login successful",
+//         token,
+//         user: { _id: user._id, name: user.name, email: user.email, role: user.role },
+//       });
+//     } catch (error) {
+//       console.log("error:", error.message);
+//       res.status(500).json({ message: "Internal server error" });
+//     }
+//   };
 
 //Google login function
 
@@ -93,13 +93,7 @@ export const googleLogin = async (req, res) => {
     // Find or create a user in the database
     let user = await User.findOne({ email });
     if (!user) {
-      user = await User.create({
-        name,
-        email,
-        image: picture,
-        category: "", // Default values
-        phnumber: "",
-      });
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Generate a JWT token for your application
