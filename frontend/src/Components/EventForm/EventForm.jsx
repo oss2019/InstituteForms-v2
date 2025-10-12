@@ -8,7 +8,7 @@ import StudentDashboard from "../StudentDashboard/EventDashboard.jsx";
 import "./EventForm.css";
 
 const EventForm = () => {
-  const [formData, setFormData] = useState(
+  const [formData, setFormData] = useState({
 
     //Event Details:
     eventName: "", //1a (index no as in official form)
