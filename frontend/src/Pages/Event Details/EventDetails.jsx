@@ -30,6 +30,9 @@ const EventDetails = () => {
   const [editHistory, setEditHistory] = useState([]); // State for edit history
   const [showEditHistory, setShowEditHistory] = useState(false); // Toggle for edit history display
 
+  // Add state for budget breakup editing
+  const [editBudgetBreakup, setEditBudgetBreakup] = useState([]);
+
   useEffect(() => {
     // Function to fetch event details by ID
     const fetchEventDetails = async () => {
@@ -163,7 +166,7 @@ const EventDetails = () => {
     
     return true;
   };
-  // When opening modal, prefill form
+  // When opening modal, prefill form and budget breakup
   useEffect(() => {
     if (showEditModal && eventDetails) {
       setEditForm({
@@ -174,7 +177,7 @@ const EventDetails = () => {
         endDate: eventDetails.endDate?.slice(0, 10),
         eventVenue: eventDetails.eventVenue,
         sourceOfBudget: eventDetails.sourceOfBudget,
-        estimatedBudget: eventDetails.estimatedBudget,
+        // estimatedBudget: eventDetails.estimatedBudget, // REMOVE THIS LINE
         nameOfTheOrganizer: eventDetails.nameOfTheOrganizer,
         designation: eventDetails.designation,
         email: eventDetails.email,
@@ -187,8 +190,39 @@ const EventDetails = () => {
           eventDetails.listOfCollaboratingOrganizations,
         anyAdditionalAmenities: eventDetails.anyAdditionalAmenities,
       });
+      setEditBudgetBreakup(
+        Array.isArray(eventDetails.budgetBreakup)
+          ? eventDetails.budgetBreakup.map(item => ({
+              label: item.label || "",
+              amount: item.amount || ""
+            }))
+          : []
+      );
     }
   }, [showEditModal, eventDetails]);
+
+  // Budget breakup handlers
+  const handleBudgetBreakupChange = (idx, field, value) => {
+    setEditBudgetBreakup(prev =>
+      prev.map((item, i) =>
+        i === idx ? { ...item, [field]: field === "amount" ? value.replace(/[^0-9.]/g, "") : value } : item
+      )
+    );
+  };
+
+  const handleAddBudgetBreakup = () => {
+    setEditBudgetBreakup(prev => [...prev, { label: "", amount: "" }]);
+  };
+
+  const handleRemoveBudgetBreakup = idx => {
+    setEditBudgetBreakup(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Calculate estimated budget from breakup
+  const calculatedEstimatedBudget = editBudgetBreakup.reduce(
+    (sum, item) => sum + (parseFloat(item.amount) || 0),
+    0
+  );
 
   const handleEditChange = (e) => {
     setEditForm({ ...editForm, [e.target.name]: e.target.value });
@@ -203,6 +237,8 @@ const EventDetails = () => {
         updates: {
           ...editForm,
           requirements: editForm.requirements.split(",").map((r) => r.trim()),
+          budgetBreakup: editBudgetBreakup,
+          estimatedBudget: calculatedEstimatedBudget,
         },
       });
       toast.success("Event updated successfully! Query status preserved.");
@@ -623,14 +659,53 @@ const EventDetails = () => {
                   onChange={handleEditChange}
                 />
               </div>
+              {/* Remove Estimated Budget input */}
+              {/* Budget Breakup Section */}
               <div className="form-group mb-2">
-                <label>Estimated Budget</label>
-                <input
-                  className="form-control"
-                  name="estimatedBudget"
-                  value={editForm.estimatedBudget || ""}
-                  onChange={handleEditChange}
-                />
+                <label>Budget Breakup</label>
+                {editBudgetBreakup.map((item, idx) => (
+                  <div key={idx} className="d-flex mb-2 align-items-center">
+                    <input
+                      className="form-control me-2"
+                      style={{ width: "50%" }}
+                      placeholder="Label"
+                      value={item.label}
+                      onChange={e =>
+                        handleBudgetBreakupChange(idx, "label", e.target.value)
+                      }
+                    />
+                    <input
+                      className="form-control me-2"
+                      style={{ width: "35%" }}
+                      placeholder="Amount"
+                      type="number"
+                      min="0"
+                      value={item.amount}
+                      onChange={e =>
+                        handleBudgetBreakupChange(idx, "amount", e.target.value)
+                      }
+                    />
+                    <button
+                      className="btn btn-danger btn-sm"
+                      type="button"
+                      onClick={() => handleRemoveBudgetBreakup(idx)}
+                      title="Remove"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+                <button
+                  className="btn btn-outline-primary btn-sm mt-1"
+                  type="button"
+                  onClick={handleAddBudgetBreakup}
+                >
+                  Add Item
+                </button>
+                <div className="mt-2">
+                  <strong>Estimated Budget: </strong>
+                  ₹{calculatedEstimatedBudget}
+                </div>
               </div>
               <div className="form-group mb-2">
                 <label>Name of the Organizer</label>
