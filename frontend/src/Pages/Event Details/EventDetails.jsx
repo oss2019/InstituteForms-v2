@@ -190,14 +190,33 @@ const EventDetails = () => {
           eventDetails.listOfCollaboratingOrganizations,
         anyAdditionalAmenities: eventDetails.anyAdditionalAmenities,
       });
-      setEditBudgetBreakup(
-        Array.isArray(eventDetails.budgetBreakup)
-          ? eventDetails.budgetBreakup.map(item => ({
-              label: item.label || "",
-              amount: item.amount || ""
-            }))
-          : []
-      );
+      // Normalize various possible shapes of budgetBreakup from backend into
+      // { label, amount } rows used by the edit modal inputs.
+      const normalizeBudget = (budget) => {
+        if (!Array.isArray(budget)) return [];
+        return budget.map((item) => {
+          if (!item) return { label: "", amount: "" };
+          // support backend model: { expenseHead, estimatedAmount }
+          // support frontend older shape: { label, amount }
+          // support other variants: { name, value } or plain numbers/strings
+          if (typeof item === "string") {
+            return { label: item, amount: "" };
+          }
+
+          const label =
+            item.expenseHead ?? item.label ?? item.head ?? item.name ?? item.item ?? "";
+
+          const amountRaw =
+            item.estimatedAmount ?? item.estimatedBudget ?? item.amount ?? item.value ?? item.cost ?? "";
+
+          return {
+            label: String(label || ""),
+            amount: amountRaw !== null && amountRaw !== undefined && amountRaw !== "" ? String(amountRaw) : "",
+          };
+        });
+      };
+
+      setEditBudgetBreakup(normalizeBudget(eventDetails.budgetBreakup));
     }
   }, [showEditModal, eventDetails]);
 
@@ -231,13 +250,23 @@ const EventDetails = () => {
   const handleEditSubmit = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      // Transform editBudgetBreakup into backend schema: { expenseHead, estimatedAmount }
+      const transformedBudget = editBudgetBreakup
+        .filter(item => (item.label || "").trim() !== "")
+        .map(item => ({
+          expenseHead: (item.label || "").trim(),
+          estimatedAmount: Number(parseFloat(item.amount)) || 0,
+        }));
+
       await axios.patch(`${apiUrl}/event/edit`, {
         eventId: eventDetails._id,
         userID: localStorage.getItem("userID"),
         updates: {
           ...editForm,
-          requirements: editForm.requirements.split(",").map((r) => r.trim()),
-          budgetBreakup: editBudgetBreakup,
+          requirements: editForm.requirements
+            ? editForm.requirements.split(",").map((r) => r.trim())
+            : [],
+          budgetBreakup: transformedBudget,
           estimatedBudget: calculatedEstimatedBudget,
         },
       });
@@ -837,6 +866,33 @@ const EventDetails = () => {
         <p>
           <strong>Estimated Budget:</strong> ₹{eventDetails.estimatedBudget}
         </p>
+
+        {/* Show budget breakup if available */}
+        {Array.isArray(eventDetails.budgetBreakup) && eventDetails.budgetBreakup.length > 0 && (
+          <>
+            <h4>Budget Breakup</h4>
+            <table className="table table-sm">
+              <thead>
+                <tr>
+                  <th>Head</th>
+                  <th style={{ width: "150px" }}>Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {eventDetails.budgetBreakup.map((item, idx) => {
+                  const label = item?.expenseHead ?? item?.label ?? item?.name ?? item?.head ?? item ?? "";
+                  const amount = item?.estimatedAmount ?? item?.amount ?? item?.value ?? "";
+                  return (
+                    <tr key={idx}>
+                      <td style={{ wordBreak: "break-word" }}>{label || "—"}</td>
+                      <td>{amount !== "" && amount !== null && amount !== undefined ? `₹${amount}` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
+        )}
 
         <h4>Organizer Details</h4>
         <p>
