@@ -44,6 +44,7 @@ const eventApprovalSchema = new Schema(
             "president",
             "faculty-in-charge",
             "associate-dean",
+            "dean"
           ],
           required: true,
         },
@@ -76,6 +77,8 @@ const eventApprovalSchema = new Schema(
             "president",
             "faculty-in-charge",
             "associate-dean",
+            "dean",
+            "ARSW",
           ],
           required: true,
         },
@@ -89,9 +92,24 @@ const eventApprovalSchema = new Schema(
         },
         raisedAt: { type: Date, default: Date.now },
         answeredAt: { type: Date, required: false },
+        isPostApprovalQuery: { type: Boolean, default: false }, // Flag for queries raised after approval
       },
     ],
+    status: {
+      type: String,
+      enum: ["Open", "Closed"],
+      default: "Open",
+    },
     closedBy: { type: String, required: false }, // Name of the person who closed the event
+    closedAt: { type: Date, required: false }, // Date when the event was closed
+    // Version history for tracking edits
+    editHistory: [
+      {
+        editedAt: { type: Date, default: Date.now },
+        editedBy: { type: String, required: true }, // User ID of the editor
+        changes: { type: Map, of: Schema.Types.Mixed }, // Field changes (old value -> new value)
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -7,14 +7,18 @@ import { useNavigate } from 'react-router-dom';
 const StaffDashboard = () => {
   const [approvedApplications, setApprovedApplications] = useState([]);
   const [rejectedApplications, setRejectedApplications] = useState([]);
+  const [closedApplications, setClosedApplications] = useState([]);
   const [displayApproved, setDisplayApproved] = useState([]);
   const [displayRejected, setDisplayRejected] = useState([]);
+  const [displayClosed, setDisplayClosed] = useState([]);
   const [groupedApproved, setGroupedApproved] = useState({});
   const [groupedRejected, setGroupedRejected] = useState({});
+  const [groupedClosed, setGroupedClosed] = useState({});
   const [semesterOptions, setSemesterOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState('');
+  const [activeTab, setActiveTab] = useState('approved');
   
   // Filter states
   const [selectedSemester, setSelectedSemester] = useState('');
@@ -102,10 +106,36 @@ const StaffDashboard = () => {
       }, {});
       setGroupedRejected(groupedRejected);
 
+      // Fetch closed applications (only for authorized roles)
+      if (['associate-dean', 'dean', 'ARSW'].includes(storedUserRole)) {
+        try {
+          const closedResponse = await axios.post(`${apiUrl}/event/closed`, {
+            role: storedUserRole,
+            category: storedUserRole === 'general-secretary' ? userCategory : null,
+          });
+          setClosedApplications(closedResponse.data);
+          setDisplayClosed(closedResponse.data);
+          
+          // Group closed applications by semester
+          const groupedClosed = closedResponse.data.reduce((groups, app) => {
+            const semesterKey = app.semester || `${app.academicYear} Academic Year`;
+            if (!groups[semesterKey]) {
+              groups[semesterKey] = [];
+            }
+            groups[semesterKey].push(app);
+            return groups;
+          }, {});
+          setGroupedClosed(groupedClosed);
+        } catch (error) {
+          console.error('Error fetching closed applications:', error);
+        }
+      }
+
       // Event type options
       const types = Array.from(new Set([
         ...approvedResponse.data.applications.map(a=>a.eventType).filter(Boolean),
-        ...rejectedResponse.data.map(a=>a.eventType).filter(Boolean)
+        ...rejectedResponse.data.map(a=>a.eventType).filter(Boolean),
+        ...(closedApplications || []).map(a=>a.eventType).filter(Boolean)
       ])).sort();
       setEventTypeOptions(types);
 
@@ -179,6 +209,7 @@ const StaffDashboard = () => {
     };
     run(approvedApplications, setDisplayApproved, setGroupedApproved);
     run(rejectedApplications, setDisplayRejected, setGroupedRejected);
+    run(closedApplications, setDisplayClosed, setGroupedClosed);
   };
 
   useEffect(()=> {
@@ -186,7 +217,7 @@ const StaffDashboard = () => {
     searchDebounceRef.current = setTimeout(()=> applyFilters(), 400);
     return ()=> clearTimeout(searchDebounceRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, selectedSemester, selectedAcademicYear, statusFilter, eventTypeFilter, sortOrder, myActionFilter, userRole, approvedApplications, rejectedApplications]);
+  }, [searchTerm, selectedSemester, selectedAcademicYear, statusFilter, eventTypeFilter, sortOrder, myActionFilter, userRole, approvedApplications, rejectedApplications, closedApplications]);
 
   const handleFilterChange = () => applyFilters();
 
@@ -281,8 +312,41 @@ const StaffDashboard = () => {
     </>
   );
 
+  const canViewClosedEvents = () => {
+    return ['associate-dean', 'dean', 'ARSW'].includes(userRole);
+  };
+
   return (
     <Container className="dashboard-container">
+      {/* Tabs for Approved, Rejected, and Closed */}
+      <div className="tabs-section mb-4">
+        <div className="btn-group w-100" role="group">
+          <button
+            type="button"
+            className={`btn ${activeTab === 'approved' ? 'btn-primary' : 'btn-outline-primary'}`}
+            onClick={() => setActiveTab('approved')}
+          >
+            Approved ({displayApproved.length})
+          </button>
+          <button
+            type="button"
+            className={`btn ${activeTab === 'rejected' ? 'btn-danger' : 'btn-outline-danger'}`}
+            onClick={() => setActiveTab('rejected')}
+          >
+            Rejected ({displayRejected.length})
+          </button>
+          {canViewClosedEvents() && (
+            <button
+              type="button"
+              className={`btn ${activeTab === 'closed' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+              onClick={() => setActiveTab('closed')}
+            >
+              Closed ({displayClosed.length})
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Filter Controls */}
       <div className="filters-section mb-4 p-3 border rounded">
         <h5>Filter Events</h5>
@@ -331,7 +395,7 @@ const StaffDashboard = () => {
               </Form.Select>
             </Form.Group>
           </Col> */}
-          <Col md={2}>
+          {/* <Col md={2}>
             <Form.Group>
               <Form.Label>My Action</Form.Label>
               <Form.Select value={myActionFilter} onChange={(e)=> setMyActionFilter(e.target.value)}>
@@ -340,7 +404,7 @@ const StaffDashboard = () => {
                 <option value="rejected">Rejected</option>
               </Form.Select>
             </Form.Group>
-          </Col>
+          </Col> */}
           {localStorage.getItem("role") !== 'general-secretary' && (
           <Col md={2}>
             <Form.Group>
@@ -381,6 +445,7 @@ const StaffDashboard = () => {
           <Col md={12} className="mt-2 d-flex flex-wrap gap-2">
             <Badge bg="secondary">Approved: {displayApproved.length}</Badge>
             <Badge bg="danger">Rejected: {displayRejected.length}</Badge>
+            {canViewClosedEvents() && <Badge bg="dark">Closed: {displayClosed.length}</Badge>}
             <Badge bg="warning" text="dark">Pending: {approvedApplications.filter(a=> getOverallStatus(a.approvals)==='Pending').length}</Badge>
             <Badge bg="info" text="dark">Query: {approvedApplications.filter(a=> getOverallStatus(a.approvals)==='Query').length}</Badge>
           </Col>
@@ -393,40 +458,48 @@ const StaffDashboard = () => {
         <p className="error-message">{error}</p>
       ) : (
         <>
-          {/* Section visibility depends on My Action filter */}
-          {(() => {
-            const showApproved = !myActionFilter || ["approved","pending","query"].includes(myActionFilter);
-            return showApproved && renderGroupedEvents(groupedApproved, "Approved Event Applications");
-          })()}
-
-          {/* Pagination for Approved Events */}
-          {pagination.totalPages > 1 && (
-            <div className="d-flex justify-content-center mb-4">
-              <Button 
-                variant="outline-primary" 
-                disabled={!pagination.hasPrev}
-                onClick={() => handlePageChange(currentPage - 1)}
-                className="me-2"
-              >
-                Previous
-              </Button>
-              <span className="align-self-center mx-3">
-                Page {pagination.currentPage} of {pagination.totalPages}
-              </span>
-              <Button 
-                variant="outline-primary" 
-                disabled={!pagination.hasNext}
-                onClick={() => handlePageChange(currentPage + 1)}
-              >
-                Next
-              </Button>
-            </div>
+          {/* Render based on active tab */}
+          {activeTab === 'approved' && (
+            <>
+              {renderGroupedEvents(groupedApproved, "Approved Event Applications")}
+              
+              {/* Pagination for Approved Events */}
+              {pagination.totalPages > 1 && (
+                <div className="d-flex justify-content-center mb-4">
+                  <Button 
+                    variant="outline-primary" 
+                    disabled={!pagination.hasPrev}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    className="me-2"
+                  >
+                    Previous
+                  </Button>
+                  <span className="align-self-center mx-3">
+                    Page {pagination.currentPage} of {pagination.totalPages}
+                  </span>
+                  <Button 
+                    variant="outline-primary" 
+                    disabled={!pagination.hasNext}
+                    onClick={() => handlePageChange(currentPage + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
           )}
 
-          {(() => {
-            const showRejected = !myActionFilter || myActionFilter === 'rejected';
-            return showRejected && renderGroupedEvents(groupedRejected, "Rejected Event Applications");
-          })()}
+          {activeTab === 'rejected' && (
+            <>
+              {renderGroupedEvents(groupedRejected, "Rejected Event Applications")}
+            </>
+          )}
+
+          {activeTab === 'closed' && canViewClosedEvents() && (
+            <>
+              {renderGroupedEvents(groupedClosed, "Closed Event Applications")}
+            </>
+          )}
         </>
       )}
     </Container>

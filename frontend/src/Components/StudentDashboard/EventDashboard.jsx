@@ -79,10 +79,10 @@ const EventDashboard = () => {
         }
 
         switch (sortOrder) {
-            case "oldest": result.sort((a,b) => new Date(a.startDate) - new Date(b.startDate)); break;
+            case "oldest": result.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt)); break;
             case "name-az": result.sort((a,b) => a.eventName.localeCompare(b.eventName)); break;
             case "name-za": result.sort((a,b) => b.eventName.localeCompare(a.eventName)); break;
-            default: result.sort((a,b) => new Date(b.startDate) - new Date(a.startDate)); // newest
+            default: result.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); // newest
         }
 
         setDisplayEvents(result);
