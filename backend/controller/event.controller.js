@@ -1127,18 +1127,21 @@ export const editEventDetails = async (req, res) => {
       });
     }
 
-    // Keep "Query" status as "Query", reset others to "Pending"
-    // Do NOT change Query status to "Edited"
+    // Keep "Query" status as "Query", reset only non-approved and non-query to "Pending"
     event.approvals = event.approvals.map(a => {
-      if (a.role !== "club-secretary" && a.status !== "Query") {
-        return { ...a, status: "Pending"};
+      if (
+        a.role !== "club-secretary" &&
+        a.status !== "Query" &&
+        a.status !== "Approved"
+      ) {
+        return { ...a, status: "Pending" };
       }
-      return a; // Keep Query status unchanged
+      return a; // Keep Query and Approved status unchanged
     });
 
     await event.save();
 
-    res.status(200).json({ message: "Event details updated. Query status preserved.", event });
+    res.status(200).json({ message: "Event details updated. Query and Approved statuses preserved.", event });
   } catch (error) {
     console.error("Error editing event details:", error);
     res.status(500).json({ message: "Internal server error." });
