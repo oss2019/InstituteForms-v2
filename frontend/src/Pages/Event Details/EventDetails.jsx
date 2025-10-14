@@ -1023,6 +1023,8 @@ const EventDetails = () => {
                           </thead>
                           <tbody>
                             {Object.entries(edit.changes || {}).map(([field, change]) => {
+                              // Don't render budgetBreakup changes in the table
+                              if (field === 'budgetBreakup') return null;
                               // Format values for display
                               const formatValue = (value) => {
                                 if (value === null || value === undefined) return "N/A";
