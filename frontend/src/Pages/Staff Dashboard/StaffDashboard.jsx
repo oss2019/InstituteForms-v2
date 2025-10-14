@@ -24,6 +24,7 @@ function StaffDashboard() {
       'president': 'President',
       'faculty-in-charge': 'Faculty In Charge',
       'associate-dean': 'Associate Dean',
+      'dean': 'Dean'
     };
     const storedRole = localStorage.getItem('role');
     if (storedRole) {

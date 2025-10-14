@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { jsPDF } from "jspdf"; // Assuming this is used within generatePDF
+import { useEffect, useRef, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import toast, { Toaster } from "react-hot-toast";
 import API from '/src/api/api';
@@ -13,7 +12,7 @@ const EventForm = () => {
     //Event Details:
     eventName: "", //1a (index no as in official form)
     partOfGymkhanaCalendar: "",//1b
-    eventType: "", //extra variable: Not in official form, just to track type of event
+    // eventType: "", //extra variable: Not in official form, just to track type of event
     clubName: "", //2
     startDate: "", //3a
     endDate: "", //3b
@@ -42,6 +41,18 @@ const EventForm = () => {
 
   const [isAgreementChecked, setisAgreementChecked] = useState(false);
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [pdfPreviewDataUrl, setPdfPreviewDataUrl] = useState("");
+  const pdfObjectUrlRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (pdfObjectUrlRef.current) {
+        URL.revokeObjectURL(pdfObjectUrlRef.current);
+        pdfObjectUrlRef.current = null;
+      }
+    };
+  }, []);
 
   // Get today's date in YYYY-MM-DD format for min attribute in date inputs
   const today = new Date().toISOString().split("T")[0];
@@ -49,6 +60,39 @@ const EventForm = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+  };
+
+  const handleGeneratePDF = async () => {
+    const headerImageURL = "/form_header.png"; // Path to the header image
+    try {
+      const { blobUrl, dataUrl } = await generatePDF(formData, headerImageURL);
+
+      if (pdfObjectUrlRef.current) {
+        URL.revokeObjectURL(pdfObjectUrlRef.current);
+      }
+
+      pdfObjectUrlRef.current = blobUrl;
+      setPdfPreviewUrl(blobUrl);
+      setPdfPreviewDataUrl(dataUrl);
+
+      const safeEventName = (formData.eventName || "event-request")
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+      const fileName = `${safeEventName || "event-request"}.pdf`;
+
+      const downloadLink = document.createElement("a");
+      downloadLink.href = dataUrl;
+      downloadLink.download = fileName;
+      downloadLink.style.display = "none";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    } catch (error) {
+      console.error("Error generating PDF preview:", error);
+      toast.error("Unable to generate PDF preview. Please try again.");
+    }
   };
 
   const handleCheckboxChange = (e) => {
@@ -71,7 +115,7 @@ const EventForm = () => {
 
   const validateForm = () => {
     const requiredFields = [
-      "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
+      "eventName", "partOfGymkhanaCalendar", "clubName", "startDate", "endDate",
       "eventVenue", "sourceOfBudget", "estimatedBudget", "nameOfTheOrganizer", "designation",
       "email", "phoneNumber", "eventDescription", "externalParticipants", "internalParticipants"
     ];
@@ -162,7 +206,7 @@ const EventForm = () => {
         </div>
 
         <div className="row">
-          <div className="col-md-6 mb-3">
+          <div className="col-md-12 mb-6">
             <label htmlFor="partOfGymkhanaCalendar" className="form-label">Part of Gymkhana Calendar?</label>
             <select
               className="form-select"
@@ -177,7 +221,7 @@ const EventForm = () => {
               <option value="NO">No</option>
             </select>
           </div>
-          <div className="col-md-6 mb-3">
+          {/* <div className="col-md-6 mb-3">
             <label htmlFor="eventType" className="form-label">Event Type</label>
             <select
               className="form-select"
@@ -193,7 +237,7 @@ const EventForm = () => {
               <option value="Sports">Sports</option>
               <option value="Others">Others</option>
             </select>
-          </div>
+          </div> */}
         </div>
 
         <div className="mb-3">
@@ -368,7 +412,7 @@ const EventForm = () => {
       </div>
 
         {/* Organizer Details */}
-        <div className="mb-3">
+        {/* <div className="mb-3">
           <label>Name of the Organizer</label>
           <input
             type="text"
@@ -379,7 +423,7 @@ const EventForm = () => {
             placeholder="Organizer Name"
             required
           />
-        </div>
+        </div> */}
 
 
         {/* Organizer Details Section */}
@@ -560,7 +604,19 @@ const EventForm = () => {
         </div>
       </form>
 
-      <iframe id="pdf-preview" title="PDF Preview" style={{ width: "100%", height: "500px", marginTop: '20px', border: '1px solid #dee2e6' }}></iframe>
+      {/* <iframe
+        id="pdf-preview"
+        key={pdfPreviewUrl || pdfPreviewDataUrl}
+        title="PDF Preview"
+        style={{ width: "100%", height: "500px", marginTop: '20px', border: '1px solid #dee2e6' }}
+        src={pdfPreviewUrl || pdfPreviewDataUrl || undefined}
+        type="application/pdf"
+      ></iframe> */}
+      {/* {!pdfPreviewUrl && pdfPreviewDataUrl && (
+        <p style={{ marginTop: "8px" }}>
+          If the preview stays blank, <a href={pdfPreviewDataUrl} target="_blank" rel="noopener noreferrer">open the PDF in a new tab</a>.
+        </p>
+      )} */}
     </div>
   );
 };

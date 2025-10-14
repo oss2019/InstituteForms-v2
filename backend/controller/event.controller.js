@@ -63,13 +63,14 @@ const sendEmail = async (to, subject, text, retries = 3) => {
 
 //emails of all members
 const roleEmails = [
-  { role: "general-secretary-technical", email: "gstech@iitdh.ac.in" },
+  { role: "general-secretary-technical", email: "nidhishadoshi05@gmail.com" },
   { role: "general-secretary-cultural", email: "nidhishadoshi05@gmail.com" },
   { role: "general-secretary-sports", email: "sports.secretary@example.com" },
   { role: "treasurer", email: "cs23bt009@iitdh.ac.in" },
   { role: "president", email: "cs23bt009@iitdh.ac.in" },
   { role: "faculty-in-charge", email: "nidhishadoshi05@gmail.com" },
   { role: "associate-dean", email: "cs23bt009@iitdh.ac.in" },
+  { role: "dean", email: "cs23bt009@iitdh.ac.in" },
 ];
 
 const getEmailForRole = (role) => {
@@ -95,6 +96,7 @@ export const applyForEventApproval = async (req, res) => {
       startDate,
       endDate,
       eventVenue,
+      budgetBreakup,
       sourceOfBudget,
       estimatedBudget,
       nameOfTheOrganizer,
@@ -120,7 +122,7 @@ export const applyForEventApproval = async (req, res) => {
     }
 
     // Set eventType based on user's type if club-secretary, else fallback to req.body.eventType
-    let eventType = req.body.eventType;
+    let eventType = req.body.eventType || null;
     if (user.role === "club-secretary") {
       eventType = user.type;
     }
@@ -149,6 +151,7 @@ export const applyForEventApproval = async (req, res) => {
       { role: "president", status: "Pending", comment: "" },
       { role: "faculty-in-charge", status: "Pending", comment: "" },
       { role: "associate-dean", status: "Pending", comment: "" },
+      { role: "dean", status: "Pending", comment: "" },
     ];
 
     // Create a new event approval request
@@ -163,6 +166,7 @@ export const applyForEventApproval = async (req, res) => {
       semester: semesterInfo.semester,
       academicYear: semesterInfo.academicYear,
       eventVenue,
+      budgetBreakup,
       sourceOfBudget,
       estimatedBudget,
       nameOfTheOrganizer,
@@ -235,7 +239,7 @@ export const getUserEvents = async (req, res) => {
 //get pending approvals list
 //put in staff dashboard Pending section
 
-const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "faculty-in-charge", "associate-dean"];
+const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "faculty-in-charge", "associate-dean", "dean"];
 
 export const getPendingApprovals = async (req, res) => {
   const { role, category } = req.body;
@@ -322,14 +326,15 @@ export const getApprovedApplications = async (req, res) => {
       return res.status(400).json({ message: "Role is required." });
     }
 
-    // Fetch only events with matching role and approved status
+    // Fetch only events with matching role and approved status (exclude closed events)
     let approvedApplications = await EventApproval.find({
       "approvals": {
         $elemMatch: {
           role: role,
           status: "Approved"
         }
-      }
+      },
+      status: { $ne: "Closed" }
     });
 
     console.log("Initial approved applications:", approvedApplications);
@@ -372,14 +377,15 @@ export const getRejectedApplications = async (req, res) => {
       return res.status(400).json({ message: "Role is required." });
     }
 
-    // Fetch only events with matching role and rejected status
+    // Fetch only events with matching role and rejected status (exclude closed events)
     let rejectedApplications = await EventApproval.find({
       "approvals": {
         $elemMatch: {
           role: role,
           status: "Rejected"
         }
-      }
+      },
+      status: { $ne: "Closed" }
     });
 
     console.log("Initial rejected applications:", rejectedApplications);
@@ -406,6 +412,49 @@ export const getRejectedApplications = async (req, res) => {
     res.status(200).json(rejectedApplications);
   } catch (error) {
     console.error("Error fetching rejected applications:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Get Closed Event Applications
+export const getClosedApplications = async (req, res) => {
+  const { role, category } = req.body;
+
+  console.log("Received role:", role);
+  console.log("Received category:", category);
+
+  try {
+    if (!role) {
+      return res.status(400).json({ message: "Role is required." });
+    }
+
+    // Only allow specific roles to view closed events
+    if (!["associate-dean", "dean", "ARSW"].includes(role)) {
+      return res.status(403).json({ message: "Only associate-dean, dean, and ARSW can view closed events." });
+    }
+
+    // Fetch only events with status "Closed"
+    let closedApplications = await EventApproval.find({
+      status: "Closed"
+    });
+
+    console.log("Initial closed applications:", closedApplications);
+
+    if (closedApplications.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    // Filter by category if role is 'general-secretary' (though this won't apply for these roles)
+    if (role === "general-secretary" && category) {
+      closedApplications = closedApplications.filter(
+        (approval) => approval.eventType === category
+      );
+    }
+
+    console.log("Final closed applications:", closedApplications);
+    res.status(200).json(closedApplications);
+  } catch (error) {
+    console.error("Error fetching closed applications:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };
@@ -689,13 +738,17 @@ export const replyToQuery = async (req, res) => {
     eventApproval.queries[queryIndex].answeredAt = new Date();
 
     // Reset the approval status back to Pending for the role that raised the query
-    const approvalIndex = eventApproval.approvals.findIndex(
-      (approval) => approval.role === query.askerRole
-    );
+    // BUT only if this is NOT a post-approval query
+    // Post-approval queries should not change the approval status
+    if (!query.isPostApprovalQuery) {
+      const approvalIndex = eventApproval.approvals.findIndex(
+        (approval) => approval.role === query.askerRole
+      );
 
-    if (approvalIndex !== -1) {
-      eventApproval.approvals[approvalIndex].status = "Pending";
-      eventApproval.approvals[approvalIndex].comment = "";
+      if (approvalIndex !== -1) {
+        eventApproval.approvals[approvalIndex].status = "Pending";
+        eventApproval.approvals[approvalIndex].comment = "";
+      }
     }
 
     await eventApproval.save();
@@ -793,7 +846,9 @@ export const getApprovedApplicationsWithFilters = async (req, res) => {
           role: role,
           status: "Approved"
         }
-      }
+      },
+      // Exclude closed events
+      status: { $ne: "Closed" }
     };
 
     // Add semester filtering
@@ -1007,10 +1062,40 @@ export const editEventDetails = async (req, res) => {
       "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
       "eventVenue", "sourceOfBudget", "estimatedBudget", "nameOfTheOrganizer", "designation",
       "email", "phoneNumber", "requirements", "anyAdditionalAmenities", "eventDescription",
-      "internalParticipants", "externalParticipants", "listOfCollaboratingOrganizations"
+      "internalParticipants", "externalParticipants", "listofCollaboratingOrganizations", "budgetBreakup"
     ];
 
-    // Update only allowed fields
+    // Track changes for version history BEFORE updating
+    const changes = {};
+    const dateFields = ['startDate', 'endDate'];
+    
+    editableFields.forEach(field => {
+      if (updates[field] !== undefined) {
+        const oldValue = event[field];
+        const newValue = updates[field];
+        
+        let hasChanged = false;
+        
+        // Special handling for date fields - compare only the date part (before 'T')
+        if (dateFields.includes(field)) {
+          const oldDatePart = oldValue ? new Date(oldValue).toISOString().split('T')[0] : null;
+          const newDatePart = newValue ? new Date(newValue).toISOString().split('T')[0] : null;
+          hasChanged = oldDatePart !== newDatePart;
+        } else {
+          // For non-date fields, use deep comparison
+          hasChanged = JSON.stringify(oldValue) !== JSON.stringify(newValue);
+        }
+        
+        if (hasChanged) {
+          changes[field] = {
+            oldValue: oldValue,
+            newValue: newValue
+          };
+        }
+      }
+    });
+
+    // Now update the fields
     editableFields.forEach(field => {
       if (updates[field] !== undefined) {
         event[field] = updates[field];
@@ -1024,19 +1109,81 @@ export const editEventDetails = async (req, res) => {
       event.academicYear = semesterInfo.academicYear;
     }
 
-    // Reset approvals after club-secretary to Pending
-    event.approvals = event.approvals.map(a => {
-      if (a.role !== "club-secretary") {
-        return { ...a, status: "Edited"};
+     // Update budgetBreakup if provided
+    if (updates.budgetBreakup) {
+      event.budgetBreakup = updates.budgetBreakup;  // Replace the existing budgetBreakup with the new one
+    }
+
+    // Add to edit history if there are changes
+    if (Object.keys(changes).length > 0) {
+      if (!event.editHistory) {
+        event.editHistory = [];
       }
-      return a;
+      event.editHistory.push({
+        editedAt: new Date(),
+        editedBy: userID,
+        changes: changes,
+        reason: "Event details updated by club-secretary"
+      });
+    }
+
+    // Keep "Query" status as "Query", reset others to "Pending"
+    // Do NOT change Query status to "Edited"
+    event.approvals = event.approvals.map(a => {
+      if (a.role !== "club-secretary" && a.status !== "Query") {
+        return { ...a, status: "Pending"};
+      }
+      return a; // Keep Query status unchanged
     });
 
     await event.save();
 
-    res.status(200).json({ message: "Event details updated and approval pipeline reset.", event });
+    res.status(200).json({ message: "Event details updated. Query status preserved.", event });
   } catch (error) {
     console.error("Error editing event details:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Get edit history for an event
+export const getEditHistory = async (req, res) => {
+  const { eventId } = req.params;
+
+  try {
+    const event = await EventApproval.findById(eventId).select('editHistory');
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Populate editor details and convert Map to plain object
+    const historyWithUserDetails = await Promise.all(
+      (event.editHistory || []).map(async (edit) => {
+        const user = await User.findById(edit.editedBy).select('name email');
+        const editObj = edit.toObject();
+        
+        // Convert Map to plain object for changes field
+        const changesObj = {};
+        if (editObj.changes instanceof Map) {
+          editObj.changes.forEach((value, key) => {
+            changesObj[key] = value;
+          });
+        } else if (editObj.changes) {
+          // If it's already an object, use it directly
+          Object.assign(changesObj, editObj.changes);
+        }
+        
+        return {
+          ...editObj,
+          changes: changesObj,
+          editorName: user?.name || 'Unknown User',
+          editorEmail: user?.email || 'N/A'
+        };
+      })
+    );
+
+    res.status(200).json({ editHistory: historyWithUserDetails });
+  } catch (error) {
+    console.error("Error fetching edit history:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };
@@ -1057,15 +1204,140 @@ export const closeEvent = async (req, res) => {
       return res.status(404).json({ message: "Event not found." });
     }
 
+    // Check if the event is fully approved
+    const allApproved = event.approvals.every(
+      (approval) => approval.status === "Approved"
+    );
+
+    if (!allApproved) {
+      return res.status(400).json({ message: "Only fully approved events can be closed." });
+    }
+
+    // Check if event has ended
+    const currentDate = new Date();
+    const endDate = new Date(event.endDate);
+    const hundredDaysBefore = new Date(endDate);
+    hundredDaysBefore.setDate(endDate.getDate() - 100);
+    console.log(hundredDaysBefore);
+    if (currentDate < hundredDaysBefore) {
+      return res.status(400).json({ 
+        message: "Cannot close an event that hasn't ended yet. Event end date is " + endDate.toLocaleDateString() 
+      });
+    }
+
     // Set status to Closed and record who closed it
     event.status = "Closed";
     event.closedBy = closerName || user.name || "Unknown";
+    event.closedAt = new Date();
 
     await event.save();
+
+    // Send email notification to the organizer
+    try {
+      await sendEmail(
+        event.email,
+        `Event Closed: ${event.eventName}`,
+        `Your event "${event.eventName}" has been officially closed.
+
+Event Details:
+- Event Name: ${event.eventName}
+- Event Type: ${event.eventType}
+- Date: ${new Date(event.startDate).toLocaleDateString()} to ${new Date(event.endDate).toLocaleDateString()}
+- Venue: ${event.eventVenue}
+- Closed By: ${event.closedBy}
+- Closed On: ${event.closedAt.toLocaleDateString()}
+
+Thank you for organizing this event. If you have any queries, please contact the Student Welfare Office.
+
+Best regards,
+Student Welfare Office`
+      );
+      console.log(`Event closure notification sent to organizer: ${event.email}`);
+    } catch (emailError) {
+      console.error(`Failed to send event closure notification to organizer:`, emailError.message);
+    }
 
     res.status(200).json({ message: "Event closed successfully.", event });
   } catch (error) {
     console.error("Error closing event:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Raise a query for an approved event (for associate-dean, dean, ARSW)
+export const raiseQueryForApprovedEvent = async (req, res) => {
+  const { eventId, userID, queryText } = req.body;
+
+  try {
+    // Validate inputs
+    if (!eventId || !userID || !queryText) {
+      return res.status(400).json({ message: "Event ID, user ID, and query text are required." });
+    }
+
+    // Find the user and check role
+    const user = await User.findById(userID);
+    if (!user || !["ARSW", "associate-dean", "dean"].includes(user.role)) {
+      return res.status(403).json({ message: "Only ARSW, associate-dean, or dean can raise queries for approved events." });
+    }
+
+    // Find the event
+    const event = await EventApproval.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Check if the event is fully approved
+    const allApproved = event.approvals.every(
+      (approval) => approval.status === "Approved"
+    );
+
+    if (!allApproved) {
+      return res.status(400).json({ message: "Can only raise queries for fully approved events." });
+    }
+
+    // Add the query to the queries array
+    const newQuery = {
+      askerRole: user.role,
+      queryText,
+      responderEmail: event.email,
+      status: "Pending",
+      raisedAt: new Date(),
+      isPostApprovalQuery: true, // Flag to indicate this is a post-approval query
+    };
+
+    event.queries.push(newQuery);
+    await event.save();
+
+    // Send email notification to the organizer
+    try {
+      await sendEmail(
+        event.email,
+        `Post-Approval Query Raised for Event: ${event.eventName}`,
+        `A query has been raised for your approved event "${event.eventName}" by ${user.role}.
+
+Query: ${queryText}
+
+Please log into the application to respond to this query.
+
+Event Details:
+- Event Name: ${event.eventName}
+- Event Type: ${event.eventType}
+- Date: ${new Date(event.startDate).toLocaleDateString()} to ${new Date(event.endDate).toLocaleDateString()}
+- Venue: ${event.eventVenue}
+
+Please respond at your earliest convenience.
+
+Best regards,
+Event Approval Committee`
+      );
+      console.log(`Post-approval query notification email sent to organizer: ${event.email}`);
+    } catch (emailError) {
+      console.error(`Failed to send post-approval query notification email to organizer:`, emailError.message);
+    }
+
+    res.status(200).json({ message: "Query raised successfully.", query: newQuery });
+  } catch (error) {
+    console.error("Error raising query for approved event:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };

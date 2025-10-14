@@ -30,7 +30,7 @@ const Home = () => {
 
         const allowedRolesForStaff = [
           "president", "treasurer", "faculty-in-charge", 
-          "associate-dean", "general-secretary"
+          "associate-dean", "general-secretary", "dean"
         ];
 
         const loginUser = (userRole) => {

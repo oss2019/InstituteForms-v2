@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom"; // Use useNavigate hook
 import axios from "axios";
 import { toast } from "react-hot-toast";
-import jsPDF from "jspdf";
 import "./EventDetails.css";
 
 import { generatePDF } from "../../utils/pdfGenerator";
@@ -19,12 +18,17 @@ const EventDetails = () => {
   const [showQueryModal, setShowQueryModal] = useState(false); // State for query modal
   const [queryResponse, setQueryResponse] = useState(""); // State for query response
   const [selectedQuery, setSelectedQuery] = useState(null); // State for selected query
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [pdfPreviewDataUrl, setPdfPreviewDataUrl] = useState("");
+  const pdfObjectUrlRef = useRef(null);
   const navigate = useNavigate(); // Initialize navigate hook
   const role = localStorage.getItem("role"); // Fetch role from localStorage
   const userEmail =
     localStorage.getItem("email") || localStorage.getItem("userEmail"); // Get user email
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({});
+  const [editHistory, setEditHistory] = useState([]); // State for edit history
+  const [showEditHistory, setShowEditHistory] = useState(false); // Toggle for edit history display
 
   useEffect(() => {
     // Function to fetch event details by ID
@@ -52,9 +56,31 @@ const EventDetails = () => {
       }
     };
 
+    // Function to fetch edit history
+    const fetchEditHistory = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+        const response = await axios.get(`${apiUrl}/event/${id}/edit-history`);
+        console.log("Edit History Response:", response.data.editHistory); // Debug log
+        setEditHistory(response.data.editHistory || []);
+      } catch (error) {
+        console.error("Error fetching edit history:", error);
+      }
+    };
+
     fetchEventDetails(); // Call the fetch function
     fetchQueries(); // Fetch queries as well
+    fetchEditHistory(); // Fetch edit history
   }, [id]); // Dependency array to re-run the effect when `id` changes
+
+  useEffect(() => {
+    return () => {
+      if (pdfObjectUrlRef.current) {
+        URL.revokeObjectURL(pdfObjectUrlRef.current);
+        pdfObjectUrlRef.current = null;
+      }
+    };
+  }, []);
 
   // Helper function to get approvals up to rejection point
   const getApprovalsToDisplay = (approvals) => {
@@ -108,8 +134,34 @@ const EventDetails = () => {
   };
 
   const canEditEvent = () => {
-    // Only club-secretary who created the event and if general-secretary approval is pending
-    return role === "club-secretary";
+    // Only club-secretary who created the event can edit
+    if (role !== "club-secretary") {
+      return false;
+    }
+    
+    // Check if there's any pending query
+    if (eventDetails && eventDetails.approvals) {
+      const hasQuery = eventDetails.approvals.some(
+        (approval) => approval.status === "Query"
+      );
+      
+      // If there's a query, allow editing regardless of approvals
+      if (hasQuery) {
+        return true;
+      }
+      
+      // Check if any role has approved the event
+      const hasAnyApproval = eventDetails.approvals.some(
+        (approval) => approval.status === "Approved"
+      );
+      
+      // If any role has approved and no query, editing is disabled
+      if (hasAnyApproval) {
+        return false;
+      }
+    }
+    
+    return true;
   };
   // When opening modal, prefill form
   useEffect(() => {
@@ -153,11 +205,14 @@ const EventDetails = () => {
           requirements: editForm.requirements.split(",").map((r) => r.trim()),
         },
       });
-      toast.success("Event updated successfully!");
+      toast.success("Event updated successfully! Query status preserved.");
       setShowEditModal(false);
       // Refresh event details
       const response = await axios.get(`${apiUrl}/event/${eventDetails._id}`);
       setEventDetails(response.data);
+      // Refresh edit history
+      const historyResponse = await axios.get(`${apiUrl}/event/${eventDetails._id}/edit-history`);
+      setEditHistory(historyResponse.data.editHistory || []);
     } catch (error) {
       toast.error("Failed to update event.");
     }
@@ -297,10 +352,116 @@ const EventDetails = () => {
     setSelectedQuery(null);
   };
 
-  const handleGeneratePDF = () => {
+  // Close Event functionality
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const handleCloseEvent = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      const userID = localStorage.getItem("userID");
+      const userName = localStorage.getItem("name") || localStorage.getItem("username");
+      
+      await axios.patch(`${apiUrl}/event/close`, {
+        eventId: id,
+        userID: userID,
+        closerName: userName
+      });
+
+      toast.success("Event closed successfully!");
+      
+      // Refresh event details
+      const response = await axios.get(`${apiUrl}/event/${id}`);
+      setEventDetails(response.data);
+      
+      setShowCloseModal(false);
+    } catch (error) {
+      console.error("Error closing event:", error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to close event. Please try again.");
+      }
+    }
+  };
+
+  // Raise query for approved event
+  const [showApprovedQueryModal, setShowApprovedQueryModal] = useState(false);
+  const [approvedQueryText, setApprovedQueryText] = useState("");
+  
+  const handleRaiseApprovedQuery = async () => {
+    if (!approvedQueryText.trim()) {
+      toast.error("Please enter a query");
+      return;
+    }
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      const userID = localStorage.getItem("userID");
+      
+      await axios.post(`${apiUrl}/event/raise-query-approved`, {
+        eventId: id,
+        userID: userID,
+        queryText: approvedQueryText
+      });
+
+      toast.success("Query raised successfully!");
+      
+      // Refresh queries
+      const response = await axios.get(`${apiUrl}/event/${id}/queries`);
+      setQueries(response.data.queries || []);
+      
+      setShowApprovedQueryModal(false);
+      setApprovedQueryText("");
+    } catch (error) {
+      console.error("Error raising query:", error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to raise query. Please try again.");
+      }
+    }
+  };
+
+  // Check if event can be closed
+  const canCloseEvent = () => {
+    if (!['associate-dean', 'dean', 'ARSW'].includes(role)) return false;
+    if (eventDetails.status === 'Closed') return false;
+    
+    const allApproved = eventDetails.approvals.every(app => app.status === 'Approved');
+    if (!allApproved) return false;
+    
+    const currentDate = new Date();
+    const endDate = new Date(eventDetails.endDate);
+    const hundredDaysBefore = new Date(endDate);
+    hundredDaysBefore.setDate(endDate.getDate() - 100);
+    return currentDate > hundredDaysBefore;
+  };
+
+  // Check if can raise query on approved event
+  const canRaiseApprovedQuery = () => {
+    if (!['associate-dean', 'dean', 'ARSW'].includes(role)) return false;
+    if (eventDetails.status === 'Closed') return false;
+    
+    const allApproved = eventDetails.approvals.every(app => app.status === 'Approved');
+    return allApproved;
+  };
+
+  const handleGeneratePDF = async () => {
     const headerImageURL = "/form_header.png"; // Path to the header image
-    generatePDF(eventDetails, headerImageURL);
-    setIsPDFGenerated(true); // Show the iframe after PDF is generated
+    try {
+      const { blobUrl, dataUrl } = await generatePDF(eventDetails, headerImageURL);
+
+      if (pdfObjectUrlRef.current) {
+        URL.revokeObjectURL(pdfObjectUrlRef.current);
+      }
+
+      pdfObjectUrlRef.current = blobUrl;
+      setPdfPreviewUrl(blobUrl);
+      setPdfPreviewDataUrl(dataUrl);
+      setIsPDFGenerated(true); // Show the iframe after PDF is generated
+    } catch (error) {
+      console.error("Error generating PDF preview:", error);
+      toast.error("Unable to generate PDF preview. Please try again.");
+    }
   };
 
   if (isLoading) return <div>Loading event details...</div>;
@@ -325,11 +486,22 @@ const EventDetails = () => {
     <div className="event-details-container">
       <div className="event-details">
         <h1>Event Details</h1>
+        {eventDetails.status === 'Closed' && (
+          <div className="alert alert-dark mt-2">
+            <strong>⛔ Event Closed</strong><br/>
+            This event has been officially closed by {eventDetails.closedBy || 'an administrator'} on {eventDetails.closedAt ? new Date(eventDetails.closedAt).toLocaleDateString() : 'N/A'}.
+          </div>
+        )}
       </div>
 
       {/* Back button next to the event name */}
       <div className="event-details-header">
-        <h4>{eventDetails.eventName}</h4>
+        <h4>
+          {eventDetails.eventName}
+          {eventDetails.status === 'Closed' && (
+            <span className="badge bg-dark ms-2">Closed</span>
+          )}
+        </h4>
         <button
           className="btn btn-secondary btn-sm"
           onClick={() => navigate(-1)}
@@ -652,6 +824,140 @@ const EventDetails = () => {
           </tbody>
         </table>
 
+        {/* Edit History Section */}
+        {(() => {
+          // Filter out edits with no actual changes
+          const validEdits = editHistory.filter(edit => edit.changes && Object.keys(edit.changes).length > 0);
+          
+          if (validEdits.length === 0) return null;
+          
+          return (
+            <>
+              <div className="d-flex justify-content-between align-items-center mt-4">
+                <h4>Edit History</h4>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => setShowEditHistory(!showEditHistory)}
+                >
+                  {showEditHistory ? 'Hide History' : 'Show History'}
+                </button>
+              </div>
+              {showEditHistory && (() => {
+              console.log("All edits:", editHistory);
+              console.log("Valid edits after filter:", validEdits);
+              
+              if (validEdits.length === 0) {
+                return (
+                  <div className="edit-history-section mt-3">
+                    <p className="text-muted">No edit history available.</p>
+                  </div>
+                );
+              }
+              
+              return (
+                <div className="edit-history-section mt-3">
+                  {validEdits.map((edit, index) => {
+                    console.log(`Edit #${index}:`, edit, "Changes keys:", Object.keys(edit.changes || {}));
+                    return (
+                    <div
+                      key={index}
+                      className="edit-history-card mb-3 p-3"
+                      style={{
+                        border: "1px solid #ddd",
+                        borderRadius: "5px",
+                        backgroundColor: "#f8f9fa"
+                      }}
+                    >
+                      <div className="edit-header">
+                        <strong>Edit #{validEdits.length - index}</strong>
+                        <span className="text-muted ms-2">
+                          by {edit.editorName} ({edit.editorEmail})
+                        </span>
+                        <span className="text-muted ms-2">
+                          on {new Date(edit.editedAt).toLocaleString()}
+                        </span>
+                      </div>
+                    <div className="edit-changes mt-2">
+                      <strong>Changes Made:</strong>
+                      {Object.keys(edit.changes || {}).length === 0 ? (
+                        <p className="text-muted mt-2">No changes recorded</p>
+                      ) : (
+                        <table className="table table-sm table-bordered mt-2">
+                          <thead className="table-light">
+                            <tr>
+                              <th style={{ width: '25%' }}>Field</th>
+                              <th style={{ width: '37.5%' }}>Old Value</th>
+                              <th style={{ width: '37.5%' }}>New Value</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(edit.changes || {}).map(([field, change]) => {
+                              // Format values for display
+                              const formatValue = (value) => {
+                                if (value === null || value === undefined) return "N/A";
+                                if (Array.isArray(value)) return value.join(", ");
+                                if (typeof value === 'object' && !(value instanceof Date)) return JSON.stringify(value);
+                                
+                                // Handle date strings and Date objects
+                                if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value))) {
+                                  const date = new Date(value);
+                                  if (!isNaN(date.getTime())) {
+                                    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                                  }
+                                }
+                                
+                                return String(value);
+                              };
+                              
+                              // Skip date fields if the formatted values are the same
+                              const dateFields = ['startDate', 'endDate'];
+                              if (dateFields.includes(field)) {
+                                const formattedOld = formatValue(change.oldValue);
+                                const formattedNew = formatValue(change.newValue);
+                                if (formattedOld === formattedNew) {
+                                  return null; // Skip this field
+                                }
+                              }
+                              
+                              // Format field name for display (camelCase to Title Case)
+                              const displayField = field
+                                .replace(/([A-Z])/g, ' $1')
+                                .replace(/^./, str => str.toUpperCase());
+
+                              return (
+                                <tr key={field}>
+                                  <td><strong>{displayField}</strong></td>
+                                  <td style={{ 
+                                    color: "#dc3545", 
+                                    wordBreak: "break-word",
+                                    backgroundColor: "#fff5f5"
+                                  }}>
+                                    {formatValue(change.oldValue)}
+                                  </td>
+                                  <td style={{ 
+                                    color: "#28a745",
+                                    wordBreak: "break-word",
+                                    backgroundColor: "#f0fff4"
+                                  }}>
+                                    {formatValue(change.newValue)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+              );
+            })()}
+            </>
+          );
+        })()}
+
         {/* Queries Section */}
         {queries.length > 0 && (
           <>
@@ -734,13 +1040,44 @@ const EventDetails = () => {
         <button className="btn btn-primary mb-1" onClick={handleGeneratePDF}>
           Generate & Preview PDF
         </button>
+
+        {/* Close Event Button - for associate-dean, dean, ARSW only */}
+        {canCloseEvent() && (
+          <button 
+            className="btn btn-dark mb-1 ms-2" 
+            onClick={() => setShowCloseModal(true)}
+          >
+            Close Event
+          </button>
+        )}
+
+        {/* Raise Query for Approved Event - for associate-dean, dean, ARSW only */}
+        {canRaiseApprovedQuery() && (
+          <button 
+            className="btn btn-info mb-1 ms-2" 
+            onClick={() => setShowApprovedQueryModal(true)}
+          >
+            Raise Query
+          </button>
+        )}
+
         {/* Conditionally render the iframe only after generating PDF */}
         {isPDFGenerated && (
-          <iframe
-            id="pdf-preview"
-            className="pdf-preview"
-            style={{ width: "100%", height: "500px", border: "none" }}
-          ></iframe>
+          <>
+            <iframe
+              id="pdf-preview"
+              key={pdfPreviewUrl || pdfPreviewDataUrl}
+              className="pdf-preview"
+              style={{ width: "100%", height: "500px", border: "none" }}
+              src={pdfPreviewUrl || pdfPreviewDataUrl || undefined}
+              title="PDF Preview"
+            ></iframe>
+            {!pdfPreviewUrl && pdfPreviewDataUrl && (
+              <p style={{ marginTop: "8px" }}>
+                If the preview stays blank, <a href={pdfPreviewDataUrl} target="_blank" rel="noopener noreferrer">open the PDF in a new tab</a>.
+              </p>
+            )}
+          </>
         )}
 
         {/* Comment Modal */}
@@ -900,6 +1237,133 @@ const EventDetails = () => {
                   disabled={!queryResponse.trim()}
                 >
                   Submit Response
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Close Event Modal */}
+        {showCloseModal && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 1000,
+            }}
+          >
+            <div
+              className="modal-content"
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                minWidth: "400px",
+                maxWidth: "600px",
+              }}
+            >
+              <h4>Close Event</h4>
+              <p>
+                Are you sure you want to close this event? This action will mark the event as closed
+                and send a notification to the organizer.
+              </p>
+              <div className="alert alert-info">
+                <strong>Event:</strong> {eventDetails.eventName}<br/>
+                <strong>End Date:</strong> {new Date(eventDetails.endDate).toLocaleDateString()}<br/>
+                <strong>Organizer:</strong> {eventDetails.nameOfTheOrganizer}
+              </div>
+
+              <div className="modal-buttons">
+                <button
+                  className="btn btn-secondary me-2"
+                  onClick={() => setShowCloseModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-dark"
+                  onClick={handleCloseEvent}
+                >
+                  Close Event
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Raise Query for Approved Event Modal */}
+        {showApprovedQueryModal && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 1000,
+            }}
+          >
+            <div
+              className="modal-content"
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                minWidth: "400px",
+                maxWidth: "600px",
+              }}
+            >
+              <h4>Raise Query for Approved Event</h4>
+              <p>
+                You are raising a query for an approved event. The organizer will be notified
+                and can respond through the system.
+              </p>
+
+              <div className="form-group mb-3">
+                <label htmlFor="approvedQueryText">Query (Required):</label>
+                <textarea
+                  id="approvedQueryText"
+                  className="form-control"
+                  rows="4"
+                  value={approvedQueryText}
+                  onChange={(e) => setApprovedQueryText(e.target.value)}
+                  placeholder="Enter your query here..."
+                  required
+                />
+                {!approvedQueryText.trim() && (
+                  <small className="text-danger">Query text is required</small>
+                )}
+              </div>
+
+              <div className="modal-buttons">
+                <button
+                  className="btn btn-secondary me-2"
+                  onClick={() => {
+                    setShowApprovedQueryModal(false);
+                    setApprovedQueryText("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-info"
+                  onClick={handleRaiseApprovedQuery}
+                  disabled={!approvedQueryText.trim()}
+                >
+                  Submit Query
                 </button>
               </div>
             </div>
