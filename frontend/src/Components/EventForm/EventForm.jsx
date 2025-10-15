@@ -7,6 +7,8 @@ import StudentDashboard from "../StudentDashboard/EventDashboard.jsx";
 import "./EventForm.css";
 
 const EventForm = () => {
+  const [isPDFGenerated, setIsPDFGenerated] = useState(false); // State for PDF visibility
+
   const [formData, setFormData] = useState({
 
     //Event Details:
@@ -74,21 +76,7 @@ const EventForm = () => {
       pdfObjectUrlRef.current = blobUrl;
       setPdfPreviewUrl(blobUrl);
       setPdfPreviewDataUrl(dataUrl);
-
-      const safeEventName = (formData.eventName || "event-request")
-        .toLowerCase()
-        .replace(/[^a-z0-9-]+/g, "-")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "");
-      const fileName = `${safeEventName || "event-request"}.pdf`;
-
-      const downloadLink = document.createElement("a");
-      downloadLink.href = dataUrl;
-      downloadLink.download = fileName;
-      downloadLink.style.display = "none";
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      setIsPDFGenerated(true); // Show the iframe after PDF is generated
     } catch (error) {
       console.error("Error generating PDF preview:", error);
       toast.error("Unable to generate PDF preview. Please try again.");
@@ -604,19 +592,16 @@ const EventForm = () => {
         </div>
       </form>
 
-      {/* <iframe
-        id="pdf-preview"
-        key={pdfPreviewUrl || pdfPreviewDataUrl}
-        title="PDF Preview"
-        style={{ width: "100%", height: "500px", marginTop: '20px', border: '1px solid #dee2e6' }}
-        src={pdfPreviewUrl || pdfPreviewDataUrl || undefined}
-        type="application/pdf"
-      ></iframe> */}
-      {/* {!pdfPreviewUrl && pdfPreviewDataUrl && (
-        <p style={{ marginTop: "8px" }}>
-          If the preview stays blank, <a href={pdfPreviewDataUrl} target="_blank" rel="noopener noreferrer">open the PDF in a new tab</a>.
-        </p>
-      )} */}
+      {/* Conditionally render the PDF preview iframe */}
+      {isPDFGenerated && (
+        <iframe
+          id="pdf-preview"
+          title="PDF Preview"
+          style={{ width: "100%", height: "500px", marginTop: '20px', border: '1px solid #dee2e6' }}
+          src={pdfPreviewUrl}
+          type="application/pdf"
+        ></iframe>
+      )}
     </div>
   );
 };
