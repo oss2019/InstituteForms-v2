@@ -1,4 +1,4 @@
-# Outpass Management System
+# Institute Forms Management Portal
 
 ## Project Overview
 - This is an Institute Forms Management Portal for college students, enabling them to get permissions for different purposes such as organizing events, retrieving outpass and more.
