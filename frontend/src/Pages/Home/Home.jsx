@@ -29,7 +29,7 @@ const Home = () => {
         const token = result.data.token;
 
         const allowedRolesForStaff = [
-          "president", "treasurer", "faculty-in-charge", 
+          "president", "treasurer", "ARSW", 
           "associate-dean", "general-secretary", "dean"
         ];
 

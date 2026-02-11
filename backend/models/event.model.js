@@ -33,6 +33,15 @@ const eventApprovalSchema = new Schema(
         estimatedAmount: { type: Number, required: true }
       }
     ],
+    proposedBudgetBreakup: [
+      {
+        expenseHead: { type: String, required: true },
+        estimatedAmount: { type: Number, required: true }
+      }
+    ],
+    proposedEstimatedBudget: { type: Number, required: false },
+    budgetEditedBy: { type: String, required: false }, // Role of who edited the budget
+    budgetEditedAt: { type: Date, required: false },
     approvals: [
       {
         role: {
@@ -42,7 +51,7 @@ const eventApprovalSchema = new Schema(
             "general-secretary",
             "treasurer",
             "president",
-            "faculty-in-charge",
+            "ARSW",
             "associate-dean",
             "dean"
           ],
@@ -75,10 +84,9 @@ const eventApprovalSchema = new Schema(
             "general-secretary",
             "treasurer",
             "president",
-            "faculty-in-charge",
-            "associate-dean",
-            "dean",
             "ARSW",
+            "associate-dean",
+            "dean"
           ],
           required: true,
         },

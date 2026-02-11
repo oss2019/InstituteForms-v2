@@ -22,7 +22,7 @@ function StaffDashboard() {
       'general-secretary': 'General Secretary',
       'treasurer': 'Treasurer',
       'president': 'President',
-      'faculty-in-charge': 'Faculty In Charge',
+      'ARSW': 'ARSW',
       'associate-dean': 'Associate Dean',
       'dean': 'Dean'
     };

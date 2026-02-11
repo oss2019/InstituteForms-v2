@@ -24,6 +24,9 @@ export const generatePDF = async (formData = {}, headerImageURL = "") => {
     formData.budgetBreakup = Array.isArray(formData.budgetBreakup)
       ? formData.budgetBreakup
       : [];
+    formData.proposedBudgetBreakup = Array.isArray(formData.proposedBudgetBreakup)
+      ? formData.proposedBudgetBreakup
+      : [];
 
     // Try to fetch header image (optional). If it fails, proceed without it.
     let headerDataUrl = null;
@@ -396,7 +399,7 @@ const createHTMLContent = (formData, headerDataUrl) => {
         </tr>
       </thead>
       <tbody>
-        ${formData.budgetBreakup.map((item, i) => `
+        ${(formData.proposedBudgetBreakup && formData.proposedBudgetBreakup.length > 0 ? formData.proposedBudgetBreakup:formData.budgetBreakup).map((item, i)=> `
           <tr>
             <td class="text-center">${i + 1}</td>
             <td>${item.expenseHead || ''}</td>
@@ -405,7 +408,7 @@ const createHTMLContent = (formData, headerDataUrl) => {
         `).join('')}
         <tr style="font-weight: 600;">
           <td colspan="2" class="text-right">TOTAL (₹)</td>
-          <td class="text-right">₹ ${Number(formData.estimatedBudget || 0).toFixed(2)}</td>
+          <td class="text-right">₹ ${Number(formData.budgetBreakup && formData.budgetBreakup.length > 0 ? formData.estimatedBudget:formData.estimatedBudget).toFixed(2)}</td>
         </tr>
       </tbody>
     </table>
@@ -510,12 +513,12 @@ const createHTMLContent = (formData, headerDataUrl) => {
     
     <div class="signature-row" style="margin-top: 30px;">
       <div class="signature-box">
-      ${formData.approvals?.find(a => a.role === 'faculty-in-charge')?.status === 'Approved' 
+      ${formData.approvals?.find(a => a.role === 'ARSW')?.status === 'Approved' 
             ? '<div style="font-size: 8pt; color: #666; font-style: italic; margin-top: 2px;">Digitally Signed</div>' 
             : ''}
         <div style="border-top: 1px solid #000; width: 150px; margin: 20px auto 5px auto;">
         </div>
-        <div>प्रभारी संकाय / Faculty in Charge</div>
+        <div>सहायक कुलसचिव छात्र कल्याण / ARSW</div>
       </div>
       <div class="signature-box">
       ${formData.approvals?.find(a => a.role === 'associate-dean')?.status === 'Approved' 

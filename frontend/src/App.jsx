@@ -9,7 +9,7 @@ import PageNotFound from "./Pages/Page Not Found/PageNotFound.jsx";
 import { GoogleOAuthProvider } from "@react-oauth/google"; // Import GoogleOAuthProvider
 
 function App() {
-  const GOOGLE_CLIENT_ID ="126283465709-v64j607pjhd396kjsrn7qprhk2dns9ou.apps.googleusercontent.com";
+  const GOOGLE_CLIENT_ID ="484697483733-aq5c7ugfot4i31o5clir2mhosonbuhnu.apps.googleusercontent.com";
 
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
@@ -27,7 +27,7 @@ function App() {
           <Route
             path="/staff"
             element={
-              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "faculty-in-charge", "associate-dean"]}>
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean"]}>
                 <StaffDashboard />
               </ProtectedRoute>
             }
@@ -35,7 +35,7 @@ function App() {
           <Route
             path="/event-details/:id" // Add dynamic route for event details
             element={
-              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "faculty-in-charge", "associate-dean"]}>
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean"]}>
                 <EventDetails />
               </ProtectedRoute>
             }

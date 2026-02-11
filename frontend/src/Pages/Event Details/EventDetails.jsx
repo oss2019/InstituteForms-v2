@@ -32,6 +32,8 @@ const EventDetails = () => {
 
   // Add state for budget breakup editing
   const [editBudgetBreakup, setEditBudgetBreakup] = useState([]);
+  const [showBudgetEditModal, setShowBudgetEditModal] = useState(false);
+  const [proposedBudgetBreakup, setProposedBudgetBreakup] = useState([]);
 
   useEffect(() => {
     // Function to fetch event details by ID
@@ -92,8 +94,9 @@ const EventDetails = () => {
       "general-secretary",
       "treasurer",
       "president",
-      "faculty-in-charge",
+      "ARSW",
       "associate-dean",
+      "dean"
     ];
 
     // Find the first rejection in the hierarchy
@@ -117,8 +120,9 @@ const EventDetails = () => {
       "general-secretary",
       "treasurer",
       "president",
-      "faculty-in-charge",
+      "ARSW",
       "associate-dean",
+      "dean"
     ];
 
     // If there's a rejection, no one can approve anymore
@@ -242,6 +246,101 @@ const EventDetails = () => {
     (sum, item) => sum + (parseFloat(item.amount) || 0),
     0
   );
+
+  // Handlers for ARSW/Associate Dean/Dean budget editing
+  const canEditBudget = () => {
+    return role === "ARSW" || role === "associate-dean" || role === "dean";
+  };
+
+  const handleOpenBudgetEditModal = () => {
+    // Normalize existing budgetBreakup for proposed editing
+    const normalizeBudget = (budget) => {
+      if (!Array.isArray(budget)) return [];
+      return budget.map((item) => {
+        if (typeof item === "string") {
+          return { label: item, amount: "" };
+        }
+        const label =
+          item.expenseHead ??
+          item.label ??
+          item.head ??
+          item.name ??
+          item.item ??
+          "";
+        const amountRaw =
+          item.estimatedAmount ??
+          item.estimatedBudget ??
+          item.amount ??
+          item.value ??
+          item.cost ??
+          item.costInRs ??
+          "";
+        return {
+          label: label || "",
+          amount:
+            amountRaw !== null && amountRaw !== undefined
+              ? String(amountRaw)
+              : "",
+        };
+      });
+    };
+
+    const normalized = normalizeBudget(eventDetails.budgetBreakup);
+    setProposedBudgetBreakup(normalized.length ? normalized : []);
+    setShowBudgetEditModal(true);
+  };
+
+  const handleProposedBudgetChange = (idx, field, value) => {
+    setProposedBudgetBreakup(prev =>
+      prev.map((item, i) =>
+        i === idx ? { ...item, [field]: field === "amount" ? value.replace(/[^0-9.]/g, "") : value } : item
+      )
+    );
+  };
+
+  const handleAddProposedBudget = () => {
+    setProposedBudgetBreakup(prev => [...prev, { label: "", amount: "" }]);
+  };
+
+  const handleRemoveProposedBudget = idx => {
+    setProposedBudgetBreakup(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const calculatedProposedBudget = proposedBudgetBreakup.reduce(
+    (sum, item) => sum + (parseFloat(item.amount) || 0),
+    0
+  );
+
+  const handleBudgetEditSubmit = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      
+      // Transform proposed budget to backend shape
+      const transformedProposedBudget = proposedBudgetBreakup
+        .filter(item => (item.label || "").trim() !== "")
+        .map(item => ({
+          expenseHead: (item.label || "").trim(),
+          estimatedAmount: Number(parseFloat(item.amount)) || 0,
+        }));
+
+      await axios.patch(`${apiUrl}/event/edit-budget`, {
+        eventId: eventDetails._id,
+        role: role,
+        proposedBudgetBreakup: transformedProposedBudget,
+        proposedEstimatedBudget: calculatedProposedBudget,
+      });
+
+      toast.success("Budget edited successfully!");
+      setShowBudgetEditModal(false);
+      
+      // Refresh event details
+      const response = await axios.get(`${apiUrl}/event/${eventDetails._id}`);
+      setEventDetails(response.data);
+    } catch (error) {
+      console.error("Budget edit error:", error);
+      toast.error("Failed to edit budget.");
+    }
+  };
 
   const handleEditChange = (e) => {
     setEditForm({ ...editForm, [e.target.name]: e.target.value });
@@ -894,6 +993,49 @@ const EventDetails = () => {
           </>
         )}
 
+        {/* Show proposed budget if edited by ARSW/Associate Dean/Dean */}
+        {eventDetails.proposedBudgetBreakup && eventDetails.proposedBudgetBreakup.length > 0 && (
+          <>
+            <h4 className="text-info">Revised Budget (Edited by {eventDetails.budgetEditedBy})</h4>
+            <p>
+              <strong>Revised Estimated Budget:</strong> ₹{eventDetails.proposedEstimatedBudget}
+            </p>
+            <table className="table table-sm table-info">
+              <thead>
+                <tr>
+                  <th>Head</th>
+                  <th style={{ width: "150px" }}>Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {eventDetails.proposedBudgetBreakup.map((item, idx) => {
+                  const label = item?.expenseHead ?? item?.label ?? item?.name ?? item?.head ?? "";
+                  const amount = item?.estimatedAmount ?? item?.amount ?? item?.value ?? "";
+                  return (
+                    <tr key={idx}>
+                      <td style={{ wordBreak: "break-word" }}>{label || "—"}</td>
+                      <td>{amount !== "" && amount !== null && amount !== undefined ? `₹${amount}` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="text-muted small">
+              <em>Edited on: {new Date(eventDetails.budgetEditedAt).toLocaleString()}</em>
+            </p>
+          </>
+        )}
+
+        {/* Budget Edit Button for ARSW/Associate Dean/Dean */}
+        {canEditBudget() && (
+          <button 
+            className="btn btn-warning btn-sm mb-3" 
+            onClick={handleOpenBudgetEditModal}
+          >
+            <i className="bi bi-pencil-square"></i> Edit Budget
+          </button>
+        )}
+
         <h4>Organizer Details</h4>
         <p>
           <strong>Name:</strong> {eventDetails.nameOfTheOrganizer}
@@ -1497,6 +1639,129 @@ const EventDetails = () => {
                   disabled={!approvedQueryText.trim()}
                 >
                   Submit Query
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Budget Edit Modal for ARSW/Associate Dean/Dean */}
+        {showBudgetEditModal && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 1000,
+            }}
+          >
+            <div
+              className="modal-content"
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                minWidth: "600px",
+                maxWidth: "800px",
+                maxHeight: "90vh",
+                overflowY: "auto",
+              }}
+            >
+              <h4>Edit Budget Proposal</h4>
+
+              {/* Original Budget Summary */}
+              <div className="alert alert-secondary mb-3">
+                <h6>Original Budget: ₹{eventDetails.estimatedBudget}</h6>
+              </div>
+
+              {/* Proposed Budget Breakup Section */}
+              <div className="form-group mb-3">
+                <label><strong>Proposed Budget Breakup</strong></label>
+                <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+                  <table className="table table-sm table-bordered">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Expense Head</th>
+                        <th style={{ width: "150px" }}>Amount (₹)</th>
+                        <th style={{ width: "80px" }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {proposedBudgetBreakup.map((item, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              value={item.label}
+                              onChange={(e) =>
+                                handleProposedBudgetChange(idx, "label", e.target.value)
+                              }
+                              placeholder="e.g. Venue Rental"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-control form-control-sm"
+                              value={item.amount}
+                              onChange={(e) =>
+                                handleProposedBudgetChange(idx, "amount", e.target.value)
+                              }
+                              placeholder="0"
+                            />
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleRemoveProposedBudget(idx)}
+                            >
+                              <i>Remove</i>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-sm btn-success mt-2"
+                  onClick={handleAddProposedBudget}
+                >
+                  <i className="bi bi-plus-circle"></i> Add Expense Head
+                </button>
+
+                <div className="mt-3 p-2 bg-light rounded">
+                  <strong>Proposed Estimated Budget: </strong>
+                  <span className="text-primary">₹{calculatedProposedBudget.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="modal-buttons mt-3">
+                <button
+                  className="btn btn-secondary me-2"
+                  onClick={() => {
+                    setShowBudgetEditModal(false);
+                    setProposedBudgetBreakup([]);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-warning"
+                  onClick={handleBudgetEditSubmit}
+                  disabled={proposedBudgetBreakup.length === 0}
+                >
+                  <i className="bi bi-check-circle"></i> Submit Budget Proposal
                 </button>
               </div>
             </div>

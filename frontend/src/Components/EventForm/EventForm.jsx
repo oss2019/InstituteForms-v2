@@ -104,7 +104,7 @@ const EventForm = () => {
   const validateForm = () => {
     const requiredFields = [
       "eventName", "partOfGymkhanaCalendar", "clubName", "startDate", "endDate",
-      "eventVenue", "sourceOfBudget", "estimatedBudget", "nameOfTheOrganizer", "designation",
+      "eventVenue", "sourceOfBudget", "nameOfTheOrganizer", "designation",
       "email", "phoneNumber", "eventDescription", "externalParticipants", "internalParticipants"
     ];
 

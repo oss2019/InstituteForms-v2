@@ -19,6 +19,7 @@ import {
   raiseQueryForApprovedEvent,
   getPendingApprovalsWithFilters,
   getEditHistory,
+  editBudget,
 } from "../controller/event.controller.js";
 
 const router = express.Router();
@@ -64,6 +65,9 @@ router.patch("/close", closeEvent);
 
 // Edit all event details (PATCH)
 router.patch("/edit", editEventDetails);
+
+// Edit budget breakup (PATCH) - for ARSW/Associate Dean/Dean
+router.patch("/edit-budget", editBudget);
 
 // Get edit history for an event (GET)
 router.get("/:eventId/edit-history", getEditHistory);

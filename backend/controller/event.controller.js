@@ -63,14 +63,14 @@ const sendEmail = async (to, subject, text, retries = 3) => {
 
 //emails of all members
 const roleEmails = [
-  { role: "general-secretary-technical", email: "nidhishadoshi05@gmail.com" },
-  { role: "general-secretary-cultural", email: "nidhishadoshi05@gmail.com" },
-  { role: "general-secretary-sports", email: "sports.secretary@example.com" },
-  { role: "treasurer", email: "cs23bt009@iitdh.ac.in" },
-  { role: "president", email: "cs23bt009@iitdh.ac.in" },
-  { role: "faculty-in-charge", email: "nidhishadoshi05@gmail.com" },
-  { role: "associate-dean", email: "cs23bt009@iitdh.ac.in" },
-  { role: "dean", email: "cs23bt009@iitdh.ac.in" },
+  { role: "general-secretary-technical", email: "gstech@iitdh.ac.in" },
+  { role: "general-secretary-cultural", email: "gscult@iitdh.ac.in" },
+  { role: "general-secretary-sports", email: "gssports@iitdh.ac.in" },
+  { role: "treasurer", email: "gstreas@iitdh.ac.in" },
+  { role: "president", email: "vpsc@iitdh.ac.in" },
+  { role: "ARSW", email: "arsw@iitdh.ac.in" },
+  { role: "associate-dean", email: "adean.sw.gymkhana@iitdh.ac.in" },
+  { role: "dean", email: "dean.sw@iitdh.ac.in" },
 ];
 
 const getEmailForRole = (role) => {
@@ -149,7 +149,7 @@ export const applyForEventApproval = async (req, res) => {
       { role: "general-secretary", status: "Pending", comment: "" },
       { role: "treasurer", status: "Pending", comment: "" },
       { role: "president", status: "Pending", comment: "" },
-      { role: "faculty-in-charge", status: "Pending", comment: "" },
+      { role: "ARSW", status: "Pending", comment: "" },
       { role: "associate-dean", status: "Pending", comment: "" },
       { role: "dean", status: "Pending", comment: "" },
     ];
@@ -212,7 +212,7 @@ export const applyForEventApproval = async (req, res) => {
   } catch (error) {
     if (error.name === "ValidationError") {
       console.error("Validation Error:", error.errors);
-      return res.status(400).json({ message: "Validation error", errors: error.errors });
+      return res.status(400).json({ message: "Validation error.", errors: error.errors });
     }
     console.error("Error submitting event approval request:", error.message);
     res.status(500).json({ message: "Internal server error" });
@@ -239,7 +239,7 @@ export const getUserEvents = async (req, res) => {
 //get pending approvals list
 //put in staff dashboard Pending section
 
-const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "faculty-in-charge", "associate-dean", "dean"];
+const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "ARSW", "associate-dean", "dean"];
 
 export const getPendingApprovals = async (req, res) => {
   const { role, category } = req.body;
@@ -1187,6 +1187,42 @@ export const getEditHistory = async (req, res) => {
     res.status(200).json({ editHistory: historyWithUserDetails });
   } catch (error) {
     console.error("Error fetching edit history:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Edit budget breakup by ARSW/Associate Dean/Dean
+export const editBudget = async (req, res) => {
+  const { eventId, role, proposedBudgetBreakup, proposedEstimatedBudget } = req.body;
+
+  try {
+    // Find the event
+    const event = await EventApproval.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Check if the user has permission to edit budget
+    if (!["ARSW", "associate-dean", "dean"].includes(role)) {
+      return res.status(403).json({ 
+        message: "Only ARSW, Associate Dean, or Dean can edit the budget." 
+      });
+    }
+
+    // Update proposed budget fields
+    event.proposedBudgetBreakup = proposedBudgetBreakup;
+    event.proposedEstimatedBudget = proposedEstimatedBudget;
+    event.budgetEditedBy = role;
+    event.budgetEditedAt = new Date();
+
+    await event.save();
+
+    res.status(200).json({ 
+      message: "Budget proposal submitted successfully.", 
+      event 
+    });
+  } catch (error) {
+    console.error("Error editing budget:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };
