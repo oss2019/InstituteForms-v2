@@ -8,6 +8,7 @@ import {
   getPendingApprovals,
   getRejectedApplications,
   getClosedApplications,
+  getInitiatedApplications,
   getEventById,
   handleApprovalStatus, // Import the updated controller
   raiseQuery,
@@ -41,6 +42,9 @@ router.post("/rejected", getRejectedApplications);
 
 // Get all closed event applications (POST)
 router.post("/closed", getClosedApplications);
+
+//Get all initiated event applications (POST)
+router.post("/initiated",getInitiatedApplications);
 
 // Approve or reject an event application based on the status (PATCH)
 router.patch("/:applicationId/status", handleApprovalStatus);

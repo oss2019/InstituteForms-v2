@@ -70,6 +70,7 @@ const roleEmails = [
   { role: "president", email: "vpsc@iitdh.ac.in" },
   { role: "ARSW", email: "arsw@iitdh.ac.in" },
   { role: "associate-dean", email: "adean.sw.gymkhana@iitdh.ac.in" },
+  { role: "associate-dean-socio-cultural", email: "adean.sw.sca@iitdh.ac.in" },
   { role: "dean", email: "dean.sw@iitdh.ac.in" },
 ];
 
@@ -143,6 +144,8 @@ export const applyForEventApproval = async (req, res) => {
     // Determine semester and academic year based on start date
     const semesterInfo = getSemesterInfo(startDate);
 
+    const associateDeanRole = eventType?.toLowerCase() === "cultural"?"associate-dean-socio-cultural":"associate-dean";
+
     // Create the initial approvals array
     const approvals = [
       { role: "club-secretary", status: "Approved", comment: "" },
@@ -150,7 +153,7 @@ export const applyForEventApproval = async (req, res) => {
       { role: "treasurer", status: "Pending", comment: "" },
       { role: "president", status: "Pending", comment: "" },
       { role: "ARSW", status: "Pending", comment: "" },
-      { role: "associate-dean", status: "Pending", comment: "" },
+      { role: associateDeanRole, status: "Pending", comment: "" },
       { role: "dean", status: "Pending", comment: "" },
     ];
 
@@ -241,17 +244,102 @@ export const getUserEvents = async (req, res) => {
 
 const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "ARSW", "associate-dean", "dean"];
 
+const getRoleHierarchyForEvent = (eventType) => {
+  const isCultural = eventType?.toLowerCase() === "cultural";
+  return ["club-secretary", "general-secretary", "treasurer", "president", "ARSW", isCultural ? "associate-dean-socio-cultural":"associate-dean", "dean"];
+}
+export const getInitiatedApplications = async (req,res) => {
+  const { role, category, semester, academicYear, search, page = 1, limit = 10 } = req.body;
+  try {
+    if(!role){
+      return res.status(400).json({ message: "Role is required." });
+    }
+    let query = {
+      "approvals.role":role,
+      status: {$ne: "Closed"}
+    };
+    if (semester){
+      query.semester = semester;
+    }
+    if (academicYear){
+      query.academicYear = academicYear;
+    }
+    if(role === "general-secretary" && category){
+      query.eventType = category;
+    }
+    if(search && search.trim()){
+      const searchRegex = new RegExp(search.trim(),'i');
+      query.$or = [
+        {eventName: searchRegex},
+        {clubName: searchRegex},
+        {nameOfTheOrganizer: searchRegex},
+        {eventVenue: searchRegex},
+        {eventDescription: searchRegex}
+      ];
+    }
+    let initiatedApplications = await EventApproval.find(query);
+    if(initiatedApplications.length === 0){
+      return res.status(200).json({
+        applications: [],
+        groupedBySemester: {},
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalCount: 0,
+          hasNext: false,
+          hasPrev: false
+        }
+      });
+    }
+    if(role==="associate-dean-socio-cultural"){
+      initiatedApplications = initiatedApplications.filter(
+        (approval) => approval.eventType?.toLowerCase() === "cultural"
+      );
+    } else if (role==="associate-dean"){
+      initiatedApplications = initiatedApplications.filter(
+        (approval) => approval.eventType?.toLowerCase() !== "cultural"
+      );
+    }
+    initiatedApplications = initiatedApplications.filter((approval) => {
+      const allApproved = approval.approvals.every(
+        (app) => app.status === "Approved"
+      );
+      return !allApproved
+    })
+    const totalCount = initiatedApplications.length;
+    const skip = (page-1)*limit;
+    const paginatedApplications = initiatedApplications.sort((a,b)=>new Date(b.startDate) - new Date(a.startDate)).slice(skip,skip+parseInt(limit));
+    const groupedBySemester = paginatedApplications.reduce((groups,app)=>{
+      const semesterKey = app.semester || `${app.academicYear} Academic Year`;
+      if(!groups[semesterKey]){
+        groups[semesterKey]=[];
+      }
+      groups[semesterKey].push(app);
+      return groups;
+    },{});
+    res.status(200).json({
+      applications: paginatedApplications,
+      groupedBySemester,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalCount/limit),
+        totalCount,
+        hasNext: skip+paginatedApplications.length<totalCount,
+        hasPrev: page>1
+      }
+    });
+  } catch(error){
+    console.error("Error fetching initiated applications:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
 export const getPendingApprovals = async (req, res) => {
   const { role, category } = req.body;
 
   try {
     if (!role) {
       return res.status(400).json({ message: "Role is required." });
-    }
-
-    const roleIndex = roleHierarchy.indexOf(role);
-    if (roleIndex === -1) {
-      return res.status(400).json({ message: "Invalid role." });
     }
 
     // Find all applications with the specified role
@@ -274,7 +362,12 @@ export const getPendingApprovals = async (req, res) => {
 
     // Ensure previous roles in the hierarchy are approved
     pendingApprovals = pendingApprovals.filter((approval) => {
-      return roleHierarchy.slice(0, roleIndex).every((prevRole) => {
+      const eventHierarchy = getRoleHierarchyForEvent(approval.eventType);
+      const roleIndex = eventHierarchy.indexOf(role);
+      if (roleIndex === -1){
+        return false;
+      }
+      return eventHierarchy.slice(0, roleIndex).every((prevRole) => {
         const prevApproval = approval.approvals.find((app) => app.role === prevRole);
         return prevApproval && prevApproval.status === "Approved";
       });
@@ -429,7 +522,7 @@ export const getClosedApplications = async (req, res) => {
     }
 
     // Only allow specific roles to view closed events
-    if (!["associate-dean", "dean", "ARSW"].includes(role)) {
+    if (!["associate-dean", "associate-dean-socio-cultural", "dean", "ARSW"].includes(role)) {
       return res.status(403).json({ message: "Only associate-dean, dean, and ARSW can view closed events." });
     }
 
@@ -443,7 +536,16 @@ export const getClosedApplications = async (req, res) => {
     if (closedApplications.length === 0) {
       return res.status(200).json([]);
     }
-
+    if (role === "associate-dean-socio-cultural")
+    {
+      closedApplications = closedApplications.filter(
+        (approval) => approval.eventType?.toLowerCase() === "cultural"
+      );
+    } else if (role === "associate-dean") {
+      closedApplications = closedApplications.filter(
+        (approval) => approval.eventType?.toLowerCase() !== "cultural"
+      );
+    }
     // Filter by category if role is 'general-secretary' (though this won't apply for these roles)
     if (role === "general-secretary" && category) {
       closedApplications = closedApplications.filter(
@@ -466,17 +568,16 @@ export const approveApplication = async (req, res) => {
   const { applicationId, role } = req.body;
 
   try {
-    // Check if the role is valid
-    if (!role || !roleHierarchy.includes(role)) {
-      return res.status(400).json({ message: "Invalid or missing role." });
-    }
-
     // Find the event approval by applicationId
     const eventApproval = await EventApproval.findById(applicationId);
     if (!eventApproval) {
       return res.status(404).json({ message: "Event approval not found." });
     }
-
+    const eventHierarchy = getRoleHierarchyForEvent(eventApproval.eventType);
+    // Check if the role is valid
+    if (!role || !eventHierarchy.includes(role)) {
+      return res.status(400).json({ message: "Invalid or missing role." });
+    }
     // Find the index of the approval object corresponding to the given role
     const approvalIndex = eventApproval.approvals.findIndex(
       (approval) => approval.role === role && approval.status === "Pending"
@@ -488,14 +589,14 @@ export const approveApplication = async (req, res) => {
 
     // Update the status of the approval to "Approved"
     eventApproval.approvals[approvalIndex].status = "Approved";
-    const nextRoleIndex = roleHierarchy.indexOf(role) + 1;
-    if (nextRoleIndex < roleHierarchy.length) {
-      const nextRole = roleHierarchy[nextRoleIndex];
-      
+    const nextRoleIndex = eventHierarchy.indexOf(role) + 1;
+    if (nextRoleIndex < eventHierarchy.length) {
+      const nextRole = eventHierarchy[nextRoleIndex];
+      // eventApproval.approvals[approvalIndex].status = "Recommended";
       sendEmail(
         `${getEmailForRole(nextRole)}`, // Replace with actual email
         `Event Approval Needed: ${eventApproval.eventName}`,
-        `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.`
+        `The event "${eventApproval.eventName}" has been recommended by ${role}. It is now pending your review and approval.`
       ); 
   }
 
@@ -555,9 +656,10 @@ export const handleApprovalStatus = async (req, res) => {
       }
     }
     else if(status === "Approved"){
-    const nextRoleIndex = roleHierarchy.indexOf(role) + 1;
-    if (nextRoleIndex < roleHierarchy.length) {
-      const nextRole = roleHierarchy[nextRoleIndex];
+    const eventHierarchy = getRoleHierarchyForEvent(eventApproval.eventType);
+    const nextRoleIndex = eventHierarchy.indexOf(role) + 1;
+    if (nextRoleIndex < eventHierarchy.length) {
+      const nextRole = eventHierarchy[nextRoleIndex];
       const nextRoleEmail = getEmailForRole(nextRole);
       
       if (nextRoleEmail) {
@@ -574,7 +676,7 @@ export const handleApprovalStatus = async (req, res) => {
       } else {
         console.error(`No email found for next role: ${nextRole}`);
       }
-    } else if (nextRoleIndex === roleHierarchy.length) {
+    } else if (nextRoleIndex === eventHierarchy.length) {
       try {
         await sendEmail(
           eventApproval.email,
@@ -593,6 +695,60 @@ export const handleApprovalStatus = async (req, res) => {
         Event Approval Committee`
         );
         console.log(`Final approval notification sent to organizer: ${eventApproval.email}`);
+        try {
+          await sendEmail(
+            'studentswelfare.office@iitdh.ac.in',
+            `Event Approved - ${eventApproval.eventName}`,
+            `Dear Student Welfare Office Team,
+
+The following event has been fully approved by all authorities:
+
+Event Details:
+- Event Name: ${eventApproval.eventName}
+- Event Type: ${eventApproval.eventType}
+- Club Name: ${eventApproval.clubName || 'N/A'}
+- Start Date: ${new Date(eventApproval.startDate).toLocaleDateString()}
+- End Date: ${new Date(eventApproval.endDate).toLocaleDateString()}
+- Venue: ${eventApproval.eventVenue}
+- Semester: ${eventApproval.semester}
+- Academic Year: ${eventApproval.academicYear}
+
+Organizer Details:
+- Name: ${eventApproval.nameOfTheOrganizer}
+- Designation: ${eventApproval.designation}
+- Email: ${eventApproval.email}
+- Phone: ${eventApproval.phoneNumber}
+
+Event Description:
+${eventApproval.eventDescription || 'N/A'}
+
+Participants:
+- Internal Participants: ${eventApproval.internalParticipants || 0}
+- External Participants: ${eventApproval.externalParticipants || 0}
+
+Budget Details:
+- Approved Budget: ₹${ eventApproval.proposedEstimatedBudget ? eventApproval.proposedEstimatedBudget: (eventApproval.estimatedBudget || 0)}
+- Source of Budget: ${eventApproval.sourceOfBudget || 'N/A'}
+${eventApproval.requirements && eventApproval.requirements.length > 0 ? `Requirements: ${eventApproval.requirements.join(', ')}` : ''}
+
+${eventApproval.anyAdditionalAmenities ? `Additional Amenities: ${eventApproval.anyAdditionalAmenities}` : ''}
+
+${eventApproval.listOfCollaboratingOrganizations ? `Collaborating Organizations: ${eventApproval.listOfCollaboratingOrganizations}` : ''}
+
+Approval Chain:
+${eventApproval.approvals.map((approval, index) => 
+  `${index + 1}. ${approval.role.toUpperCase()}: ${approval.status}${approval.comment ? ` (Comment: ${approval.comment})` : ''}`
+).join('\n')}
+
+Please proceed with necessary arrangements for this event.
+
+Best regards,
+Event Approval System`
+          );
+          console.log('Email sent successfully to student welfare office');
+          } catch (welfareEmailError) {
+            console.error('Failed to send email to student welfare office:', welfareEmailError.message);
+        }
       } catch (emailError) {
         console.error(`Failed to send final approval email to organizer:`, emailError.message);
       }
@@ -930,11 +1086,6 @@ export const getPendingApprovalsWithFilters = async (req, res) => {
       return res.status(400).json({ message: "Role is required." });
     }
 
-    const roleIndex = roleHierarchy.indexOf(role);
-    if (roleIndex === -1) {
-      return res.status(400).json({ message: "Invalid role." });
-    }
-
     // Base query for pending applications
     let query = {
       "approvals.role": role,
@@ -994,7 +1145,12 @@ export const getPendingApprovalsWithFilters = async (req, res) => {
 
     // Ensure previous roles in the hierarchy are approved
     pendingApprovals = pendingApprovals.filter((approval) => {
-      return roleHierarchy.slice(0, roleIndex).every((prevRole) => {
+      const eventHierarchy = getRoleHierarchyForEvent(approval.eventType);
+      const roleIndex = eventHierarchy.indexOf(role);
+      if (roleIndex === -1){
+        return false;
+      }
+      return eventHierarchy.slice(0, roleIndex).every((prevRole) => {
         const prevApproval = approval.approvals.find((app) => app.role === prevRole);
         return prevApproval && prevApproval.status === "Approved";
       });
@@ -1062,7 +1218,7 @@ export const editEventDetails = async (req, res) => {
       "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
       "eventVenue", "sourceOfBudget", "estimatedBudget", "nameOfTheOrganizer", "designation",
       "email", "phoneNumber", "requirements", "anyAdditionalAmenities", "eventDescription",
-      "internalParticipants", "externalParticipants", "listofCollaboratingOrganizations", "budgetBreakup"
+      "internalParticipants", "externalParticipants", "listOfCollaboratingOrganizations", "budgetBreakup"
     ];
 
     // Track changes for version history BEFORE updating
@@ -1233,7 +1389,7 @@ export const closeEvent = async (req, res) => {
   try {
     // Find the user and check role
     const user = await User.findById(userID);
-    if (!user || !["ARSW", "associate-dean", "dean"].includes(user.role)) {
+    if (!user || !["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(user.role)) {
       return res.status(403).json({ message: "Only ARSW, associate-dean or dean can close events." });
     }
 
@@ -1255,10 +1411,10 @@ export const closeEvent = async (req, res) => {
     // Check if event has ended
     const currentDate = new Date();
     const endDate = new Date(event.endDate);
-    const hundredDaysBefore = new Date(endDate);
-    hundredDaysBefore.setDate(endDate.getDate() - 100);
-    console.log(hundredDaysBefore);
-    if (currentDate < hundredDaysBefore) {
+    // const hundredDaysBefore = new Date(endDate);
+    // hundredDaysBefore.setDate(endDate.getDate() - 100);
+    // console.log(hundredDaysBefore);
+    if (currentDate < endDate) {
       return res.status(400).json({ 
         message: "Cannot close an event that hasn't ended yet. Event end date is " + endDate.toLocaleDateString() 
       });
@@ -1315,7 +1471,7 @@ export const raiseQueryForApprovedEvent = async (req, res) => {
 
     // Find the user and check role
     const user = await User.findById(userID);
-    if (!user || !["ARSW", "associate-dean", "dean"].includes(user.role)) {
+    if (!user || !["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(user.role)) {
       return res.status(403).json({ message: "Only ARSW, associate-dean, or dean can raise queries for approved events." });
     }
 

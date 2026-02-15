@@ -382,7 +382,7 @@ const createHTMLContent = (formData, headerDataUrl) => {
     </div></div>
     
     <div class="field">
-      5) Estimated Budget: ₹ ${Number(formData.estimatedBudget || 0).toFixed(2)} 
+      5) Estimated Budget: ₹ ${Number(formData.proposedEstimatedBudget?formData.proposedEstimatedBudget:(formData.estimatedBudget || 0)).toFixed(2)} 
       (Please provide a breakup below)
     </div>
     
@@ -408,7 +408,7 @@ const createHTMLContent = (formData, headerDataUrl) => {
         `).join('')}
         <tr style="font-weight: 600;">
           <td colspan="2" class="text-right">TOTAL (₹)</td>
-          <td class="text-right">₹ ${Number(formData.budgetBreakup && formData.budgetBreakup.length > 0 ? formData.estimatedBudget:formData.estimatedBudget).toFixed(2)}</td>
+          <td class="text-right">₹ ${Number(formData.proposedEstimatedBudget?formData.proposedEstimatedBudget:(formData.budgetBreakup && formData.budgetBreakup.length > 0 ? formData.estimatedBudget:formData.estimatedBudget)).toFixed(2)}</td>
         </tr>
       </tbody>
     </table>
