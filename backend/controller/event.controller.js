@@ -196,7 +196,8 @@ export const applyForEventApproval = async (req, res) => {
         await sendEmail(
           categoryEmail,
           `Event Approval Needed: ${eventName}`,
-          `A new ${category} event approval request has been submitted. Please review it at your earliest convenience.`
+          `A new ${category} event approval request has been submitted. Please review it at your earliest convenience.
+          Please visit https://swevents.iitdh.ac.in to review the event.`
         );
         console.log(`Email sent successfully to ${categoryEmail} for ${category} event approval.`);
       } catch (emailError) {
@@ -596,7 +597,8 @@ export const approveApplication = async (req, res) => {
       sendEmail(
         `${getEmailForRole(nextRole)}`, // Replace with actual email
         `Event Approval Needed: ${eventApproval.eventName}`,
-        `The event "${eventApproval.eventName}" has been recommended by ${role}. It is now pending your review and approval.`
+        `The event "${eventApproval.eventName}" has been recommended by ${role}. It is now pending your review and approval.
+        Please visit https://swevents.iitdh.ac.in to review the event.`
       ); 
   }
 
@@ -667,7 +669,8 @@ export const handleApprovalStatus = async (req, res) => {
           await sendEmail(
             nextRoleEmail,
             `Event Approval Needed: ${eventApproval.eventName}`,
-            `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.`
+            `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.
+            Please visit https://swevents.iitdh.ac.in to review the event.`
           );
           console.log(`Notification email sent to ${nextRole} at ${nextRoleEmail}`);
         } catch (emailError) {
@@ -817,7 +820,7 @@ export const raiseQuery = async (req, res) => {
 
 Query: ${queryText}
 
-Please log into the application to respond to this query.
+Please log into https://swevents.iitdh.ac.in to respond to this query.
 
 Event Details:
 - Event Name: ${eventApproval.eventName}
@@ -921,7 +924,7 @@ export const replyToQuery = async (req, res) => {
 Original Query: ${query.queryText}
 Response: ${response}
 
-You can now review the event application again and take appropriate action.
+Please visit https://swevents.iitdh.ac.in review the event application again and take appropriate action.
 
 Best regards,
 Event Approval Committee`
@@ -1512,7 +1515,7 @@ export const raiseQueryForApprovedEvent = async (req, res) => {
 
 Query: ${queryText}
 
-Please log into the application to respond to this query.
+Please log into https://swevents.iitdh.ac.in to respond to this query.
 
 Event Details:
 - Event Name: ${event.eventName}
