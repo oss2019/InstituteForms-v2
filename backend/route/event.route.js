@@ -21,6 +21,8 @@ import {
   getPendingApprovalsWithFilters,
   getEditHistory,
   editBudget,
+  getFullyApprovedEvents,
+  getAllInitiatedEvents,
 } from "../controller/event.controller.js";
 
 const router = express.Router();
@@ -85,4 +87,7 @@ router.post("/approved/filtered", getApprovedApplicationsWithFilters);
 // Get pending applications with filters and search (POST)
 router.post("/pending/filtered", getPendingApprovalsWithFilters);
 
+// Students Welfare Office routes
+router.post("/swo/approved-events",getFullyApprovedEvents);
+router.post("/swo/initiated-events",getAllInitiatedEvents);
 export default router;

@@ -72,6 +72,7 @@ const roleEmails = [
   { role: "associate-dean", email: "adean.sw.gymkhana@iitdh.ac.in" },
   { role: "associate-dean-socio-cultural", email: "adean.sw.sca@iitdh.ac.in" },
   { role: "dean", email: "dean.sw@iitdh.ac.in" },
+  { role: "students-welfare-office", email: "studentswelfare.office@iitdh.ac.in"}
 ];
 
 const getEmailForRole = (role) => {
@@ -335,6 +336,88 @@ export const getInitiatedApplications = async (req,res) => {
   }
 };
 
+export const getAllInitiatedEvents = async (req, res) => {
+  const { semester, academicYear, search, page = 1, limit = 10 } = req.body;
+  try{
+    let query = {
+      status: { $ne: "Closed" }
+    };
+    if (semester) query.semester = semester;
+    if (academicYear) query.academicYear = academicYear;
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { eventName: searchRegex },
+        { clubName: searchRegex },
+        { nameOfTheOrganizer: searchRegex },
+        { eventVenue: searchRegex },
+        { eventDescription: searchRegex }
+      ];
+    }
+    let events = await EventApproval.find(query);
+    events = events.filter(event => {
+      const hasRejection = event.approvals.some(approval => approval.status === "Rejected");
+      const isFullyApproved = event.approvals.every(approval => approval.status === "Approved");
+      return !hasRejection && !isFullyApproved;
+    });
+    const totalCount = events.length;
+    const skip = (page - 1) * limit;
+    const paginated = events.sort((a, b) => new Date(b.startDate) - new Date(a.startDate)).slice(skip, skip + parseInt(limit));
+    res.status(200).json({
+      applications: paginated,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalCount/limit),
+        totalCount,
+        hasNext: skip + paginated.length < totalCount,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching initiated events for SWO:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const getFullyApprovedEvents = async (req, res) => {
+  const { semester, academicYear, search, page = 1, limit = 10 } = req.body;
+  try{
+    let query = {
+      status: {$ne: "Closed"}
+    };
+    if (semester) query.semester = semester;
+    if (academicYear) query.academicYear = academicYear;
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { eventName: searchRegex },
+        { clubName: searchRegex },
+        { nameOfTheOrganizer: searchRegex },
+        { eventVenue: searchRegex },
+        { eventDescription: searchRegex }
+      ];
+    }
+    let events = await EventApproval.find(query);
+    events = events.filter(event => event.approvals.every(approval => approval.status === "Approved"));
+    const totalCount = events.length;
+    const skip = (page - 1) * limit;
+    const paginated = events.sort((a, b) => new Date(b.startDate) - new Date(a.startDate)).slice(skip, skip + parseInt(limit));
+    res.status(200).json({
+      applications: paginated,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(totalCount/limit),
+        totalCount,
+        hasNext: skip + paginated.length < totalCount,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching fully approved events:", error);
+    res.status(500).json({ message: "Internal Server Error." });
+  }
+};
+
 export const getPendingApprovals = async (req, res) => {
   const { role, category } = req.body;
 
@@ -523,7 +606,7 @@ export const getClosedApplications = async (req, res) => {
     }
 
     // Only allow specific roles to view closed events
-    if (!["associate-dean", "associate-dean-socio-cultural", "dean", "ARSW"].includes(role)) {
+    if (!["associate-dean", "associate-dean-socio-cultural", "dean", "ARSW", "students-welfare-office"].includes(role)) {
       return res.status(403).json({ message: "Only associate-dean, dean, and ARSW can view closed events." });
     }
 
@@ -1392,7 +1475,7 @@ export const closeEvent = async (req, res) => {
   try {
     // Find the user and check role
     const user = await User.findById(userID);
-    if (!user || !["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(user.role)) {
+    if (!user || !["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean", "students-welfare-office"].includes(user.role)) {
       return res.status(403).json({ message: "Only ARSW, associate-dean or dean can close events." });
     }
 
@@ -1474,7 +1557,7 @@ export const raiseQueryForApprovedEvent = async (req, res) => {
 
     // Find the user and check role
     const user = await User.findById(userID);
-    if (!user || !["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(user.role)) {
+    if (!user || !["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean", "students-welfare-office"].includes(user.role)) {
       return res.status(403).json({ message: "Only ARSW, associate-dean, or dean can raise queries for approved events." });
     }
 

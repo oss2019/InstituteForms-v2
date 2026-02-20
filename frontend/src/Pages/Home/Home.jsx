@@ -29,8 +29,9 @@ const Home = () => {
         const token = result.data.token;
 
         const allowedRolesForStaff = [
-          "president", "treasurer", "ARSW", 
-          "associate-dean", "general-secretary", "dean"
+          "president", "treasurer", "ARSW",
+          "associate-dean", "associate-dean-socio-cultural", "general-secretary", "dean",
+          "students-welfare-office"
         ];
 
         const loginUser = (userRole) => {
@@ -49,8 +50,10 @@ const Home = () => {
                   console.error("Error fetching user data:", error);
                   toast.error("Failed to load user data");
               });
-              
-            setTimeout(() => navigate(`/${userRole}`), 1000);
+
+            // Route students-welfare-office to their own dashboard
+            const destination = role === "students-welfare-office" ? "swo" : userRole;
+            setTimeout(() => navigate(`/${destination}`), 1000);
         };
 
         if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
