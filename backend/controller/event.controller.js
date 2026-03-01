@@ -94,7 +94,6 @@ export const applyForEventApproval = async (req, res) => {
       userID,
       eventName,
       partOfGymkhanaCalendar,
-      clubName,
       startDate,
       endDate,
       eventVenue,
@@ -122,6 +121,8 @@ export const applyForEventApproval = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found. Please log in again." });
     }
+
+    const clubName = user.name;
 
     // Set eventType based on user's type if club-secretary, else fallback to req.body.eventType
     let eventType = req.body.eventType || null;

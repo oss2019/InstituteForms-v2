@@ -41,6 +41,7 @@ const Home = () => {
             localStorage.setItem("email", email);
             localStorage.setItem("role", role);
             localStorage.setItem("category", category);
+            localStorage.setItem("name", name || "");
 
             axios.post(`${apiUrl}/user/details`, { email: email })
               .then(response => {
