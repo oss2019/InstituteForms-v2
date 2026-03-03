@@ -5,159 +5,102 @@
   box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 
-.card-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.event-card {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 12px 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  min-height: 60px;
+/* Table Styling */
+.events-table {
   width: 100%;
-  border-left: 5px solid var(--border-color);
-  gap: 12px;
+  border-collapse: collapse;
+  background-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
 }
-.event-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  cursor: pointer;
-  background-color: #e9e5e5;
-} 
 
-.event-card > h3 {
-  margin: 0;
-  min-width: 0;
-  flex: 0 0 250px;
-  font-size: 1.1rem;
-  color: #333;
+.events-table thead {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.events-table th {
+  padding: 14px 16px;
+  text-align: left;
   font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.events-table tbody tr {
+  border-bottom: 1px solid #dee2e6;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.events-table tbody tr:hover {
+  background-color: #ebe7e7;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.events-table td {
+  padding: 14px 16px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.event-row {
+  border-left: 5px solid var(--border-color);
+}
+
+/* Status Colors - Left Border */
+.event-row.rejected {
+  border-left-color: #dc3545;
+}
+
+.event-row.pending {
+  border-left-color: #ffc107;
+}
+
+.event-row.approved {
+  border-left-color: #198754;
+}
+
+.event-row.query {
+  border-left-color: #0dcaf0;
+}
+
+/* Column Widths */
+.event-name {
+  font-weight: 600;
+  color: #333;
+  max-width: 300px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.event-card-info {
-  display: flex;
-  flex: 0 1 auto;
-  gap: 15px;
-  min-width: 0;
-  flex-wrap: nowrap;
-  align-items: center;
-  overflow: hidden;
-  margin-left: auto;
-}
-
-.event-card-info p {
-  margin: 0;
-  color: #666;
-  font-size: 0.85rem;
-  flex: 0 0 auto;
+.event-date {
   white-space: nowrap;
 }
 
-.event-card-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  flex: 0 0 auto;
-  margin-left: 12px;
-}
-
-.event-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-}
-
-/* Status Colors */
-.event-card.rejected { border-left-color: #dc3545; }
-.event-card.pending { border-left-color: #ffc107; }
-.event-card.approved { border-left-color: #198754; }
-.event-card.query { border-left-color: #0dcaf0; }
-
-.event-card p {
-  color: #666;
-  font-size: 0.9rem;
-  margin: 0;
-}
-
-.event-card strong {
-  color: #333;
+.event-status {
   font-weight: 600;
+  text-align: left;
 }
 
-@media (max-width: 1200px) {
-  .event-card {
-    flex-wrap: wrap;
-    min-height: auto;
-  }
-
-  .event-card > h3 {
-    flex: 0 0 200px;
-  }
-
-  .event-card-info {
-    flex-basis: auto;
-    gap: 12px;
-  }
-
-  .event-card-actions {
-    flex-basis: auto;
-  }
-}
-
-@media (max-width: 992px) {
-  .event-card > h3 {
-    flex: 0 0 150px;
-    font-size: 0.95rem;
-  }
-
-  .event-card-info {
-    gap: 10px;
-  }
-
-  .event-card-info p {
-    font-size: 0.8rem;
-  }
+.event-ref {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #555;
 }
 
 @media (max-width: 768px) {
-  .event-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-    min-height: auto;
+  .events-table {
+    font-size: 0.85rem;
+  }
+
+  .events-table th,
+  .events-table td {
     padding: 10px 12px;
   }
 
-  .event-card > h3 {
-    flex: 0 0 100%;
-    font-size: 0.95rem;
-    margin-bottom: 4px;
-  }
-
-  .event-card-info {
-    flex: 0 0 100%;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .event-card-info p {
-    font-size: 0.8rem;
-    white-space: normal;
-  }
-
-  .event-card-actions {
-    flex: 0 0 100%;
-    justify-content: flex-start;
+  .event-name {
+    max-width: 150px;
   }
 }

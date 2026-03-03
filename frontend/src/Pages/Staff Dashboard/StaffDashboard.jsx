@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import toast, { Toaster } from "react-hot-toast";
 
 
@@ -11,10 +11,20 @@ import { FiMail, FiCheckSquare, FiLogOut, FiX, FiMenu } from 'react-icons/fi';
 import './StaffDashboard.css';
 
 function StaffDashboard() {
-  const [activeSection, setActiveSection] = useState('pendingApprovals');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [role, setRole] = useState('Staff');
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Determine active section based on current route
+  const getActiveSectionFromRoute = () => {
+    if (location.pathname.includes('/staff/processed')) {
+      return 'processedApplications';
+    }
+    return 'pendingApprovals'; // Default to pending
+  };
+
+  const activeSection = getActiveSectionFromRoute();
 
   // Fetches the user's role from localStorage on component mount
   useEffect(() => {
@@ -41,8 +51,12 @@ function StaffDashboard() {
   };
 
   const handleSectionChange = (newSection) => {
-    setActiveSection(newSection);
     setSidebarOpen(false);
+    if (newSection === 'pendingApprovals') {
+      navigate('/staff/pending');
+    } else if (newSection === 'processedApplications') {
+      navigate('/staff/processed');
+    }
   };
   
   // Navigation items are now defined in an array for clean rendering

@@ -106,15 +106,16 @@ const EventDashboard = () => {
   const handleViewDetails = (eventId) => navigate(`/event-details/${eventId}`);
 
   const renderEventCard = (event) => (
-    <div key={event._id} className={`event-card ${getOverallStatus(event.approvals).toLowerCase()}`} onClick={() => handleViewDetails(event._id)}>
-        <h3>{event.eventName}</h3>
-        <div className="event-card-info">
-          <p><strong>Club:</strong> {event.clubName}</p>
-          <p><strong>Date:</strong> {new Date(event.startDate).toLocaleDateString()}</p>
-          <p><strong>Status:</strong> <span style={{fontWeight: 'bold', color: getStatusColor(getOverallStatus(event.approvals))}}>{getOverallStatus(event.approvals)}</span></p>
-          <p><strong>Reference No:</strong> {event.referenceNo || "809898808ex"}</p>
-        </div>
-    </div>
+    <tr key={event._id} className={`event-row ${getOverallStatus(event.approvals).toLowerCase()}`} onClick={() => handleViewDetails(event._id)}>
+      <td className="event-name">{event.eventName}</td>
+      <td className="event-date">{new Date(event.startDate).toLocaleDateString()}</td>
+      <td className="event-status">
+        <span style={{fontWeight: 'bold', color: getStatusColor(getOverallStatus(event.approvals))}}>
+          {getOverallStatus(event.approvals)}
+        </span>
+      </td>
+      <td className="event-ref">{event.referenceNo || "809898808ex"}</td>
+    </tr>
   );
 
   const getStatusColor = (status) => {
@@ -212,9 +213,19 @@ const EventDashboard = () => {
                     {semester} <Badge bg="light" text="dark" className="ms-2">{semesterEvents.length}</Badge>
                   </Accordion.Header>
                   <Accordion.Body>
-                    <div className="card-container">
-                      {semesterEvents.map(renderEventCard)}
-                    </div>
+                    <table className="events-table">
+                      <thead>
+                        <tr>
+                          <th>Event Name</th>
+                          <th>Date</th>
+                          <th>Status</th>
+                          <th>Reference No</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {semesterEvents.map(renderEventCard)}
+                      </tbody>
+                    </table>
                   </Accordion.Body>
                 </Accordion.Item>
               ))}

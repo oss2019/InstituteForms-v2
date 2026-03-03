@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './ProcessedEventApplications.css';
-import { Card, Container, Row, Col, Form, Button, InputGroup, Accordion, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, InputGroup, Accordion, Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 
 const StaffDashboard = () => {
@@ -18,7 +18,10 @@ const StaffDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState('');
-  const [activeTab, setActiveTab] = useState('approved');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Load activeTab from localStorage, default to 'approved'
+    return localStorage.getItem('processedAppActiveTab') || 'approved';
+  });
   
   // Filter states
   const [selectedSemester, setSelectedSemester] = useState('');
@@ -59,6 +62,11 @@ const StaffDashboard = () => {
 
     fetchSemesterOptions();
   }, []);
+
+  // Save activeTab to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('processedAppActiveTab', activeTab);
+  }, [activeTab]);
 
   // Fetch applications with filters
   const fetchApplications = async (page = 1, resetPage = false) => {
@@ -265,28 +273,27 @@ const StaffDashboard = () => {
   };
 
   const renderEventCard = (application) => (
-    <Col md={6} key={application._id}>
-      <Card 
-        className={`dashboard-card mb-4 ${getOverallStatus(application.approvals).toLowerCase()}`}
-        style={{ cursor: 'pointer' }}
-        onClick={() => handleViewDetails(application._id)}
-      >
-        <Card.Body>
-          <Card.Title>{`${application.eventType} Event` || 'Unknown Event'}</Card.Title>
-          <Card.Text>
-            <strong>Organizer:</strong> {application.nameOfTheOrganizer || 'Unknown Organizer'} <br />
-            <strong>Email:</strong> {application.email || 'No Email Provided'} <br />
-            <strong>Event Name:</strong> {application.eventName} <br />
-            <strong>Venue:</strong> {application.eventVenue || 'Venue not specified'} <br />
-            <strong>Date:</strong> {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()} <br />
-            <strong>Semester:</strong> {application.semester || 'Not specified'} <br />
-            <strong>Current Status:</strong> {getOverallStatus(application.approvals)} <br />
-            <strong>My Comment:</strong> {application.approvals.find(app => app.role === userRole)?.comment || 'No comment'}
-          </Card.Text>
-        </Card.Body>
-      </Card>
-    </Col>
+    <tr key={application._id} className={`event-row ${getOverallStatus(application.approvals).toLowerCase()}`} onClick={() => handleViewDetails(application._id)}>
+      <td className="event-name">{application.eventName}</td>
+      <td className="event-organizer">{application.nameOfTheOrganizer || 'Unknown'}</td>
+      <td className="event-date">{new Date(application.startDate).toLocaleDateString()}</td>
+      <td className="event-status">
+        <span style={{fontWeight: 'bold', color: getStatusColor(getOverallStatus(application.approvals))}}>
+          {getOverallStatus(application.approvals)}
+        </span>
+      </td>
+    </tr>
   );
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'Approved': return '#198754';
+      case 'Rejected': return '#dc3545';
+      case 'Pending': return '#ffc107';
+      case 'Query': return '#0dcaf0';
+      default: return '#666';
+    }
+  };
 
   const renderGroupedEvents = (groupedEvents, title) => (
     <>
@@ -299,9 +306,19 @@ const StaffDashboard = () => {
                 {semester} ({events.length} event{events.length !== 1 ? 's' : ''})
               </Accordion.Header>
               <Accordion.Body>
-                <Row>
-                  {events.map(renderEventCard)}
-                </Row>
+                <table className="events-table">
+                  <thead>
+                    <tr>
+                      <th>Event Name</th>
+                      <th>Organizer</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {events.map(renderEventCard)}
+                  </tbody>
+                </table>
               </Accordion.Body>
             </Accordion.Item>
           ))}

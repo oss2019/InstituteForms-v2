@@ -26,6 +26,22 @@ function App() {
             }
           />
           <Route
+            path="/staff/pending"
+            element={
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean"]}>
+                <StaffDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/processed"
+            element={
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean"]}>
+                <StaffDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/staff"
             element={
               <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean"]}>

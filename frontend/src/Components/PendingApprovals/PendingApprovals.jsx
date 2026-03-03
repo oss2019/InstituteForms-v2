@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import "./PendingApprovals.css";
 
 import { 
-  Card, 
   Button, 
   Row, 
   Col, 
@@ -28,7 +27,10 @@ const PendingApprovals = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState('');
-  const [activeTab, setActiveTab] = useState('initiated');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Load activeTab from localStorage, default to 'initiated'
+    return localStorage.getItem('pendingApprovalsActiveTab') || 'initiated';
+  });
 
   // Counters for tabs (separate from filtered data)
   const [initiatedCount, setInitiatedCount] = useState(0);
@@ -70,6 +72,11 @@ const PendingApprovals = () => {
     const storedUserRole = localStorage.getItem("role");
     setUserRole(storedUserRole);
   }, []);
+
+  // Save activeTab to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('pendingApprovalsActiveTab', activeTab);
+  }, [activeTab]);
 
   // Fetch semester options
   useEffect(() => {
@@ -415,70 +422,37 @@ const PendingApprovals = () => {
     return "Fully Approved";
   };
 
-  // Render event card
+  // Render event card as table row
   const renderEventCard = (approval) => {
     const myApproval = approval.approvals?.find(app => app.role === userRole);
     const myStatus = myApproval?.status || "Pending";
     const isInitiatedTab = activeTab === 'initiated';
-    const canTakeAction = !isInitiatedTab && myStatus === "Pending";
     const hierarchyStatus = getCurrentHierarchyStatus(approval.approvals);
 
     return (
-      <Col xl={6} md={12} key={approval._id} className="mb-3">
-        <Card className="dashboard-card h-100">
-          <Card.Body className="d-flex flex-column">
-            <Card.Title>{approval.eventName || "Untitled Event"}</Card.Title>
-            <Card.Subtitle className="mb-2 text-muted">{approval.eventType} Event</Card.Subtitle>
-            <p className="card-text mb-1"><strong>Organizer:</strong> {approval.nameOfTheOrganizer || "N/A"}</p>
-            <p className="card-text mb-1"><strong>Venue:</strong> {approval.eventVenue || "N/A"}</p>
-            <p className="card-text mb-3"><strong>Date:</strong> {new Date(approval.startDate).toLocaleDateString()}</p>
-            
-            {isInitiatedTab && (
-              <p className="card-text mb-3">
-                <Badge bg="info" className="p-2">{hierarchyStatus}</Badge>
-              </p>
-            )}
-            
-            <div className="mt-auto d-flex align-items-center gap-2 flex-wrap">
-              <Button size="sm" variant="primary" onClick={() => handleViewDetails(approval._id)}>
-                View Details
-              </Button>
-              
-              {isInitiatedTab ? (
-                <Button 
-                  size="sm" 
-                  variant="warning" 
-                  onClick={() => handleApprovalClick(approval, "Query")}
-                >
-                  Raise Query
-                </Button>
-              ) : myStatus === "Query" ? (
-                <Badge pill bg="info" text="dark" className="p-2">Query Raised</Badge>
-              ) : canTakeAction && (
-                <>
-                  <Button size="sm" variant="success" onClick={() => handleApprovalClick(approval, "Approved")}>
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="danger" onClick={() => handleApprovalClick(approval, "Rejected")}>
-                    Reject
-                  </Button>
-                  {userRole !== "club-secretary" && (
-                    <Button size="sm" variant="warning" onClick={() => handleApprovalClick(approval, "Query")}>
-                      Raise Query
-                    </Button>
-                  )}
-                </>
-              )}
-            </div>
-          </Card.Body>
-          {!isInitiatedTab && (
-            <Card.Footer>
-              <small className="text-muted">My Status: <strong>{myStatus}</strong></small>
-            </Card.Footer>
+      <tr key={approval._id} className={`event-row ${myStatus.toLowerCase()}`} onClick={() => handleViewDetails(approval._id)}>
+        <td className="event-name">{approval.eventName || "Untitled Event"}</td>
+        <td className="event-date">{new Date(approval.startDate).toLocaleDateString()}</td>
+        <td className="event-status">
+          {isInitiatedTab ? (
+            <span style={{fontSize: '0.85rem'}}>{hierarchyStatus}</span>
+          ) : (
+            <span style={{fontWeight: 'bold', color: getStatusColor(myStatus)}}>{myStatus}</span>
           )}
-        </Card>
-      </Col>
+        </td>
+        <td className="event-ref">{approval.referenceNo || "N/A"}</td>
+      </tr>
     );
+  };
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'Approved': return '#198754';
+      case 'Rejected': return '#dc3545';
+      case 'Pending': return '#ffc107';
+      case 'Query': return '#0dcaf0';
+      default: return '#666';
+    }
   };
   
   return (
@@ -614,7 +588,19 @@ const PendingApprovals = () => {
                     {groupKey} ({events.length} event{events.length !== 1 ? 's' : ''})
                   </Accordion.Header>
                   <Accordion.Body>
-                    <Row>{events.map(renderEventCard)}</Row>
+                    <table className="events-table">
+                      <thead>
+                        <tr>
+                          <th>Event Name</th>
+                          <th>Date</th>
+                          <th>Status</th>
+                          <th>Reference No</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {events.map(renderEventCard)}
+                      </tbody>
+                    </table>
                   </Accordion.Body>
                 </Accordion.Item>
               ))}
