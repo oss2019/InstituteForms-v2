@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from "react-hot-toast";
 
-import ProfilePage from '../../Components/ProfilePage/ProfilePage.jsx'; 
 import EventForm from '../../Components/EventForm/EventForm.jsx';
 import EventDashboard from '../../Components/StudentDashboard/EventDashboard.jsx'; 
 
-import { FiGrid, FiUser, FiPlusSquare, FiLogOut, FiX, FiMenu } from 'react-icons/fi';
+import { FiGrid, FiPlusSquare, FiLogOut, FiX, FiMenu } from 'react-icons/fi';
 import './StudentDashboard.css';
 
 function StudentDashboard() {
@@ -29,7 +28,6 @@ function StudentDashboard() {
   
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <FiGrid />, action: () => handleSectionChange('dashboard') },
-    { id: 'profile', label: 'Profile', icon: <FiUser />, action: () => handleSectionChange('profile') },
     { id: 'eventForm', label: 'Submit Event Proposal', icon: <FiPlusSquare />, action: () => handleSectionChange('eventForm') },
     { id: 'logout', label: 'Logout', icon: <FiLogOut />, action: handleLogout, className: 'logout-nav-item' }
   ];
@@ -38,8 +36,6 @@ function StudentDashboard() {
     switch (activeSection) {
       case 'dashboard':
         return <EventDashboard />;
-      case 'profile':
-        return <ProfilePage />;
       case 'eventForm':
         return <EventForm />;
       default:

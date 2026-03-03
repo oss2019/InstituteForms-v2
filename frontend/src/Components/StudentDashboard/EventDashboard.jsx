@@ -106,16 +106,26 @@ const EventDashboard = () => {
   const handleViewDetails = (eventId) => navigate(`/event-details/${eventId}`);
 
   const renderEventCard = (event) => (
-    <div key={event._id} className={`event-card ${getOverallStatus(event.approvals).toLowerCase()}`}>
+    <div key={event._id} className={`event-card ${getOverallStatus(event.approvals).toLowerCase()}`} onClick={() => handleViewDetails(event._id)}>
         <h3>{event.eventName}</h3>
-        <p><strong>Club:</strong> {event.clubName}</p>
-        <p><strong>Dates:</strong> {new Date(event.startDate).toLocaleDateString()}</p>
-        <p><strong>Status:</strong> {getOverallStatus(event.approvals)}</p>
-        <Button variant="primary" onClick={() => handleViewDetails(event._id)} className="w-100 mt-auto">
-          View Details
-        </Button>
+        <div className="event-card-info">
+          <p><strong>Club:</strong> {event.clubName}</p>
+          <p><strong>Date:</strong> {new Date(event.startDate).toLocaleDateString()}</p>
+          <p><strong>Status:</strong> <span style={{fontWeight: 'bold', color: getStatusColor(getOverallStatus(event.approvals))}}>{getOverallStatus(event.approvals)}</span></p>
+          <p><strong>Reference No:</strong> {event.referenceNo || "809898808ex"}</p>
+        </div>
     </div>
   );
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'Approved': return '#198754';
+      case 'Rejected': return '#dc3545';
+      case 'Pending': return '#ffc107';
+      case 'Query': return '#0dcaf0';
+      default: return '#666';
+    }
+  };
 
   return (
     // Note: The outer container is gone. This component fits into the main layout.

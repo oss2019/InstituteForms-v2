@@ -89,7 +89,7 @@ export const googleLogin = async (req, res) => {
 
     const payload = ticket.getPayload();
     const { email, name, picture } = payload;
-
+console.log("Google Login Payload:", payload);
     // Find or create a user in the database
     let user = await User.findOne({ email });
     if (!user) {
