@@ -1,10 +1,8 @@
-// Import necessary dependencies from React, libraries, and local files.
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import "./PendingApprovals.css"; // Custom styles for this component
+import "./PendingApprovals.css";
 
-// Import UI components from react-bootstrap
 import { 
   Card, 
   Button, 
@@ -15,33 +13,31 @@ import {
   Container, 
   Accordion, 
   Badge,
-  Modal, // Import Modal for a better user experience
-  Spinner // Import Spinner for a better loading indicator
+  Modal,
+  Spinner
 } from "react-bootstrap";
 
-/**
- * PendingApprovals Component
- * * This component fetches, displays, and manages event applications that are awaiting approval.
- * It provides functionalities for filtering, sorting, searching, and taking action (Approve, Reject, Query)
- * on these applications, tailored to the logged-in user's role.
- */
 const PendingApprovals = () => {
-  // --- STATE MANAGEMENT ---
-
-  // Data state
-  const [pendingApprovals, setPendingApprovals] = useState([]); // Stores the raw list of applications from the server
-  const [displayApprovals, setDisplayApprovals] = useState([]); // Stores the filtered and sorted list for display
-  const [groupedDisplay, setGroupedDisplay] = useState({});   // Stores applications grouped by semester for the accordion view
+  // Data state - Initialize with empty arrays
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [initiatedApprovals, setInitiatedApprovals] = useState([]);
+  const [displayApprovals, setDisplayApprovals] = useState([]);
+  const [groupedDisplay, setGroupedDisplay] = useState({});
 
   // UI/UX state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState('');
+  const [activeTab, setActiveTab] = useState('initiated');
+
+  // Counters for tabs (separate from filtered data)
+  const [initiatedCount, setInitiatedCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [comment, setComment] = useState("");
-  const [approvalAction, setApprovalAction] = useState(null); // 'Approved', 'Rejected', or 'Query'
+  const [approvalAction, setApprovalAction] = useState(null);
   const [selectedApplication, setSelectedApplication] = useState(null);
 
   // Filter & Sort state
@@ -58,15 +54,24 @@ const PendingApprovals = () => {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState({});
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 0,
+    totalCount: 0,
+    hasNext: false,
+    hasPrev: false
+  });
 
-  // Refs and Hooks
-  const searchDebounceRef = useRef(null); // Ref for debouncing search input
+  const searchDebounceRef = useRef(null);
   const navigate = useNavigate();
 
-  // --- DATA FETCHING & SIDE EFFECTS ---
+  // Set user role on mount
+  useEffect(() => {
+    const storedUserRole = localStorage.getItem("role");
+    setUserRole(storedUserRole);
+  }, []);
 
-  // Effect to fetch semester options for the filter dropdown on component mount.
+  // Fetch semester options
   useEffect(() => {
     const fetchSemesterOptions = async () => {
       try {
@@ -80,7 +85,7 @@ const PendingApprovals = () => {
             category: storedUserRole === 'general-secretary' ? userCategory : undefined,
           }
         });
-        setSemesterOptions(response.data);
+        setSemesterOptions(response.data || []);
       } catch (error) {
         console.error('Error fetching semester options:', error);
       }
@@ -88,12 +93,12 @@ const PendingApprovals = () => {
     fetchSemesterOptions();
   }, []);
 
-  // Main data fetching function for pending approvals. Called on mount and on page change.
-  const fetchPendingApprovals = async (page = 1) => {
-    setLoading(true);
+  // Fetch pending approvals
+  const fetchPendingApprovals = async (page = 1, updateDisplay = true) => {
+    if (updateDisplay) setLoading(true);
+    setError(null);
     try {
       const storedUserRole = localStorage.getItem("role");
-      setUserRole(storedUserRole);
       const userCategory = localStorage.getItem("category");
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
       
@@ -101,41 +106,124 @@ const PendingApprovals = () => {
         role: storedUserRole,
         category: storedUserRole === "general-secretary" ? userCategory : undefined,
         page,
-        limit: 10 // Set a limit for pagination
+        limit: 10
       };
 
       const response = await axios.post(`${apiUrl}/event/pending/filtered`, requestData);
       
-      const applications = response.data.applications;
+      const applications = response.data?.applications || [];
       setPendingApprovals(applications);
-      setDisplayApprovals(applications); // Initially, display matches the fetched data
-      setPagination(response.data.pagination);
-
-      // Dynamically create event type options from the fetched data
-      const types = Array.from(new Set(applications.map(a => a.eventType).filter(Boolean))).sort();
-      setEventTypeOptions(types);
+      setPendingCount(response.data?.pagination?.totalCount || applications.length);
       
-      // Group the initial data
-      groupBySemester(applications);
+      if (updateDisplay && activeTab === 'pending') {
+        setDisplayApprovals(applications);
+        setPagination(response.data?.pagination || {
+          currentPage: 1,
+          totalPages: 0,
+          totalCount: 0,
+          hasNext: false,
+          hasPrev: false
+        });
+        const types = Array.from(new Set(applications.map(a => a.eventType).filter(Boolean))).sort();
+        setEventTypeOptions(types);
+        groupBySemester(applications);
+      }
 
     } catch (error) {
       console.error("Error fetching pending approvals:", error);
-      setError("Failed to fetch pending approvals. Please try refreshing the page.");
+      if (updateDisplay) {
+        setError("Failed to fetch pending approvals. Please try refreshing the page.");
+      }
+      setPendingApprovals([]);
+      setPendingCount(0);
     } finally {
-      setLoading(false);
+      if (updateDisplay) setLoading(false);
     }
   };
 
-  // Initial fetch when the component mounts.
+  // Fetch initiated approvals (all events in pipeline)
+  const fetchInitiatedApprovals = async (page = 1, updateDisplay = true) => {
+    if (updateDisplay) setLoading(true);
+    setError(null);
+    try {
+      const storedUserRole = localStorage.getItem("role");
+      const userCategory = localStorage.getItem("category");
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      
+      const requestData = {
+        role: storedUserRole,
+        category: storedUserRole === "general-secretary" ? userCategory : undefined,
+        page,
+        limit: 10
+      };
+
+      console.log('📤 Fetching initiated approvals with:', requestData);
+
+      const response = await axios.post(`${apiUrl}/event/initiated`, requestData);
+      
+      console.log('📥 Response received:', response.data);
+
+      const applications = response.data?.applications || [];
+      setInitiatedApprovals(applications);
+      setInitiatedCount(response.data?.pagination?.totalCount || applications.length);
+      
+      if (updateDisplay && activeTab === 'initiated') {
+        setDisplayApprovals(applications);
+        setPagination(response.data?.pagination || {
+          currentPage: 1,
+          totalPages: 0,
+          totalCount: 0,
+          hasNext: false,
+          hasPrev: false
+        });
+        const types = Array.from(new Set(applications.map(a => a.eventType).filter(Boolean))).sort();
+        setEventTypeOptions(types);
+        groupBySemester(applications);
+      }
+
+    } catch (error) {
+      console.error("Error fetching initiated approvals:", error);
+      if (updateDisplay) {
+        setError("Failed to fetch initiated approvals. Please try refreshing the page.");
+      }
+      setInitiatedApprovals([]);
+      setInitiatedCount(0);
+    } finally {
+      if (updateDisplay) setLoading(false);
+    }
+  };
+
+  // Initial fetch - load both tabs' data for counts
   useEffect(() => {
-    fetchPendingApprovals(currentPage);
-  }, []); // Note: We only fetch from the server on mount/page change. Filtering is client-side.
+    const loadInitialData = async () => {
+      setLoading(true);
+      // Fetch both tabs in parallel
+      await Promise.all([
+        fetchInitiatedApprovals(1, activeTab === 'initiated'),
+        fetchPendingApprovals(1, activeTab === 'pending')
+      ]);
+      setLoading(false);
+    };
+    
+    loadInitialData();
+  }, []); // Run only once on mount
 
+  // Fetch data when tab or page changes
+  useEffect(() => {
+    if (activeTab === 'pending') {
+      fetchPendingApprovals(currentPage);
+    } else if (activeTab === 'initiated') {
+      fetchInitiatedApprovals(currentPage);
+    }
+  }, [activeTab, currentPage]);
 
-  // --- HELPER FUNCTIONS ---
-
-  // Helper to group events by semester for the accordion view.
+  // Group by semester helper
   const groupBySemester = (list) => {
+    if (!Array.isArray(list)) {
+      setGroupedDisplay({});
+      return;
+    }
+    
     const grouped = list.reduce((acc, ev) => {
       const key = ev.semester || `Academic Year: ${ev.academicYear || 'N/A'}`;
       if (!acc[key]) {
@@ -147,27 +235,31 @@ const PendingApprovals = () => {
     setGroupedDisplay(grouped);
   };
 
-  // --- FILTERING LOGIC ---
-
-  // This effect applies client-side filters whenever a filter state changes.
-  // It uses a debounce for the search term to prevent re-filtering on every keystroke.
+  // Filtering logic
   useEffect(() => {
-    // Debounce function to delay filter application
     if (searchDebounceRef.current) {
       clearTimeout(searchDebounceRef.current);
     }
 
     searchDebounceRef.current = setTimeout(() => {
-      let result = [...pendingApprovals]; // Start with the original fetched data
+      const sourceData = activeTab === 'pending' ? pendingApprovals : initiatedApprovals;
+      
+      // Ensure sourceData is an array
+      if (!Array.isArray(sourceData)) {
+        setDisplayApprovals([]);
+        groupBySemester([]);
+        return;
+      }
+      
+      let result = [...sourceData];
 
-      // Apply filters sequentially
       if (selectedSemester) result = result.filter(e => e.semester === selectedSemester);
       if (selectedAcademicYear) result = result.filter(e => e.academicYear === selectedAcademicYear);
       if (eventTypeFilter) result = result.filter(e => e.eventType === eventTypeFilter);
       
-      if (statusFilter) {
+      if (statusFilter && activeTab === 'pending') {
         result = result.filter(e => {
-          const myStatus = e.approvals.find(a => a.role === userRole)?.status || 'Pending';
+          const myStatus = e.approvals?.find(a => a.role === userRole)?.status || 'Pending';
           return myStatus === statusFilter;
         });
       }
@@ -187,12 +279,12 @@ const PendingApprovals = () => {
           result.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
           break;
         case 'name-az':
-          result.sort((a, b) => a.eventName.localeCompare(b.eventName));
+          result.sort((a, b) => (a.eventName || '').localeCompare(b.eventName || ''));
           break;
         case 'name-za':
-          result.sort((a, b) => b.eventName.localeCompare(a.eventName));
+          result.sort((a, b) => (b.eventName || '').localeCompare(a.eventName || ''));
           break;
-        default: // 'newest'
+        default:
           result.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
           break;
       }
@@ -200,20 +292,15 @@ const PendingApprovals = () => {
       setDisplayApprovals(result);
       groupBySemester(result);
 
-    }, 300); // 300ms debounce delay
+    }, 300);
 
-    // Cleanup function to clear the timeout
     return () => clearTimeout(searchDebounceRef.current);
-  }, [searchTerm, selectedSemester, selectedAcademicYear, statusFilter, eventTypeFilter, sortOrder, pendingApprovals, userRole]);
-
-
-  // --- EVENT HANDLERS ---
+  }, [searchTerm, selectedSemester, selectedAcademicYear, statusFilter, eventTypeFilter, sortOrder, pendingApprovals, initiatedApprovals, userRole, activeTab]);
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
-    fetchPendingApprovals(newPage);
   };
-  
+
   const clearFilters = () => {
     setSelectedSemester('');
     setSelectedAcademicYear('');
@@ -221,14 +308,12 @@ const PendingApprovals = () => {
     setStatusFilter('');
     setEventTypeFilter('');
     setSortOrder('newest');
-    // The useEffect hook will automatically re-apply filters and show the original data.
   };
 
-  // Handles approving, rejecting, or raising a query on an application.
+  // Handle status update (approve/reject/query)
   const handleStatusUpdate = async () => {
     if (!approvalAction || !selectedApplication) return;
     
-    // Disable form while submitting
     const { _id: applicationId } = selectedApplication;
     
     try {
@@ -239,7 +324,6 @@ const PendingApprovals = () => {
           applicationId, role: userRole, queryText: comment
         });
         
-        // Update local state to reflect the query status immediately
         setPendingApprovals(prev =>
           prev.map(app => {
             if (app._id === applicationId) {
@@ -252,31 +336,34 @@ const PendingApprovals = () => {
           })
         );
 
-      } else { // Handle 'Approved' or 'Rejected'
+      } else {
         await axios.patch(`${apiUrl}/event/${applicationId}/status`, {
           applicationId, role: userRole, status: approvalAction, comment
         });
         
-        // For approve/reject, remove the item from the list immediately for a better UX
         setPendingApprovals(prev => prev.filter(app => app._id !== applicationId));
       }
+      
+      // Refresh both tabs' data to update counts
+      await Promise.all([
+        fetchInitiatedApprovals(currentPage, activeTab === 'initiated'),
+        fetchPendingApprovals(currentPage, activeTab === 'pending')
+      ]);
+      
     } catch (error) {
       console.error("Error updating status:", error);
       setError("Failed to update status. Please try again.");
     } finally {
-      // Close and reset the modal regardless of success or failure
       handleModalCancel();
     }
   };
 
-  // Opens the confirmation modal and sets the context.
   const handleApprovalClick = (application, action) => {
     setSelectedApplication(application);
     setApprovalAction(action);
     setShowModal(true);
   };
 
-  // Closes and resets the modal state.
   const handleModalCancel = () => {
     setShowModal(false);
     setComment("");
@@ -288,7 +375,6 @@ const PendingApprovals = () => {
     navigate(`/event-details/${eventId}`);
   };
 
-  // Helper to get a user-friendly label for the modal title.
   const getActionLabel = (action) => {
     switch (action) {
       case "Approved": return "Approve";
@@ -298,12 +384,44 @@ const PendingApprovals = () => {
     }
   };
 
-  // --- RENDER LOGIC ---
+  // Get current status in hierarchy for initiated tab
+  const getCurrentHierarchyStatus = (approvals) => {
+    if (!Array.isArray(approvals)) return "Unknown Status";
+    
+    const hierarchy = [
+      "club-secretary",
+      "general-secretary",
+      "treasurer",
+      "president",
+      "ARSW",
+      "associate-dean",
+      "associate-dean-socio-cultural",
+      "dean"
+    ];
 
-  // Renders a single event card.
+    for (let role of hierarchy) {
+      const approval = approvals.find(a => a.role === role);
+      if (approval && approval.status === "Pending") {
+        return `Pending at ${role.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+      }
+      if (approval && approval.status === "Query") {
+        return `Query raised by ${role.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+      }
+      if (approval && approval.status === "Rejected") {
+        return `Rejected by ${role.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+      }
+    }
+    
+    return "Fully Approved";
+  };
+
+  // Render event card
   const renderEventCard = (approval) => {
-    const myApproval = approval.approvals.find(app => app.role === userRole);
+    const myApproval = approval.approvals?.find(app => app.role === userRole);
     const myStatus = myApproval?.status || "Pending";
+    const isInitiatedTab = activeTab === 'initiated';
+    const canTakeAction = !isInitiatedTab && myStatus === "Pending";
+    const hierarchyStatus = getCurrentHierarchyStatus(approval.approvals);
 
     return (
       <Col xl={6} md={12} key={approval._id} className="mb-3">
@@ -315,13 +433,28 @@ const PendingApprovals = () => {
             <p className="card-text mb-1"><strong>Venue:</strong> {approval.eventVenue || "N/A"}</p>
             <p className="card-text mb-3"><strong>Date:</strong> {new Date(approval.startDate).toLocaleDateString()}</p>
             
+            {isInitiatedTab && (
+              <p className="card-text mb-3">
+                <Badge bg="info" className="p-2">{hierarchyStatus}</Badge>
+              </p>
+            )}
+            
             <div className="mt-auto d-flex align-items-center gap-2 flex-wrap">
               <Button size="sm" variant="primary" onClick={() => handleViewDetails(approval._id)}>
                 View Details
               </Button>
-              {myStatus === "Query" ? (
+              
+              {isInitiatedTab ? (
+                <Button 
+                  size="sm" 
+                  variant="warning" 
+                  onClick={() => handleApprovalClick(approval, "Query")}
+                >
+                  Raise Query
+                </Button>
+              ) : myStatus === "Query" ? (
                 <Badge pill bg="info" text="dark" className="p-2">Query Raised</Badge>
-              ) : (
+              ) : canTakeAction && (
                 <>
                   <Button size="sm" variant="success" onClick={() => handleApprovalClick(approval, "Approved")}>
                     Approve
@@ -338,21 +471,49 @@ const PendingApprovals = () => {
               )}
             </div>
           </Card.Body>
-          <Card.Footer>
-            <small className="text-muted">My Status: <strong>{myStatus}</strong></small>
-          </Card.Footer>
+          {!isInitiatedTab && (
+            <Card.Footer>
+              <small className="text-muted">My Status: <strong>{myStatus}</strong></small>
+            </Card.Footer>
+          )}
         </Card>
       </Col>
     );
   };
   
-  // Main component render
   return (
     <Container fluid className="list-of-leaves py-4">
-      <h2 className="mb-4">Pending Event Applications</h2>
+      <h2 className="mb-4">Event Applications</h2>
+      
+      {/* Tab Navigation */}
+      <div className="tabs-section mb-4">
+        <div className="btn-group w-100" role="group">
+          <button
+            type="button"
+            className={`btn ${activeTab === 'initiated' ? 'btn-primary' : 'btn-outline-primary'}`}
+            onClick={() => {
+              setActiveTab('initiated');
+              setCurrentPage(1);
+            }}
+          >
+            Initiated ({initiatedCount})
+          </button>
+          <button
+            type="button"
+            className={`btn ${activeTab === 'pending' ? 'btn-warning' : 'btn-outline-warning'}`}
+            onClick={() => {
+              setActiveTab('pending');
+              setCurrentPage(1);
+            }}
+          >
+            Pending My Action ({pendingCount})
+          </button>
+        </div>
+      </div>
       
       {/* Filter Controls Section */}
-      <div className="filters-section mb-4 p-3">
+      <div className="filters-section mb-4 p-3 border rounded bg-light">
+        <h5 className="mb-3">Filter Events</h5>
         <Row className="g-3 align-items-end">
           <Col lg={3} md={6}>
             <Form.Group>
@@ -372,16 +533,18 @@ const PendingApprovals = () => {
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col lg={2} md={6}>
-            <Form.Group>
-              <Form.Label>My Status</Form.Label>
-              <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="">All</option>
-                <option value="Pending">Pending</option>
-                <option value="Query">Query Raised</option>
-              </Form.Select>
-            </Form.Group>
-          </Col>
+          {activeTab === 'pending' && (
+            <Col lg={2} md={6}>
+              <Form.Group>
+                <Form.Label>My Status</Form.Label>
+                <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                  <option value="">All</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Query">Query Raised</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+          )}
           {localStorage.getItem("role") !== 'general-secretary' && (
             <Col lg={2} md={6}>
               <Form.Group>
@@ -410,7 +573,7 @@ const PendingApprovals = () => {
               <InputGroup>
                 <Form.Control
                   type="text"
-                  placeholder="Search by name, organizer..."
+                  placeholder="Search by name, organizer, venue..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -424,16 +587,23 @@ const PendingApprovals = () => {
          <Row className="mt-3">
             <Col className="d-flex flex-wrap gap-2">
                 <Badge bg="secondary">Total Found: {displayApprovals.length}</Badge>
-                <Badge bg="warning" text="dark">Pending My Action: {displayApprovals.filter(a => (a.approvals.find(ap => ap.role === userRole)?.status || 'Pending') === 'Pending').length}</Badge>
+                {activeTab === 'pending' && (
+                  <Badge bg="warning" text="dark">
+                    Pending My Action: {displayApprovals.filter(a => (a.approvals?.find(ap => ap.role === userRole)?.status || 'Pending') === 'Pending').length}
+                  </Badge>
+                )}
             </Col>
         </Row>
       </div>
 
       {/* Main Content Area */}
       {loading ? (
-        <div className="text-center p-5"><Spinner animation="border" /> <span className="ms-2">Loading Applications...</span></div>
+        <div className="text-center p-5">
+          <Spinner animation="border" /> 
+          <span className="ms-2">Loading Applications...</span>
+        </div>
       ) : error ? (
-        <p className="text-danger text-center">{error}</p>
+        <div className="alert alert-danger text-center">{error}</div>
       ) : (
         <>
           {Object.keys(groupedDisplay).length > 0 ? (
@@ -450,19 +620,29 @@ const PendingApprovals = () => {
               ))}
             </Accordion>
           ) : (
-            <p className="text-center mt-4">No pending event applications match your criteria.</p>
+            <div className="alert alert-info text-center mt-4">
+              No event applications match your criteria.
+            </div>
           )}
 
           {/* Pagination Controls */}
           {pagination.totalPages > 1 && (
-            <div className="d-flex justify-content-center mt-4">
-              <Button variant="outline-primary" disabled={!pagination.hasPrev} onClick={() => handlePageChange(currentPage - 1)}>
+            <div className="d-flex justify-content-center align-items-center mt-4 gap-3">
+              <Button 
+                variant="outline-primary" 
+                disabled={!pagination.hasPrev} 
+                onClick={() => handlePageChange(currentPage - 1)}
+              >
                 &laquo; Previous
               </Button>
-              <span className="align-self-center mx-3">
+              <span className="fw-bold">
                 Page {pagination.currentPage} of {pagination.totalPages}
               </span>
-              <Button variant="outline-primary" disabled={!pagination.hasNext} onClick={() => handlePageChange(currentPage + 1)}>
+              <Button 
+                variant="outline-primary" 
+                disabled={!pagination.hasNext} 
+                onClick={() => handlePageChange(currentPage + 1)}
+              >
                 Next &raquo;
               </Button>
             </div>
@@ -470,7 +650,7 @@ const PendingApprovals = () => {
         </>
       )}
 
-      {/* Confirmation Modal (Using React-Bootstrap) */}
+      {/* Confirmation Modal */}
       <Modal show={showModal} onHide={handleModalCancel} centered>
         <Modal.Header closeButton>
           <Modal.Title>{getActionLabel(approvalAction)} Event</Modal.Title>

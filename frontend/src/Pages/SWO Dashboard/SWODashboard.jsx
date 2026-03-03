@@ -1,42 +1,30 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from "react-hot-toast";
 
+import SWOEvents from '../../Components/SWODashboard/SWOEvents';
 
-import PendingApprovals from '../../Components/PendingApprovals/PendingApprovals';
-import ProcessedApplications from '../../Components/StaffDashboard/ProcessedEventApplications'; 
+import { FiLogOut, FiX, FiMenu, FiGrid } from 'react-icons/fi';
 
-import { FiMail, FiCheckSquare, FiLogOut, FiX, FiMenu } from 'react-icons/fi';
+import '../Staff Dashboard/StaffDashboard.css';
 
-import './StaffDashboard.css';
-
-function StaffDashboard() {
-  const [activeSection, setActiveSection] = useState('pendingApprovals');
+function SWODashboard() {
+  const [activeSection, setActiveSection] = useState('swoEvents');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [role, setRole] = useState('Staff');
   const navigate = useNavigate();
 
-  // Fetches the user's role from localStorage on component mount
   useEffect(() => {
-    const roleMapping = {
-      'general-secretary': 'General Secretary',
-      'treasurer': 'Treasurer',
-      'president': 'President',
-      'ARSW': 'ARSW',
-      'associate-dean': 'Associate Dean',
-      'dean': 'Dean'
-    };
     const storedRole = localStorage.getItem('role');
-    if (storedRole) {
-      setRole(roleMapping[storedRole] || 'Staff');
+    if (storedRole !== 'students-welfare-office') {
+      navigate('/');
     }
-  }, []);
+  }, [navigate]);
 
   const handleLogout = () => {
     toast.success("Logout successful!");
     setTimeout(() => {
       localStorage.clear();
-      navigate(`/`);
+      navigate('/');
     }, 1700);
   };
 
@@ -44,36 +32,32 @@ function StaffDashboard() {
     setActiveSection(newSection);
     setSidebarOpen(false);
   };
-  
-  // Navigation items are now defined in an array for clean rendering
+
   const navItems = [
-    { id: 'pendingApprovals', label: 'Pending Applications', icon: <FiMail />, action: () => handleSectionChange('pendingApprovals') },
-    { id: 'processedApplications', label: 'Processed Applications', icon: <FiCheckSquare />, action: () => handleSectionChange('processedApplications') },
+    { id: 'swoEvents', label: 'Events', icon: <FiGrid />, action: () => handleSectionChange('swoEvents') },
     { id: 'logout', label: 'Logout', icon: <FiLogOut />, action: handleLogout, className: 'logout-nav-item' }
   ];
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'pendingApprovals':
-        return <PendingApprovals />;
-      case 'processedApplications':
-        return <ProcessedApplications />;
+      case 'swoEvents':
+        return <SWOEvents />;
       default:
-        return <PendingApprovals />;
+        return <SWOEvents />;
     }
   };
-  
+
   const activeLabel = navItems.find(i => i.id === activeSection)?.label || "Dashboard";
 
   return (
     <div className="staff-dashboard-layout">
       <Toaster position="top-center" reverseOrder={false} />
-      
+
       {isSidebarOpen && <div className="overlay" onClick={() => setSidebarOpen(false)}></div>}
 
       <nav className={`sidebar-nav ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2 className="sidebar-title">{role}</h2>
+          <h2 className="sidebar-title">SW Office</h2>
           <button onClick={() => setSidebarOpen(false)} className="sidebar-close-button">
             <FiX />
           </button>
@@ -110,4 +94,4 @@ function StaffDashboard() {
   );
 }
 
-export default StaffDashboard;
+export default SWODashboard;

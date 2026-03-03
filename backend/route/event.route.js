@@ -8,6 +8,7 @@ import {
   getPendingApprovals,
   getRejectedApplications,
   getClosedApplications,
+  getInitiatedApplications,
   getEventById,
   handleApprovalStatus, // Import the updated controller
   raiseQuery,
@@ -19,6 +20,9 @@ import {
   raiseQueryForApprovedEvent,
   getPendingApprovalsWithFilters,
   getEditHistory,
+  editBudget,
+  getFullyApprovedEvents,
+  getAllInitiatedEvents,
 } from "../controller/event.controller.js";
 
 const router = express.Router();
@@ -40,6 +44,9 @@ router.post("/rejected", getRejectedApplications);
 
 // Get all closed event applications (POST)
 router.post("/closed", getClosedApplications);
+
+//Get all initiated event applications (POST)
+router.post("/initiated",getInitiatedApplications);
 
 // Approve or reject an event application based on the status (PATCH)
 router.patch("/:applicationId/status", handleApprovalStatus);
@@ -65,6 +72,9 @@ router.patch("/close", closeEvent);
 // Edit all event details (PATCH)
 router.patch("/edit", editEventDetails);
 
+// Edit budget breakup (PATCH) - for ARSW/Associate Dean/Dean
+router.patch("/edit-budget", editBudget);
+
 // Get edit history for an event (GET)
 router.get("/:eventId/edit-history", getEditHistory);
 
@@ -77,4 +87,7 @@ router.post("/approved/filtered", getApprovedApplicationsWithFilters);
 // Get pending applications with filters and search (POST)
 router.post("/pending/filtered", getPendingApprovalsWithFilters);
 
+// Students Welfare Office routes
+router.post("/swo/approved-events",getFullyApprovedEvents);
+router.post("/swo/initiated-events",getAllInitiatedEvents);
 export default router;

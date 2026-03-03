@@ -5,6 +5,7 @@ import cors from "cors"
 
 import userRoute from "./route/user.route.js"
 import eventRoute from "./route/event.route.js"
+import feedbackRoute from "./route/feedback.route.js"
 
 
 const app = express()
@@ -25,10 +26,11 @@ mongoose.connect(URI).then(() => {
 
  app.use("/user", userRoute);
  app.use("/event", eventRoute);
+ app.use("/feedback", feedbackRoute);
 
 
 
 
-app.listen(PORT, () => {
+app.listen(PORT,'0.0.0.0', () => {
   console.log(`Server is listening on port ${PORT}`)
 })
