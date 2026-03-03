@@ -151,7 +151,7 @@ export const applyForEventApproval = async (req, res) => {
 
     // Create the initial approvals array
     const approvals = [
-      { role: "club-secretary", status: "Approved", comment: "" },
+      { role: "club-secretary", status: "Approved", comment: "", timestamp: new Date() },
       { role: "general-secretary", status: "Pending", comment: "" },
       { role: "treasurer", status: "Pending", comment: "" },
       { role: "president", status: "Pending", comment: "" },
@@ -677,6 +677,7 @@ export const approveApplication = async (req, res) => {
 
     // Update the status of the approval to "Approved"
     eventApproval.approvals[approvalIndex].status = "Approved";
+    eventApproval.approvals[approvalIndex].timestamp = new Date();
     const nextRoleIndex = eventHierarchy.indexOf(role) + 1;
     if (nextRoleIndex < eventHierarchy.length) {
       const nextRole = eventHierarchy[nextRoleIndex];
@@ -731,6 +732,7 @@ export const handleApprovalStatus = async (req, res) => {
 
     eventApproval.approvals[approvalIndex].status = status;
     eventApproval.approvals[approvalIndex].comment = comment || "";
+    eventApproval.approvals[approvalIndex].timestamp = new Date();
     
     if(status === "Rejected"){
       // TESTING: Email sending disabled
@@ -887,6 +889,7 @@ export const raiseQuery = async (req, res) => {
     // Update the approval status to "Query"
     eventApproval.approvals[approvalIndex].status = "Query";
     eventApproval.approvals[approvalIndex].comment = `Query raised: ${queryText}`;
+    eventApproval.approvals[approvalIndex].timestamp = new Date();
 
     // Add the query to the queries array
     const newQuery = {
@@ -997,6 +1000,8 @@ export const replyToQuery = async (req, res) => {
       if (approvalIndex !== -1) {
         eventApproval.approvals[approvalIndex].status = "Pending";
         eventApproval.approvals[approvalIndex].comment = "";
+        // Don't clear the timestamp - it shows when the query was raised
+        // The status being "Pending" is what matters for approval workflow
       }
     }
 

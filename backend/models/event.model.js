@@ -77,6 +77,7 @@ const eventApprovalSchema = new Schema(
           default: "Pending",
         },
         comment: { type: String, required: false }, // Optional comment for feedback
+        timestamp: { type: Date, required: false }, // Timestamp when action was taken
       },
     ],
     queries: [

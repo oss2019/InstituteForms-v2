@@ -170,6 +170,105 @@ const EventDetails = () => {
     
     return true;
   };
+  
+  // Helper function to build timeline events
+  const buildTimelineEvents = () => {
+    const events = [];
+    
+    // Add event creation
+    if (eventDetails?.createdAt) {
+      events.push({
+        type: "created",
+        date: new Date(eventDetails.createdAt),
+        title: "Event Created",
+        description: "Event application submitted",
+        icon: "⭐",
+        color: "#6f42c1"
+      });
+    }
+    
+    // Add approval actions
+    if (eventDetails?.approvals) {
+      eventDetails.approvals.forEach((approval) => {
+        // Only show if action was taken (Approved or Rejected, not Query since queries are tracked separately)
+        if (approval.timestamp && (approval.status === "Approved" || approval.status === "Rejected")) {
+          let title = `${approval.role.replace(/-/g, ' ').toUpperCase()}`;
+          let icon = "";
+          let color = "#6c757d";
+          
+          if (approval.status === "Approved") {
+            title += " Approved";
+            icon = "✓";
+            color = "#28a745";
+          } else if (approval.status === "Rejected") {
+            title += " Rejected";
+            icon = "✗";
+            color = "#dc3545";
+          }
+          
+          events.push({
+            type: "approval",
+            date: new Date(approval.timestamp),
+            title: title,
+            description: approval.comment || "No comments",
+            icon: icon,
+            color: color,
+            role: approval.role
+          });
+        }
+      });
+    }
+    
+    // Add query raised and answered from queries array
+    if (eventDetails?.queries) {
+      eventDetails.queries.forEach((query) => {
+        // Show query raised
+        if (query.raisedAt) {
+          events.push({
+            type: "query-raised",
+            date: new Date(query.raisedAt),
+            title: `${query.askerRole.replace(/-/g, ' ').toUpperCase()} Query`,
+            description: query.queryText,
+            icon: "?",
+            color: "#ffc107"
+          });
+        }
+        
+        // Show query answered
+        if (query.answeredAt) {
+          events.push({
+            type: "query-answered",
+            date: new Date(query.answeredAt),
+            title: "Query Answered",
+            description: query.response || "Response provided",
+            icon: "📝",
+            color: "#20c997"
+          });
+        }
+      });
+    }
+
+    // Add edit history
+    if (eventDetails?.editHistory) {
+      eventDetails.editHistory.forEach((edit) => {
+        if (edit.editedAt) {
+          const changedFields = Object.keys(edit.changes || {}).join(", ");
+          events.push({
+            type: "edit",
+            date: new Date(edit.editedAt),
+            title: "Event Edited",
+            description: `Fields changed: ${changedFields || "Details updated"}`,
+            icon: "✏️",
+            color: "#fd7e14"
+          });
+        }
+      });
+    }
+    
+    // Sort events by date
+    return events.sort((a, b) => a.date - b.date);
+  };
+
   // When opening modal, prefill form and budget breakup
   useEffect(() => {
     if (showEditModal && eventDetails) {
@@ -569,9 +668,12 @@ const EventDetails = () => {
 
       toast.success("Query raised successfully!");
       
-      // Refresh queries
-      const response = await axios.get(`${apiUrl}/event/${id}/queries`);
-      setQueries(response.data.queries || []);
+      // Refresh queries and event details
+      const queryResponse = await axios.get(`${apiUrl}/event/${id}/queries`);
+      setQueries(queryResponse.data.queries || []);
+      
+      const eventResponse = await axios.get(`${apiUrl}/event/${id}`);
+      setEventDetails(eventResponse.data);
       
       setShowApprovedQueryModal(false);
       setApprovedQueryText("");
@@ -648,18 +750,19 @@ const EventDetails = () => {
 
   return (
     <div className="event-details-container">
-      <div className="event-details">
-        <h1>Event Details</h1>
-        {eventDetails.status === 'Closed' && (
-          <div className="alert alert-dark mt-2">
-            <strong>⛔ Event Closed</strong><br/>
-            This event has been officially closed by {eventDetails.closedBy || 'an administrator'} on {eventDetails.closedAt ? new Date(eventDetails.closedAt).toLocaleDateString() : 'N/A'}.
-          </div>
-        )}
-      </div>
+      <div className="event-details-main">
+        <div className="event-details">
+          <h1>Event Details</h1>
+          {eventDetails.status === 'Closed' && (
+            <div className="alert alert-dark mt-2">
+              <strong>⛔ Event Closed</strong><br/>
+              This event has been officially closed by {eventDetails.closedBy || 'an administrator'} on {eventDetails.closedAt ? new Date(eventDetails.closedAt).toLocaleDateString() : 'N/A'}.
+            </div>
+          )}
+        </div>
 
-      {/* Back button next to the event name */}
-      <div className="event-details-header">
+        {/* Back button next to the event name */}
+        <div className="event-details-header">
         <h4>
           {eventDetails.eventName}
           {eventDetails.status === 'Closed' && (
@@ -1790,6 +1893,47 @@ const EventDetails = () => {
           </div>
         )}
       </div>
+
+      {/* Event Timeline - Right Sidebar */}
+      <div className="event-timeline">
+        <h5>📅 Timeline</h5>
+        <div className="timeline-events">
+          {buildTimelineEvents().map((event, index) => {
+            const styles = {
+              icon: {
+                borderColor: event.color,
+                backgroundColor: event.color,
+                color: 'white'
+              },
+              content: {
+                borderLeftColor: event.color,
+                backgroundColor: `${event.color}10` // Add transparency
+              }
+            };
+            
+            return (
+              <div key={index} className="timeline-event">
+                <div className="timeline-event-icon" style={styles.icon}>
+                  {event.icon}
+                </div>
+                <div className="timeline-event-content" style={styles.content}>
+                  <div className="timeline-event-title">{event.title}</div>
+                  <div className="timeline-event-description">{event.description}</div>
+                  <div className="timeline-event-date">
+                    {event.date.toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
     </div>
   );
 };
