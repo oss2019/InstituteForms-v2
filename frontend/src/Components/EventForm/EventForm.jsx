@@ -47,6 +47,14 @@ const EventForm = () => {
   const pdfObjectUrlRef = useRef(null);
 
   useEffect(() => {
+    const userName = localStorage.getItem("name");
+    setFormData(prev => ({
+      ...prev,
+      clubName: userName || "",
+    }));
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (pdfObjectUrlRef.current) {
         URL.revokeObjectURL(pdfObjectUrlRef.current);
@@ -236,8 +244,9 @@ const EventForm = () => {
             id="clubName"
             name="clubName"
             value={formData.clubName}
-            onChange={handleChange}
-            required
+            readOnly
+            disabled
+            style={{ backgroundColor: "#e9ecef", cursor: "not-allowed" }}
           />
         </div>
 

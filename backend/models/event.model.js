@@ -53,6 +53,7 @@ const eventApprovalSchema = new Schema(
             "president",
             "ARSW",
             "associate-dean",
+            "associate-dean-socio-cultural",
             "dean"
           ],
           required: true,
@@ -86,6 +87,7 @@ const eventApprovalSchema = new Schema(
             "president",
             "ARSW",
             "associate-dean",
+            "associate-dean-socio-cultural",
             "dean"
           ],
           required: true,

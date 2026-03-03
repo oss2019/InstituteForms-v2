@@ -8,6 +8,7 @@ import {
   getPendingApprovals,
   getRejectedApplications,
   getClosedApplications,
+  getInitiatedApplications,
   getEventById,
   handleApprovalStatus, // Import the updated controller
   raiseQuery,
@@ -20,6 +21,8 @@ import {
   getPendingApprovalsWithFilters,
   getEditHistory,
   editBudget,
+  getFullyApprovedEvents,
+  getAllInitiatedEvents,
 } from "../controller/event.controller.js";
 
 const router = express.Router();
@@ -41,6 +44,9 @@ router.post("/rejected", getRejectedApplications);
 
 // Get all closed event applications (POST)
 router.post("/closed", getClosedApplications);
+
+//Get all initiated event applications (POST)
+router.post("/initiated",getInitiatedApplications);
 
 // Approve or reject an event application based on the status (PATCH)
 router.patch("/:applicationId/status", handleApprovalStatus);
@@ -81,4 +87,7 @@ router.post("/approved/filtered", getApprovedApplicationsWithFilters);
 // Get pending applications with filters and search (POST)
 router.post("/pending/filtered", getPendingApprovalsWithFilters);
 
+// Students Welfare Office routes
+router.post("/swo/approved-events",getFullyApprovedEvents);
+router.post("/swo/initiated-events",getAllInitiatedEvents);
 export default router;
