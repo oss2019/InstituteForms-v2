@@ -20,6 +20,7 @@ const EventForm = () => {
     sourceOfBudget: "", //4a
     othersSourceOfBudget: "", //4b
     estimatedBudget: 0, //5 - Set initial value to 0
+    budgetAnnexureNumber: "", // Annexure number in club budget
     budgetBreakup: [{ expenseHead: "", estimatedAmount: "" }], //array to hold the data of the "Budget Breakup" Table's rows
 
     //Organizer Details:
@@ -93,12 +94,33 @@ const EventForm = () => {
 
   const handleCheckboxChange = (e) => {
     const { value, checked } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      requirements: checked
-        ? [...prevData.requirements, value]
-        : prevData.requirements.filter((item) => item !== value),
-    }));
+    setFormData((prevData) => {
+      let updated;
+      if (checked) {
+        // Only add if not already present
+        if (!prevData.requirements.some(r => r.name === value)) {
+          updated = [...prevData.requirements, { name: value, description: "" }];
+        } else {
+          updated = prevData.requirements;
+        }
+      } else {
+        updated = prevData.requirements.filter((item) => item.name !== value);
+      }
+      // Filter out any empty requirements to keep list clean
+      return {
+        ...prevData,
+        requirements: updated.filter(req => req.name && req.name.trim() !== '')
+      };
+    });
+  };
+
+  const handleRequirementDescriptionChange = (requirementName, description) => {
+    setFormData((prevData) => {
+      const updatedRequirements = prevData.requirements.map(req =>
+        req.name === requirementName ? { ...req, description } : req
+      );
+      return { ...prevData, requirements: updatedRequirements };
+    });
   };
 
   const handleDateValidation = () => {
@@ -112,7 +134,7 @@ const EventForm = () => {
   const validateForm = () => {
     const requiredFields = [
       "eventName", "partOfGymkhanaCalendar", "clubName", "startDate", "endDate",
-      "eventVenue", "sourceOfBudget", "nameOfTheOrganizer", "designation",
+      "eventVenue", "sourceOfBudget", "budgetAnnexureNumber", "nameOfTheOrganizer", "designation",
       "email", "phoneNumber", "eventDescription", "externalParticipants", "internalParticipants"
     ];
 
@@ -122,6 +144,11 @@ const EventForm = () => {
 
     // Conditionally require listOfCollaboratingOrganizations
     if (Number(formData.externalParticipants) > 0 && !formData.listOfCollaboratingOrganizations) {
+      return false;
+    }
+
+    // Validate that all selected requirements have descriptions
+    if (formData.requirements.some((req) => !req.description || req.description.trim() === "")) {
       return false;
     }
 
@@ -159,7 +186,12 @@ const EventForm = () => {
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      toast.error("Please fill out all required fields.");
+      // Check if requirements descriptions are missing
+      if (formData.requirements.some((req) => !req.description || req.description.trim() === "")) {
+        toast.error("Please fill in descriptions for all selected requirements.");
+      } else {
+        toast.error("Please fill out all required fields.");
+      }
       return;
     }
 
@@ -308,6 +340,20 @@ const EventForm = () => {
             <option value="Sports">Sports</option>
             <option value="Others">Others (Mention below)</option>
           </select>
+        </div>
+
+        <div className="mb-3">
+          <label htmlFor="budgetAnnexureNumber" className="form-label">Budget Annexure Number (in Club Budget)</label>
+          <input
+            type="number"
+            className="form-control"
+            id="budgetAnnexureNumber"
+            name="budgetAnnexureNumber"
+            value={formData.budgetAnnexureNumber}
+            onChange={handleChange}
+            placeholder="Mention Annexure No. as per the approved budget, put N/A if not applicable"
+            min="1"
+          />
         </div>
 
         {formData.sourceOfBudget === "Others" ? (
@@ -489,6 +535,7 @@ const EventForm = () => {
                   type="checkbox"
                   id={`req-${req}`}
                   value={req}
+                  checked={formData.requirements.some((r) => r.name === req)}
                   onChange={handleCheckboxChange}
                 />
                 <label className="form-check-label" htmlFor={`req-${req}`}>{req}</label>
@@ -496,6 +543,40 @@ const EventForm = () => {
             )
           )}
         </div>
+
+        {/* Selected Requirements Table */}
+        {formData.requirements.filter(req => req.name && req.name.trim() !== '').length > 0 && (
+          <div className="mb-3">
+            <label className="form-label d-block mb-3">Selected Requirements - Details:</label>
+            <table className="table table-bordered table-striped">
+              <thead className="table-light">
+                <tr>
+                  <th style={{ width: "5%" }}>Sl. No</th>
+                  <th style={{ width: "30%" }}>Requirement/Facility</th>
+                  <th style={{ width: "65%" }}>Brief Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {formData.requirements.filter(req => req.name && req.name.trim() !== '').map((req, index) => (
+                  <tr key={`${req.name}-${index}`}>
+                    <td>{index + 1}</td>
+                    <td>{req.name}</td>
+                    <td>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Enter description for this requirement"
+                        value={req.description}
+                        onChange={(e) => handleRequirementDescriptionChange(req.name, e.target.value)}
+                        required
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className="mb-3">
             <label htmlFor="anyAdditionalAmenities" className="form-label">Any Additional Amenities</label>

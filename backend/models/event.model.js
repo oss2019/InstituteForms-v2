@@ -16,11 +16,17 @@ const eventApprovalSchema = new Schema(
     eventVenue: { type: String, required: true },
     sourceOfBudget: { type: String, required: true },
     estimatedBudget: { type: Number, required: true },
+    budgetAnnexureNumber: { type: Number, required: false }, // Annexure number in club budget
     nameOfTheOrganizer: { type: String, required: true },
     designation: { type: String, required: true },
     email: { type: String, required: true },
     phoneNumber: { type: String, required: true },
-    requirements: { type: [String], required: false },
+    requirements: [
+      {
+        name: { type: String, required: true },
+        description: { type: String, required: true }
+      }
+    ],
     anyAdditionalAmenities: { type: String },
     eventDescription: { type: String, required: true },
     internalParticipants: { type: Number, required: true },

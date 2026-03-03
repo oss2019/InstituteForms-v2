@@ -385,6 +385,10 @@ const createHTMLContent = (formData, headerDataUrl) => {
       5) Estimated Budget: ₹ ${Number(formData.proposedEstimatedBudget?formData.proposedEstimatedBudget:(formData.estimatedBudget || 0)).toFixed(2)} 
       (Please provide a breakup below)
     </div>
+
+    <div class="field">
+      5a) Budget Annexure Number (in Club Budget): ${formData.budgetAnnexureNumber || 'N/A'}
+    </div>
     
     <div style="margin-top: 10px;">
       Budget Breakup: (As per the Budget Copy)
@@ -442,7 +446,9 @@ const createHTMLContent = (formData, headerDataUrl) => {
       </thead>
       <tbody>
         ${facilities.map(facility => {
-          const isChecked = formData.requirements.includes(facility);
+          const isChecked = formData.requirements.some(req => 
+            typeof req === 'string' ? req === facility : req.name === facility
+          );
           return `
             <tr>
               <td style="width: 50%; padding: 6px; font-weight: 500;">${facility}</td>
@@ -577,6 +583,32 @@ const createHTMLContent = (formData, headerDataUrl) => {
         <li><strong>${i + 1}.</strong> ${note}</li>
       `).join('')}
     </ol>
+
+    ${formData.requirements && formData.requirements.filter(req => req.name && req.description && req.description.trim() !== '').length > 0 ? `
+    <div class="page-break"></div>
+    <div class="section-title" style="margin-top: 20px; text-align: center;">
+      A brief description of a requirement that has been ticked off in a form
+    </div>
+    
+    <table style="margin-top: 15px; width: 100%;">
+      <thead>
+        <tr style="background-color: #f5f5f5;">
+          <th style="width: 10%; padding: 8px; border: 1px solid #ddd; text-align: center;">Sl. No</th>
+          <th style="width: 35%; padding: 8px; border: 1px solid #ddd;">Requirement/Facility</th>
+          <th style="width: 55%; padding: 8px; border: 1px solid #ddd;">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${formData.requirements.filter(req => req.name && req.description && req.description.trim() !== '').map((req, index) => `
+          <tr>
+            <td style="width: 10%; padding: 8px; border: 1px solid #ddd; text-align: center;">${index + 1}</td>
+            <td style="width: 35%; padding: 8px; border: 1px solid #ddd; font-weight: 500;">${req.name}</td>
+            <td style="width: 55%; padding: 8px; border: 1px solid #ddd;">${req.description}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    ` : ''}
   </div>
 </body>
 </html>

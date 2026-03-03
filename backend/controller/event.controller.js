@@ -99,6 +99,7 @@ export const applyForEventApproval = async (req, res) => {
       eventVenue,
       budgetBreakup,
       sourceOfBudget,
+      budgetAnnexureNumber,
       estimatedBudget,
       nameOfTheOrganizer,
       designation,
@@ -173,6 +174,7 @@ export const applyForEventApproval = async (req, res) => {
       eventVenue,
       budgetBreakup,
       sourceOfBudget,
+      budgetAnnexureNumber,
       estimatedBudget,
       nameOfTheOrganizer,
       designation,
@@ -193,22 +195,23 @@ export const applyForEventApproval = async (req, res) => {
     // Update the user's `eventApproval` field with the new approval ID
     user.eventApproval = savedApproval._id;
     await user.save();
-    if (categoryEmail) {
-      try {
-        await sendEmail(
-          categoryEmail,
-          `Event Approval Needed: ${eventName}`,
-          `A new ${category} event approval request has been submitted. Please review it at your earliest convenience.
-          Please visit https://swevents.iitdh.ac.in to review the event.`
-        );
-        console.log(`Email sent successfully to ${categoryEmail} for ${category} event approval.`);
-      } catch (emailError) {
-        console.error(`Failed to send email to ${categoryEmail}:`, emailError.message);
-        // Don't fail the entire request due to email issues
-      }
-    } else {
-      console.error(`No email found for category: ${category}`);
-    }
+    // TESTING: Email sending disabled
+    // if (categoryEmail) {
+    //   try {
+    //     await sendEmail(
+    //       categoryEmail,
+    //       `Event Approval Needed: ${eventName}`,
+    //       `A new ${category} event approval request has been submitted. Please review it at your earliest convenience.
+    //       Please visit https://swevents.iitdh.ac.in to review the event.`
+    //     );
+    //     console.log(`Email sent successfully to ${categoryEmail} for ${category} event approval.`);
+    //   } catch (emailError) {
+    //     console.error(`Failed to send email to ${categoryEmail}:`, emailError.message);
+    //     // Don't fail the entire request due to email issues
+    //   }
+    // } else {
+    //   console.error(`No email found for category: ${category}`);
+    // }
 
 
     res.status(201).json({
@@ -678,15 +681,15 @@ export const approveApplication = async (req, res) => {
     if (nextRoleIndex < eventHierarchy.length) {
       const nextRole = eventHierarchy[nextRoleIndex];
       // eventApproval.approvals[approvalIndex].status = "Recommended";
-      sendEmail(
-        `${getEmailForRole(nextRole)}`, // Replace with actual email
-        `Event Approval Needed: ${eventApproval.eventName}`,
-        `The event "${eventApproval.eventName}" has been recommended by ${role}. It is now pending your review and approval.
-        Please visit https://swevents.iitdh.ac.in to review the event.`
-      ); 
-  }
-
-    // Save the updated event approval document
+      // TESTING: Email sending disabled
+      // sendEmail(
+      //   `${getEmailForRole(nextRole)}`, // Replace with actual email
+      //   `Event Approval Needed: ${eventApproval.eventName}`,
+      //   `The event "${eventApproval.eventName}" has been recommended by ${role}. It is now pending your review and approval.
+      //   Please visit https://swevents.iitdh.ac.in to review the event.`
+      // ); 
+    }
+    
     await eventApproval.save();
 
     // Optionally, you can also send a notification email or take further actions here
@@ -730,116 +733,118 @@ export const handleApprovalStatus = async (req, res) => {
     eventApproval.approvals[approvalIndex].comment = comment || "";
     
     if(status === "Rejected"){
-      try {
-        await sendEmail(
-          eventApproval.email,
-          `Event Rejected: ${eventApproval.eventName}`,
-          `Your event "${eventApproval.eventName}" has been rejected by ${role}. Reason: ${comment || "No reason provided."}`
-        );
-        console.log(`Rejection email sent to organizer: ${eventApproval.email}`);
-      } catch (emailError) {
-        console.error(`Failed to send rejection email to organizer:`, emailError.message);
-      }
+      // TESTING: Email sending disabled
+      // try {
+      //   await sendEmail(
+      //     eventApproval.email,
+      //     `Event Rejected: ${eventApproval.eventName}`,
+      //     `Your event "${eventApproval.eventName}" has been rejected by ${role}. Reason: ${comment || "No reason provided."}`
+      //   );
+      //   console.log(`Rejection email sent to organizer: ${eventApproval.email}`);
+      // } catch (emailError) {
+      //   console.error(`Failed to send rejection email to organizer:`, emailError.message);
+      // }
     }
     else if(status === "Approved"){
     const eventHierarchy = getRoleHierarchyForEvent(eventApproval.eventType);
     const nextRoleIndex = eventHierarchy.indexOf(role) + 1;
-    if (nextRoleIndex < eventHierarchy.length) {
-      const nextRole = eventHierarchy[nextRoleIndex];
-      const nextRoleEmail = getEmailForRole(nextRole);
-      
-      if (nextRoleEmail) {
-        try {
-          await sendEmail(
-            nextRoleEmail,
-            `Event Approval Needed: ${eventApproval.eventName}`,
-            `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.
-            Please visit https://swevents.iitdh.ac.in to review the event.`
-          );
-          console.log(`Notification email sent to ${nextRole} at ${nextRoleEmail}`);
-        } catch (emailError) {
-          console.error(`Failed to send notification email to ${nextRole}:`, emailError.message);
-        }
-      } else {
-        console.error(`No email found for next role: ${nextRole}`);
-      }
-    } else if (nextRoleIndex === eventHierarchy.length) {
-      try {
-        await sendEmail(
-          eventApproval.email,
-          `Event Fully Approved: ${eventApproval.eventName}`,
-          `Congratulations! Your event "${eventApproval.eventName}" has been fully approved by all authorities.
-          Event Details:
-        - Event Name: ${eventApproval.eventName}
-        - Event Type: ${eventApproval.eventType}
-        - Date: ${new Date(eventApproval.startDate).toLocaleDateString()} to ${new Date(eventApproval.endDate).toLocaleDateString()}
-        - Venue: ${eventApproval.eventVenue}
-        - Organizer: ${eventApproval.nameOfTheOrganizer}
+    // TESTING: Email sending disabled
+    // if (nextRoleIndex < eventHierarchy.length) {
+    //   const nextRole = eventHierarchy[nextRoleIndex];
+    //   const nextRoleEmail = getEmailForRole(nextRole);
+    //   
+    //   if (nextRoleEmail) {
+    //     try {
+    //       await sendEmail(
+    //         nextRoleEmail,
+    //         `Event Approval Needed: ${eventApproval.eventName}`,
+    //         `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.
+    //         Please visit https://swevents.iitdh.ac.in to review the event.`
+    //       );
+    //       console.log(`Notification email sent to ${nextRole} at ${nextRoleEmail}`);
+    //     } catch (emailError) {
+    //       console.error(`Failed to send notification email to ${nextRole}:`, emailError.message);
+    //     }
+    //   } else {
+    //     console.error(`No email found for next role: ${nextRole}`);
+    //   }
+    // } else if (nextRoleIndex === eventHierarchy.length) {
+    //   try {
+    //     await sendEmail(
+    //       eventApproval.email,
+    //       `Event Fully Approved: ${eventApproval.eventName}`,
+    //       `Congratulations! Your event "${eventApproval.eventName}" has been fully approved by all authorities.
+    //       Event Details:
+    //     - Event Name: ${eventApproval.eventName}
+    //     - Event Type: ${eventApproval.eventType}
+    //     - Date: ${new Date(eventApproval.startDate).toLocaleDateString()} to ${new Date(eventApproval.endDate).toLocaleDateString()}
+    //     - Venue: ${eventApproval.eventVenue}
+    //     - Organizer: ${eventApproval.nameOfTheOrganizer}
 
-        Your event is now ready to proceed. Please ensure all arrangements are made as per the approved proposal.
+    //     Your event is now ready to proceed. Please ensure all arrangements are made as per the approved proposal.
 
-        Best regards,
-        Event Approval Committee`
-        );
-        console.log(`Final approval notification sent to organizer: ${eventApproval.email}`);
-        try {
-          await sendEmail(
-            'studentswelfare.office@iitdh.ac.in',
-            `Event Approved - ${eventApproval.eventName}`,
-            `Dear Student Welfare Office Team,
+    //     Best regards,
+    //     Event Approval Committee`
+    //     );
+    //     console.log(`Final approval notification sent to organizer: ${eventApproval.email}`);
+    //     try {
+    //       await sendEmail(
+    //         'studentswelfare.office@iitdh.ac.in',
+    //         `Event Approved - ${eventApproval.eventName}`,
+    //         `Dear Student Welfare Office Team,
 
-The following event has been fully approved by all authorities:
+    // The following event has been fully approved by all authorities:
 
-Event Details:
-- Event Name: ${eventApproval.eventName}
-- Event Type: ${eventApproval.eventType}
-- Club Name: ${eventApproval.clubName || 'N/A'}
-- Start Date: ${new Date(eventApproval.startDate).toLocaleDateString()}
-- End Date: ${new Date(eventApproval.endDate).toLocaleDateString()}
-- Venue: ${eventApproval.eventVenue}
-- Semester: ${eventApproval.semester}
-- Academic Year: ${eventApproval.academicYear}
+    // Event Details:
+    // - Event Name: ${eventApproval.eventName}
+    // - Event Type: ${eventApproval.eventType}
+    // - Club Name: ${eventApproval.clubName || 'N/A'}
+    // - Start Date: ${new Date(eventApproval.startDate).toLocaleDateString()}
+    // - End Date: ${new Date(eventApproval.endDate).toLocaleDateString()}
+    // - Venue: ${eventApproval.eventVenue}
+    // - Semester: ${eventApproval.semester}
+    // - Academic Year: ${eventApproval.academicYear}
 
-Organizer Details:
-- Name: ${eventApproval.nameOfTheOrganizer}
-- Designation: ${eventApproval.designation}
-- Email: ${eventApproval.email}
-- Phone: ${eventApproval.phoneNumber}
+    // Organizer Details:
+    // - Name: ${eventApproval.nameOfTheOrganizer}
+    // - Designation: ${eventApproval.designation}
+    // - Email: ${eventApproval.email}
+    // - Phone: ${eventApproval.phoneNumber}
 
-Event Description:
-${eventApproval.eventDescription || 'N/A'}
+    // Event Description:
+    // ${eventApproval.eventDescription || 'N/A'}
 
-Participants:
-- Internal Participants: ${eventApproval.internalParticipants || 0}
-- External Participants: ${eventApproval.externalParticipants || 0}
+    // Participants:
+    // - Internal Participants: ${eventApproval.internalParticipants || 0}
+    // - External Participants: ${eventApproval.externalParticipants || 0}
 
-Budget Details:
-- Approved Budget: ₹${ eventApproval.proposedEstimatedBudget ? eventApproval.proposedEstimatedBudget: (eventApproval.estimatedBudget || 0)}
-- Source of Budget: ${eventApproval.sourceOfBudget || 'N/A'}
-${eventApproval.requirements && eventApproval.requirements.length > 0 ? `Requirements: ${eventApproval.requirements.join(', ')}` : ''}
+    // Budget Details:
+    // - Approved Budget: ₹${ eventApproval.proposedEstimatedBudget ? eventApproval.proposedEstimatedBudget: (eventApproval.estimatedBudget || 0)}
+    // - Source of Budget: ${eventApproval.sourceOfBudget || 'N/A'}
+    // ${eventApproval.requirements && eventApproval.requirements.length > 0 ? `Requirements: ${eventApproval.requirements.join(', ')}` : ''}
 
-${eventApproval.anyAdditionalAmenities ? `Additional Amenities: ${eventApproval.anyAdditionalAmenities}` : ''}
+    // ${eventApproval.anyAdditionalAmenities ? `Additional Amenities: ${eventApproval.anyAdditionalAmenities}` : ''}
 
-${eventApproval.listOfCollaboratingOrganizations ? `Collaborating Organizations: ${eventApproval.listOfCollaboratingOrganizations}` : ''}
+    // ${eventApproval.listOfCollaboratingOrganizations ? `Collaborating Organizations: ${eventApproval.listOfCollaboratingOrganizations}` : ''}
 
-Approval Chain:
-${eventApproval.approvals.map((approval, index) => 
-  `${index + 1}. ${approval.role.toUpperCase()}: ${approval.status}${approval.comment ? ` (Comment: ${approval.comment})` : ''}`
-).join('\n')}
+    // Approval Chain:
+    // ${eventApproval.approvals.map((approval, index) => 
+    //   `${index + 1}. ${approval.role.toUpperCase()}: ${approval.status}${approval.comment ? ` (Comment: ${approval.comment})` : ''}`
+    // ).join('\n')}
 
-Please proceed with necessary arrangements for this event.
+    // Please proceed with necessary arrangements for this event.
 
-Best regards,
-Event Approval System`
-          );
-          console.log('Email sent successfully to student welfare office');
-          } catch (welfareEmailError) {
-            console.error('Failed to send email to student welfare office:', welfareEmailError.message);
-        }
-      } catch (emailError) {
-        console.error(`Failed to send final approval email to organizer:`, emailError.message);
-      }
-    }
+    // Best regards,
+    // Event Approval System`
+    //     );
+    //     console.log('Email sent successfully to student welfare office');
+    //     } catch (welfareEmailError) {
+    //       console.error('Failed to send email to student welfare office:', welfareEmailError.message);
+    //   }
+    // } catch (emailError) {
+    //   console.error(`Failed to send final approval email to organizer:`, emailError.message);
+    // }
+    // }
 }
     await eventApproval.save();
 
@@ -896,30 +901,31 @@ export const raiseQuery = async (req, res) => {
     await eventApproval.save();
 
     // Send email notification to the organizer
-    try {
-      await sendEmail(
-        eventApproval.email,
-        `Query Raised for Event: ${eventApproval.eventName}`,
-        `A query has been raised for your event "${eventApproval.eventName}" by ${role}.
+    // TESTING: Email sending disabled
+    // try {
+    //   await sendEmail(
+    //     eventApproval.email,
+    //     `Query Raised for Event: ${eventApproval.eventName}`,
+    //     `A query has been raised for your event "${eventApproval.eventName}" by ${role}.
 
-Query: ${queryText}
+    // Query: ${queryText}
 
-Please log into https://swevents.iitdh.ac.in to respond to this query.
+    // Please log into https://swevents.iitdh.ac.in to respond to this query.
 
-Event Details:
-- Event Name: ${eventApproval.eventName}
-- Event Type: ${eventApproval.eventType}
-- Date: ${new Date(eventApproval.startDate).toLocaleDateString()} to ${new Date(eventApproval.endDate).toLocaleDateString()}
+    // Event Details:
+    // - Event Name: ${eventApproval.eventName}
+    // - Event Type: ${eventApproval.eventType}
+    // - Date: ${new Date(eventApproval.startDate).toLocaleDateString()} to ${new Date(eventApproval.endDate).toLocaleDateString()}
 
-Please respond at your earliest convenience.
+    // Please respond at your earliest convenience.
 
-Best regards,
-Event Approval Committee`
-      );
-      console.log(`Query notification email sent to organizer: ${eventApproval.email}`);
-    } catch (emailError) {
-      console.error(`Failed to send query notification email to organizer:`, emailError.message);
-    }
+    // Best regards,
+    // Event Approval Committee`
+    //   );
+    //   console.log(`Query notification email sent to organizer: ${eventApproval.email}`);
+    // } catch (emailError) {
+    //   console.error(`Failed to send query notification email to organizer:`, emailError.message);
+    // }
 
     res.status(200).json({ message: "Query raised successfully.", query: newQuery });
   } catch (error) {
@@ -999,24 +1005,25 @@ export const replyToQuery = async (req, res) => {
     // Send email notification to the role that raised the query
     const roleEmail = getEmailForRole(query.askerRole);
     if (roleEmail) {
-      try {
-        await sendEmail(
-          roleEmail,
-          `Query Response Received: ${eventApproval.eventName}`,
-          `Your query for event "${eventApproval.eventName}" has been responded to.
+      // TESTING: Email sending disabled
+      // try {
+      //   await sendEmail(
+      //     roleEmail,
+      //     `Query Response Received: ${eventApproval.eventName}`,
+      //     `Your query for event "${eventApproval.eventName}" has been responded to.
 
-Original Query: ${query.queryText}
-Response: ${response}
+      // Original Query: ${query.queryText}
+      // Response: ${response}
 
-Please visit https://swevents.iitdh.ac.in review the event application again and take appropriate action.
+      // Please visit https://swevents.iitdh.ac.in review the event application again and take appropriate action.
 
-Best regards,
-Event Approval Committee`
-        );
-        console.log(`Query response notification sent to ${query.askerRole} at ${roleEmail}`);
-      } catch (emailError) {
-        console.error(`Failed to send query response notification to ${query.askerRole}:`, emailError.message);
-      }
+      // Best regards,
+      // Event Approval Committee`
+      //   );
+      //   console.log(`Query response notification sent to ${query.askerRole} at ${roleEmail}`);
+      // } catch (emailError) {
+      //   console.error(`Failed to send query response notification to ${query.askerRole}:`, emailError.message);
+      // }
     } else {
       console.error(`No email found for role: ${query.askerRole}`);
     }
@@ -1303,7 +1310,7 @@ export const editEventDetails = async (req, res) => {
     // List of fields that can be updated
     const editableFields = [
       "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
-      "eventVenue", "sourceOfBudget", "estimatedBudget", "nameOfTheOrganizer", "designation",
+      "eventVenue", "sourceOfBudget", "budgetAnnexureNumber", "estimatedBudget", "nameOfTheOrganizer", "designation",
       "email", "phoneNumber", "requirements", "anyAdditionalAmenities", "eventDescription",
       "internalParticipants", "externalParticipants", "listOfCollaboratingOrganizations", "budgetBreakup"
     ];
@@ -1515,29 +1522,30 @@ export const closeEvent = async (req, res) => {
     await event.save();
 
     // Send email notification to the organizer
-    try {
-      await sendEmail(
-        event.email,
-        `Event Closed: ${event.eventName}`,
-        `Your event "${event.eventName}" has been officially closed.
+    // TESTING: Email sending disabled
+    // try {
+    //   await sendEmail(
+    //     event.email,
+    //     `Event Closed: ${event.eventName}`,
+    //     `Your event "${event.eventName}" has been officially closed.
 
-Event Details:
-- Event Name: ${event.eventName}
-- Event Type: ${event.eventType}
-- Date: ${new Date(event.startDate).toLocaleDateString()} to ${new Date(event.endDate).toLocaleDateString()}
-- Venue: ${event.eventVenue}
-- Closed By: ${event.closedBy}
-- Closed On: ${event.closedAt.toLocaleDateString()}
+    // Event Details:
+    // - Event Name: ${event.eventName}
+    // - Event Type: ${event.eventType}
+    // - Date: ${new Date(event.startDate).toLocaleDateString()} to ${new Date(event.endDate).toLocaleDateString()}
+    // - Venue: ${event.eventVenue}
+    // - Closed By: ${event.closedBy}
+    // - Closed On: ${event.closedAt.toLocaleDateString()}
 
-Thank you for organizing this event. If you have any queries, please contact the Student Welfare Office.
+    // Thank you for organizing this event. If you have any queries, please contact the Student Welfare Office.
 
-Best regards,
-Student Welfare Office`
-      );
-      console.log(`Event closure notification sent to organizer: ${event.email}`);
-    } catch (emailError) {
-      console.error(`Failed to send event closure notification to organizer:`, emailError.message);
-    }
+    // Best regards,
+    // Student Welfare Office`
+    //   );
+    //   console.log(`Event closure notification sent to organizer: ${event.email}`);
+    // } catch (emailError) {
+    //   console.error(`Failed to send event closure notification to organizer:`, emailError.message);
+    // }
 
     res.status(200).json({ message: "Event closed successfully.", event });
   } catch (error) {
@@ -1591,31 +1599,32 @@ export const raiseQueryForApprovedEvent = async (req, res) => {
     await event.save();
 
     // Send email notification to the organizer
-    try {
-      await sendEmail(
-        event.email,
-        `Post-Approval Query Raised for Event: ${event.eventName}`,
-        `A query has been raised for your approved event "${event.eventName}" by ${user.role}.
+    // TESTING: Email sending disabled
+    // try {
+    //   await sendEmail(
+    //     event.email,
+    //     `Post-Approval Query Raised for Event: ${event.eventName}`,
+    //     `A query has been raised for your approved event "${event.eventName}" by ${user.role}.
 
-Query: ${queryText}
+    // Query: ${queryText}
 
-Please log into https://swevents.iitdh.ac.in to respond to this query.
+    // Please log into https://swevents.iitdh.ac.in to respond to this query.
 
-Event Details:
-- Event Name: ${event.eventName}
-- Event Type: ${event.eventType}
-- Date: ${new Date(event.startDate).toLocaleDateString()} to ${new Date(event.endDate).toLocaleDateString()}
-- Venue: ${event.eventVenue}
+    // Event Details:
+    // - Event Name: ${event.eventName}
+    // - Event Type: ${event.eventType}
+    // - Date: ${new Date(event.startDate).toLocaleDateString()} to ${new Date(event.endDate).toLocaleDateString()}
+    // - Venue: ${event.eventVenue}
 
-Please respond at your earliest convenience.
+    // Please respond at your earliest convenience.
 
-Best regards,
-Event Approval Committee`
-      );
-      console.log(`Post-approval query notification email sent to organizer: ${event.email}`);
-    } catch (emailError) {
-      console.error(`Failed to send post-approval query notification email to organizer:`, emailError.message);
-    }
+    // Best regards,
+    // Event Approval Committee`
+    //   );
+    //   console.log(`Post-approval query notification email sent to organizer: ${event.email}`);
+    // } catch (emailError) {
+    //   console.error(`Failed to send post-approval query notification email to organizer:`, emailError.message);
+    // }
 
     res.status(200).json({ message: "Query raised successfully.", query: newQuery });
   } catch (error) {

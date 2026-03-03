@@ -965,6 +965,11 @@ const EventDetails = () => {
         <p>
           <strong>Estimated Budget:</strong> ₹{eventDetails.estimatedBudget}
         </p>
+        {eventDetails.budgetAnnexureNumber && (
+          <p>
+            <strong>Budget Annexure Number:</strong> {eventDetails.budgetAnnexureNumber}
+          </p>
+        )}
 
         {/* Show budget breakup if available */}
         {Array.isArray(eventDetails.budgetBreakup) && eventDetails.budgetBreakup.length > 0 && (
@@ -1051,11 +1056,28 @@ const EventDetails = () => {
         </p>
 
         <h4>Requirements</h4>
-        <ul>
-          {eventDetails.requirements?.map((req, index) => (
-            <li key={index}>{req}</li>
-          ))}
-        </ul>
+        {Array.isArray(eventDetails.requirements) && eventDetails.requirements.length > 0 ? (
+          <table className="table table-sm">
+            <thead>
+              <tr>
+                <th style={{ width: "50px" }}>Sl. No</th>
+                <th>Requirement/Facility</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {eventDetails.requirements.map((req, index) => (
+                <tr key={index}>
+                  <td>{index + 1}</td>
+                  <td>{typeof req === 'string' ? req : req.name || ''}</td>
+                  <td>{typeof req === 'string' ? '—' : req.description || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>No requirements specified</p>
+        )}
 
         <h4>Description</h4>
         <p>{eventDetails.eventDescription}</p>
