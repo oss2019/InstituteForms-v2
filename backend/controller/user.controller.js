@@ -4,76 +4,78 @@ import jwt from "jsonwebtoken";
 import { oauth2Client } from "../googleClient.js";
 import axios from "axios";
 
-// export const signup = async (req, res) => {
-//   try {
-//     const { email, password, category } = req.body;
+export const signup = async (req, res) => {
+  try {
+    const { email, password, category, role, type } = req.body;
 
-//     // Check if the user already exists
-//     const existingUser = await User.findOne({ email });
-//     if (existingUser) {
-//       return res.status(400).json({ message: "User already exists" });
-//     }
+    // Check if the user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
 
-//     // Hash the password and create a new user
-//     const hashPassword = await bcryptjs.hash(password, 8);
-//     const newUser = new User({
-//       email,
-//       password: hashPassword,
-//       name: "",
-//       category,
-//       eventApproval: "",
-//       phnumber: "",
-//     });
+    // Hash the password and create a new user
+    const hashPassword = await bcryptjs.hash(password, 8);
+    const newUser = new User({
+      email,
+      password: hashPassword,
+      name: email.split('@')[0],
+      role: role || "club-secretary",
+      type: type || category,
+      category,
+      eventApproval: "",
+      phnumber: "",
+    });
 
-//     await newUser.save();
-//     const token = jwt.sign(
-//       { userID: newUser._id, role: newUser.role },
-//       process.env.JWT_SECRET,
-//       { expiresIn: "1h" } // Set your preferred token expiry time
-//     );
-//     res.status(201).json({
-//       message: "User created successfully",
-//       token,
-//       user: { _id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role, category: newUser.category },
-//     });
+    await newUser.save();
+    const token = jwt.sign(
+      { id: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+    res.status(201).json({
+      message: "User created successfully",
+      token,
+      user: { _id: newUser._id, name: newUser.name, email: newUser.email, role: newUser.role, category: newUser.category },
+    });
     
-//   } catch (error) {
-//     console.log("error:", error.message);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// };
+  } catch (error) {
+    console.log("error:", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
-// //login function
+//login function
 
-// export const login = async (req, res) => {
-//     try {
-//       const { email, password } = req.body;
+export const login = async (req, res) => {
+    try {
+      const { email, password } = req.body;
   
-//       const user = await User.findOne({ email });
-//       if (!user) {
-//         return res.status(400).json({ message: "User not found" });
-//       }
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(400).json({ message: "User not found" });
+      }
   
-//       const isMatch = await bcryptjs.compare(password, user.password);
-//       if (!isMatch) {
-//         return res.status(400).json({ message: "Invalid credentials" });
-//       }
+      const isMatch = await bcryptjs.compare(password, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Invalid credentials" });
+      }
   
-//       // Create a JWT token
-//       const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
-//         expiresIn: '1h', 
-//       });
+      // Create a JWT token
+      const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+        expiresIn: '1h', 
+      });
   
-//       res.status(200).json({
-//         message: "Login successful",
-//         token,
-//         user: { _id: user._id, name: user.name, email: user.email, role: user.role },
-//       });
-//     } catch (error) {
-//       console.log("error:", error.message);
-//       res.status(500).json({ message: "Internal server error" });
-//     }
-//   };
+      res.status(200).json({
+        message: "Login successful",
+        token,
+        user: { _id: user._id, name: user.name, email: user.email, role: user.role, type: user.type },
+      });
+    } catch (error) {
+      console.log("error:", error.message);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
 
 //Google login function
 
@@ -172,6 +174,55 @@ export const googleLogin = async (req, res) => {
       res.status(500).json({ message: "Server error" });
     }
   };
+
+// ─── Student Google Login (auto-register on first login) ────────────────────
+export const studentGoogleLogin = async (req, res) => {
+  const { token } = req.body;
+  try {
+    const ticket = await oauth2Client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture } = payload;
+
+    // Enforce college domain
+    if (!email.endsWith("iitdh.ac.in")) {
+      return res.status(403).json({
+        message: "Only @iitdh.ac.in accounts are allowed for student login.",
+      });
+    }
+
+    // Find or auto-create the student account
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = new User({
+        email,
+        name,
+        image: picture,
+        role: "student",
+        password: "",
+      });
+      await user.save();
+    } else if (user.role !== "student") {
+      return res.status(403).json({
+        message: "This email is registered under a different portal. Please use the correct login.",
+      });
+    }
+
+    const appToken = jwt.sign(
+      { userID: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "8h" }
+    );
+
+    res.status(200).json({ message: "success", token: appToken, user });
+  } catch (error) {
+    console.error("Student Google Login Error:", error);
+    res.status(500).json({ message: "Student Google Login failed" });
+  }
+};
   
   
   
