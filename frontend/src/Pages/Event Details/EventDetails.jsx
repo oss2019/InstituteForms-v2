@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom"; // Use useNavigate hook
 import axios from "axios";
 import { toast } from "react-hot-toast";
+import DOMPurify from "dompurify";
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import "./EventDetails.css";
 
 import { generatePDF } from "../../utils/pdfGenerator";
@@ -190,9 +193,13 @@ const EventDetails = () => {
     // Add approval actions
     if (eventDetails?.approvals) {
       eventDetails.approvals.forEach((approval) => {
-        // Only show if action was taken (Approved or Rejected, not Query since queries are tracked separately)
-        if (approval.timestamp && (approval.status === "Approved" || approval.status === "Rejected")) {
-          let title = `${approval.role.replace(/-/g, ' ').toUpperCase()}`;
+        // Show if action was taken (Approved or Rejected)
+        // For Rejected without timestamp, still show it (use createdAt as reference)
+        const hasTimestamp = approval.timestamp;
+        const shouldShow = approval.status === "Approved" || approval.status === "Rejected";
+        
+        if ((hasTimestamp && shouldShow) || (approval.status === "Rejected")) {
+          let title = `${approval.role.replace(/-/g, ' ').replace(/^\//, '').toUpperCase()}`;
           let icon = "";
           let color = "#6c757d";
           
@@ -208,7 +215,7 @@ const EventDetails = () => {
           
           events.push({
             type: "approval",
-            date: new Date(approval.timestamp),
+            date: new Date(approval.timestamp || eventDetails.createdAt),
             title: title,
             description: approval.comment || "No comments",
             icon: icon,
@@ -443,6 +450,10 @@ const EventDetails = () => {
 
   const handleEditChange = (e) => {
     setEditForm({ ...editForm, [e.target.name]: e.target.value });
+  };
+
+  const handleEditDescriptionChange = (value) => {
+    setEditForm({ ...editForm, eventDescription: value });
   };
 
   const handleEditSubmit = async () => {
@@ -750,40 +761,42 @@ const EventDetails = () => {
 
   return (
     <div className="event-details-container">
-      <div className="event-details-main">
-        <div className="event-details">
-          <h1>Event Details</h1>
-          {eventDetails.status === 'Closed' && (
-            <div className="alert alert-dark mt-2">
-              <strong>⛔ Event Closed</strong><br/>
-              This event has been officially closed by {eventDetails.closedBy || 'an administrator'} on {eventDetails.closedAt ? new Date(eventDetails.closedAt).toLocaleDateString() : 'N/A'}.
-            </div>
-          )}
+      {/* Top Header */}
+      <div className="ed-top-header">
+        <div className="ed-top-left">
+          <h1 className="ed-event-name">
+            {eventDetails.eventName}
+            {eventDetails.status === 'Closed' && (
+              <span className="badge bg-dark ms-2" style={{ fontSize: '0.5em', verticalAlign: 'middle' }}>Closed</span>
+            )}
+          </h1>
         </div>
+        <div className="ed-top-right">
+          <div className="ed-ref-number-box">
+            <span className="ed-ref-label">Reference Number</span>
+            <span className="ed-ref-value">{eventDetails.referenceNumber || 'TBD'}</span>
+          </div>
+          <div className="ed-date-display">
+            <span className="ed-date-label">Start Date</span>
+            <span className="ed-date-value">{new Date(eventDetails.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          </div>
+        </div>
+      </div>
 
-        {/* Back button next to the event name */}
-        <div className="event-details-header">
-        <h4>
-          {eventDetails.eventName}
-          {eventDetails.status === 'Closed' && (
-            <span className="badge bg-dark ms-2">Closed</span>
-          )}
-        </h4>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={() => navigate(-1)}
-        >
-          Back
-        </button>
-        {canEditEvent() && (
-          <button
-            className="btn btn-warning btn-sm ms-2"
-            onClick={() => setShowEditModal(true)}
-          >
-            Edit Event
-          </button>
-        )}
-        {showEditModal && (
+      {eventDetails.status === 'Closed' && (
+        <div className="alert alert-dark mt-2">
+          <strong>⛔ Event Closed</strong><br/>
+          This event has been officially closed by {eventDetails.closedBy || 'an administrator'} on {eventDetails.closedAt ? new Date(eventDetails.closedAt).toLocaleDateString() : 'N/A'}.
+        </div>
+      )}
+
+      {canEditEvent() && (
+        <div className="ed-edit-bar">
+          <button className="btn btn-warning btn-sm" onClick={() => setShowEditModal(true)}>✏️ Edit Event</button>
+        </div>
+      )}
+
+      {showEditModal && (
           <div
             className="modal-overlay"
             style={{
@@ -1042,443 +1055,425 @@ const EventDetails = () => {
             </div>
           </div>
         )}
-      </div>
 
-      <div className="event-details-content">
-        <p>
-          <strong>Type:</strong> {eventDetails.eventType}
-        </p>
-        <p>
-          <strong>Club Name:</strong> {eventDetails.clubName}
-        </p>
-        <p>
-          <strong>Start Date:</strong>{" "}
-          {new Date(eventDetails.startDate).toLocaleDateString()}
-        </p>
-        <p>
-          <strong>End Date:</strong>{" "}
-          {new Date(eventDetails.endDate).toLocaleDateString()}
-        </p>
-        <p>
-          <strong>Venue:</strong> {eventDetails.eventVenue}
-        </p>
-        <p>
-          <strong>Source of Budget:</strong> {eventDetails.sourceOfBudget}
-        </p>
-        <p>
-          <strong>Estimated Budget:</strong> ₹{eventDetails.estimatedBudget}
-        </p>
-        {eventDetails.budgetAnnexureNumber && (
-          <p>
-            <strong>Budget Annexure Number:</strong> {eventDetails.budgetAnnexureNumber}
-          </p>
-        )}
+      {/* Main Grid Layout */}
+      <div className="ed-grid">
 
-        {/* Show budget breakup if available */}
-        {Array.isArray(eventDetails.budgetBreakup) && eventDetails.budgetBreakup.length > 0 && (
-          <>
-            <h4>Budget Breakup</h4>
-            <table className="table table-sm">
-              <thead>
-                <tr>
-                  <th>Head</th>
-                  <th style={{ width: "150px" }}>Amount (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventDetails.budgetBreakup.map((item, idx) => {
-                  const label = item?.expenseHead ?? item?.label ?? item?.name ?? item?.head ?? item ?? "";
-                  const amount = item?.estimatedAmount ?? item?.amount ?? item?.value ?? "";
-                  return (
-                    <tr key={idx}>
-                      <td style={{ wordBreak: "break-word" }}>{label || "—"}</td>
-                      <td>{amount !== "" && amount !== null && amount !== undefined ? `₹${amount}` : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </>
-        )}
+        {/* Left Column */}
+        <div className="ed-left-col">
 
-        {/* Show proposed budget if edited by ARSW/Associate Dean/Dean */}
-        {eventDetails.proposedBudgetBreakup && eventDetails.proposedBudgetBreakup.length > 0 && (
-          <>
-            <h4 className="text-info">Revised Budget (Edited by {eventDetails.budgetEditedBy})</h4>
-            <p>
-              <strong>Revised Estimated Budget:</strong> ₹{eventDetails.proposedEstimatedBudget}
-            </p>
-            <table className="table table-sm table-info">
-              <thead>
-                <tr>
-                  <th>Head</th>
-                  <th style={{ width: "150px" }}>Amount (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventDetails.proposedBudgetBreakup.map((item, idx) => {
-                  const label = item?.expenseHead ?? item?.label ?? item?.name ?? item?.head ?? "";
-                  const amount = item?.estimatedAmount ?? item?.amount ?? item?.value ?? "";
-                  return (
-                    <tr key={idx}>
-                      <td style={{ wordBreak: "break-word" }}>{label || "—"}</td>
-                      <td>{amount !== "" && amount !== null && amount !== undefined ? `₹${amount}` : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <p className="text-muted small">
-              <em>Edited on: {new Date(eventDetails.budgetEditedAt).toLocaleString()}</em>
-            </p>
-          </>
-        )}
-
-        {/* Budget Edit Button for ARSW/Associate Dean/Dean */}
-        {canEditBudget() && (
-          <button 
-            className="btn btn-warning btn-sm mb-3" 
-            onClick={handleOpenBudgetEditModal}
-          >
-            <i className="bi bi-pencil-square"></i> Edit Budget
-          </button>
-        )}
-
-        <h4>Organizer Details</h4>
-        <p>
-          <strong>Name:</strong> {eventDetails.nameOfTheOrganizer}
-        </p>
-        <p>
-          <strong>Designation:</strong> {eventDetails.designation}
-        </p>
-        <p>
-          <strong>Email:</strong> {eventDetails.email}
-        </p>
-        <p>
-          <strong>Phone Number:</strong> {eventDetails.phoneNumber}
-        </p>
-
-        <h4>Requirements</h4>
-        {Array.isArray(eventDetails.requirements) && eventDetails.requirements.length > 0 ? (
-          <table className="table table-sm">
-            <thead>
-              <tr>
-                <th style={{ width: "50px" }}>Sl. No</th>
-                <th>Requirement/Facility</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {eventDetails.requirements.map((req, index) => (
-                <tr key={index}>
-                  <td>{index + 1}</td>
-                  <td>{typeof req === 'string' ? req : req.name || ''}</td>
-                  <td>{typeof req === 'string' ? '—' : req.description || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No requirements specified</p>
-        )}
-
-        <h4>Description</h4>
-        <p>{eventDetails.eventDescription}</p>
-
-        <h4>Participants</h4>
-        <p>
-          <strong>External:</strong> {eventDetails.externalParticipants}
-        </p>
-        <p>
-          <strong>Internal:</strong> {eventDetails.internalParticipants}
-        </p>
-
-        {eventDetails.externalParticipants > 0 && (
-          <p>
-            <strong>Collaborating Organizations:</strong>{" "}
-            {eventDetails.listOfCollaboratingOrganizations}
-          </p>
-        )}
-
-        <h4>Approval Status</h4>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Comment</th>
-            </tr>
-          </thead>
-          <tbody>
-            {getApprovalsToDisplay(eventDetails.approvals).map(
-              (approval, index) => (
-                <tr key={index}>
-                  <td>{approval.role}</td>
-                  <td>{approval.status}</td>
-                  <td>{approval.comment || "N/A"}</td>
-                </tr>
-              )
+          {/* Event Information */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Event Information</h5>
+            <div className="ed-info-row"><span className="ed-info-label">Club Name</span><span className="ed-info-value">{eventDetails.clubName}</span></div>
+            <div className="ed-info-row"><span className="ed-info-label">Type</span><span className="ed-info-value">{eventDetails.eventType || '—'}</span></div>
+            <div className="ed-info-row"><span className="ed-info-label">Start Date</span><span className="ed-info-value">{new Date(eventDetails.startDate).toLocaleDateString()}</span></div>
+            <div className="ed-info-row"><span className="ed-info-label">End Date</span><span className="ed-info-value">{new Date(eventDetails.endDate).toLocaleDateString()}</span></div>
+            <div className="ed-info-row"><span className="ed-info-label">Venue</span><span className="ed-info-value">{eventDetails.eventVenue}</span></div>
+            <div className="ed-info-row"><span className="ed-info-label">Source of Budget</span><span className="ed-info-value">{eventDetails.sourceOfBudget}</span></div>
+            <div className="ed-info-row"><span className="ed-info-label">Estimated Budget</span><span className="ed-info-value">₹{eventDetails.estimatedBudget}</span></div>
+            {eventDetails.budgetAnnexureNumber && (
+              <div className="ed-info-row"><span className="ed-info-label">Budget Annexure No.</span><span className="ed-info-value">{eventDetails.budgetAnnexureNumber}</span></div>
             )}
-          </tbody>
-        </table>
+          </div>
 
-        {/* Edit History Section */}
-        {(() => {
-          // Filter out edits with no actual changes
-          const validEdits = editHistory.filter(edit => edit.changes && Object.keys(edit.changes).length > 0);
-          
-          if (validEdits.length === 0) return null;
-          
-          return (
-            <>
-              <div className="d-flex justify-content-between align-items-center mt-4">
-                <h4>Edit History</h4>
-                <button
-                  className="btn btn-sm btn-outline-secondary"
-                  onClick={() => setShowEditHistory(!showEditHistory)}
-                >
-                  {showEditHistory ? 'Hide History' : 'Show History'}
-                </button>
-              </div>
-              {showEditHistory && (() => {
-              console.log("All edits:", editHistory);
-              console.log("Valid edits after filter:", validEdits);
-              
-              if (validEdits.length === 0) {
-                return (
-                  <div className="edit-history-section mt-3">
-                    <p className="text-muted">No edit history available.</p>
-                  </div>
-                );
-              }
-              
-              return (
-                <div className="edit-history-section mt-3">
-                  {validEdits.map((edit, index) => {
-                    console.log(`Edit #${index}:`, edit, "Changes keys:", Object.keys(edit.changes || {}));
+          {/* Budget Breakup */}
+          {Array.isArray(eventDetails.budgetBreakup) && eventDetails.budgetBreakup.length > 0 && (
+            <div className="ed-card">
+              <h5 className="ed-card-title">Budget Breakup</h5>
+              <table className="table table-sm">
+                <thead>
+                  <tr><th>Head</th><th style={{ width: '150px' }}>Amount (₹)</th></tr>
+                </thead>
+                <tbody>
+                  {eventDetails.budgetBreakup.map((item, idx) => {
+                    const label = item?.expenseHead ?? item?.label ?? item?.name ?? item?.head ?? item ?? "";
+                    const amount = item?.estimatedAmount ?? item?.amount ?? item?.value ?? "";
                     return (
-                    <div
-                      key={index}
-                      className="edit-history-card mb-3 p-3"
-                      style={{
-                        border: "1px solid #ddd",
-                        borderRadius: "5px",
-                        backgroundColor: "#f8f9fa"
-                      }}
-                    >
-                      <div className="edit-header">
-                        <strong>Edit #{validEdits.length - index}</strong>
-                        <span className="text-muted ms-2">
-                          by {edit.editorName} ({edit.editorEmail})
-                        </span>
-                        <span className="text-muted ms-2">
-                          on {new Date(edit.editedAt).toLocaleString()}
-                        </span>
-                      </div>
-                    <div className="edit-changes mt-2">
-                      <strong>Changes Made:</strong>
-                      {Object.keys(edit.changes || {}).length === 0 ? (
-                        <p className="text-muted mt-2">No changes recorded</p>
-                      ) : (
-                        <table className="table table-sm table-bordered mt-2">
-                          <thead className="table-light">
-                            <tr>
-                              <th style={{ width: '25%' }}>Field</th>
-                              <th style={{ width: '37.5%' }}>Old Value</th>
-                              <th style={{ width: '37.5%' }}>New Value</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {Object.entries(edit.changes || {}).map(([field, change]) => {
-                              // Don't render budgetBreakup changes in the table
-                              if (field === 'budgetBreakup') return null;
-                              // Format values for display
-                              const formatValue = (value) => {
-                                if (value === null || value === undefined) return "N/A";
-                                if (Array.isArray(value)) return value.join(", ");
-                                if (typeof value === 'object' && !(value instanceof Date)) return JSON.stringify(value);
-                                
-                                // Handle date strings and Date objects
-                                if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value))) {
-                                  const date = new Date(value);
-                                  if (!isNaN(date.getTime())) {
-                                    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-                                  }
-                                }
-                                
-                                return String(value);
-                              };
-                              
-                              // Skip date fields if the formatted values are the same
-                              const dateFields = ['startDate', 'endDate'];
-                              if (dateFields.includes(field)) {
-                                const formattedOld = formatValue(change.oldValue);
-                                const formattedNew = formatValue(change.newValue);
-                                if (formattedOld === formattedNew) {
-                                  return null; // Skip this field
-                                }
-                              }
-                              
-                              // Format field name for display (camelCase to Title Case)
-                              const displayField = field
-                                .replace(/([A-Z])/g, ' $1')
-                                .replace(/^./, str => str.toUpperCase());
-
-                              return (
-                                <tr key={field}>
-                                  <td><strong>{displayField}</strong></td>
-                                  <td style={{ 
-                                    color: "#dc3545", 
-                                    wordBreak: "break-word",
-                                    backgroundColor: "#fff5f5"
-                                  }}>
-                                    {formatValue(change.oldValue)}
-                                  </td>
-                                  <td style={{ 
-                                    color: "#28a745",
-                                    wordBreak: "break-word",
-                                    backgroundColor: "#f0fff4"
-                                  }}>
-                                    {formatValue(change.newValue)}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
-              );
-            })()}
-            </>
-          );
-        })()}
-
-        {/* Queries Section */}
-        {queries.length > 0 && (
-          <>
-            <h4>Queries</h4>
-            <div className="queries-section">
-              {queries.map((query, index) => (
-                <div
-                  key={query.queryId}
-                  className="query-card mb-3 p-3"
-                  style={{ border: "1px solid #ddd", borderRadius: "5px" }}
-                >
-                  <div className="query-header">
-                    <strong>Query from {query.askerRole}:</strong>
-                    <span className="text-muted ms-2">
-                      {new Date(query.raisedAt).toLocaleDateString()}
-                    </span>
-                    <span
-                      className={`badge ms-2 ${
-                        query.status === "Pending" ? "bg-warning" : "bg-success"
-                      }`}
-                    >
-                      {query.status}
-                    </span>
-                  </div>
-                  <div className="query-text mt-2">
-                    <p>
-                      <strong>Query:</strong> {query.queryText}
-                    </p>
-                  </div>
-                  {query.response && (
-                    <div className="query-response mt-2">
-                      <p>
-                        <strong>Response:</strong> {query.response}
-                      </p>
-                      <small className="text-muted">
-                        Responded on:{" "}
-                        {new Date(query.answeredAt).toLocaleDateString()}
-                      </small>
-                    </div>
-                  )}
-                  {query.status === "Pending" && role === "club-secretary" && (
-                    <button
-                      className="btn btn-sm btn-primary mt-2"
-                      onClick={() => handleQueryReply(query)}
-                    >
-                      Reply to Query
-                    </button>
-                  )}
-                </div>
-              ))}
+                      <tr key={idx}>
+                        <td style={{ wordBreak: 'break-word' }}>{label || '—'}</td>
+                        <td>{amount !== '' && amount !== null && amount !== undefined ? `₹${amount}` : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {canEditBudget() && (
+                <button className="btn btn-warning btn-sm mt-2" onClick={handleOpenBudgetEditModal}>✏️ Edit Budget</button>
+              )}
             </div>
-          </>
-        )}
-
-        {/* Render Approve and Reject buttons only if the role is not 'club-secretary' and user can approve */}
-        {role !== "club-secretary" &&
-          canCurrentUserApprove(eventDetails.approvals) && (
-            <>
-              <button
-                className="btn btn-success mb-1 me-2"
-                onClick={() => handleApprovalClick("Approved")}
-              >
-                Approve
-              </button>
-              <button
-                className="btn btn-danger mb-1 me-2"
-                onClick={() => handleApprovalClick("Rejected")}
-              >
-                Reject
-              </button>
-              <button
-                className="btn btn-warning mb-1 me-2"
-                onClick={() => handleApprovalClick("Query")}
-              >
-                Raise Query
-              </button>
-            </>
           )}
 
-        <button className="btn btn-primary mb-1" onClick={handleGeneratePDF}>
-          Generate & Preview PDF
-        </button>
+          {/* Revised Budget */}
+          {eventDetails.proposedBudgetBreakup && eventDetails.proposedBudgetBreakup.length > 0 && (
+            <div className="ed-card">
+              <h5 className="ed-card-title">Revised Budget <span className="text-muted" style={{ fontSize: '0.85rem', fontWeight: 400 }}>by {eventDetails.budgetEditedBy}</span></h5>
+              <p className="mb-2"><strong>Revised Total:</strong> ₹{eventDetails.proposedEstimatedBudget}</p>
+              <table className="table table-sm">
+                <thead>
+                  <tr><th>Head</th><th style={{ width: '150px' }}>Amount (₹)</th></tr>
+                </thead>
+                <tbody>
+                  {eventDetails.proposedBudgetBreakup.map((item, idx) => {
+                    const label = item?.expenseHead ?? item?.label ?? item?.name ?? item?.head ?? "";
+                    const amount = item?.estimatedAmount ?? item?.amount ?? item?.value ?? "";
+                    return (
+                      <tr key={idx}>
+                        <td style={{ wordBreak: 'break-word' }}>{label || '—'}</td>
+                        <td>{amount !== '' && amount !== null && amount !== undefined ? `₹${amount}` : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="text-muted small mt-1"><em>Edited on: {new Date(eventDetails.budgetEditedAt).toLocaleString()}</em></p>
+            </div>
+          )}
 
-        {/* Close Event Button - for associate-dean, dean, ARSW only */}
-        {canCloseEvent() && (
-          <button 
-            className="btn btn-dark mb-1 ms-2" 
-            onClick={() => setShowCloseModal(true)}
-          >
-            Close Event
-          </button>
-        )}
-
-        {/* Raise Query for Approved Event - for associate-dean, dean, ARSW only */}
-        {canRaiseApprovedQuery() && (
-          <button 
-            className="btn btn-info mb-1 ms-2" 
-            onClick={() => setShowApprovedQueryModal(true)}
-          >
-            Raise Query
-          </button>
-        )}
-
-        {/* Conditionally render the iframe only after generating PDF */}
-        {isPDFGenerated && (
-          <>
-            <iframe
-              id="pdf-preview"
-              key={pdfPreviewUrl || pdfPreviewDataUrl}
-              className="pdf-preview"
-              style={{ width: "100%", height: "500px", border: "none" }}
-              src={pdfPreviewUrl || pdfPreviewDataUrl || undefined}
-              title="PDF Preview"
-            ></iframe>
-            {!pdfPreviewUrl && pdfPreviewDataUrl && (
-              <p style={{ marginTop: "8px" }}>
-                If the preview stays blank, <a href={pdfPreviewDataUrl} target="_blank" rel="noopener noreferrer">open the PDF in a new tab</a>.
-              </p>
+          {/* Requirements */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Requirements</h5>
+            {Array.isArray(eventDetails.requirements) && eventDetails.requirements.length > 0 ? (
+              <table className="table table-sm">
+                <thead>
+                  <tr>
+                    <th style={{ width: '50px' }}>Sl. No</th>
+                    <th>Requirement</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eventDetails.requirements.map((req, index) => (
+                    <tr key={index}>
+                      <td>{index + 1}</td>
+                      <td>{typeof req === 'string' ? req : req.name || ''}</td>
+                      <td>{typeof req === 'string' ? '—' : req.description || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-muted mb-0">No requirements specified</p>
             )}
+            {eventDetails.anyAdditionalAmenities && (
+              <div className="ed-info-row mt-2">
+                <span className="ed-info-label">Additional Amenities</span>
+                <span className="ed-info-value">{eventDetails.anyAdditionalAmenities}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Description */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Description</h5>
+            <div
+              className="ed-description-content"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(eventDetails.eventDescription || '') }}
+            />
+          </div>
+
+        </div>
+
+        {/* Right Column */}
+        <div className="ed-right-col">
+
+          {/* Participants */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Participants</h5>
+            <div className="ed-participant-stats">
+              <div className="ed-stat-box">
+                <span className="ed-stat-number">{eventDetails.internalParticipants || 0}</span>
+                <span className="ed-stat-label">Internal</span>
+              </div>
+              <div className="ed-stat-box">
+                <span className="ed-stat-number">{eventDetails.externalParticipants || 0}</span>
+                <span className="ed-stat-label">External</span>
+              </div>
+            </div>
+            {eventDetails.externalParticipants > 0 && eventDetails.listOfCollaboratingOrganizations && (
+              <div className="ed-info-row mt-3">
+                <span className="ed-info-label">Collaborating Orgs</span>
+                <span className="ed-info-value">{eventDetails.listOfCollaboratingOrganizations}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Organizer Details */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Organizer Details</h5>
+            <div className="organizer-detail-row"><span className="organizer-label">Name</span><span className="organizer-value">{eventDetails.nameOfTheOrganizer || '—'}</span></div>
+            <div className="organizer-detail-row"><span className="organizer-label">Designation</span><span className="organizer-value">{eventDetails.designation || '—'}</span></div>
+            <div className="organizer-detail-row"><span className="organizer-label">Email</span><span className="organizer-value">{eventDetails.email || '—'}</span></div>
+            <div className="organizer-detail-row"><span className="organizer-label">Phone</span><span className="organizer-value">{eventDetails.phoneNumber || '—'}</span></div>
+          </div>
+
+          {/* Unified Approval & Activity Timeline */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Approval & Activity</h5>
+            <div className="activity-timeline">
+              {(() => {
+                const completed = buildTimelineEvents();
+                
+                // Check if there's any rejection in the approval chain
+                const hasRejection = (eventDetails.approvals || []).some(a => a.status === 'Rejected');
+                
+                // Always show pending items (even for display purposes after rejection)
+                const pending = (eventDetails.approvals || []).filter(a =>
+                  a.status !== 'Approved' && a.status !== 'Rejected'
+                );
+                
+                // Find the first pending index to mark it as "current"
+                const firstPendingRole = pending.length > 0 ? pending[0].role : null;
+
+                return (
+                  <>
+                    {completed.length === 0 && pending.length === 0 && (
+                      <p className="text-muted small">No activity recorded yet.</p>
+                    )}
+
+                    {completed.map((event, index) => (
+                      <div key={`c-${index}`} className="at-item">
+                        <div className="at-line-col">
+                          <div className="at-dot" style={{ background: event.color, borderColor: event.color }}>{event.icon}</div>
+                          {(index < completed.length - 1 || pending.length > 0) && <div className="at-connector" />}
+                        </div>
+                        <div className="at-content" style={{ borderLeftColor: event.color }}>
+                          <div className="at-title">{event.title}</div>
+                          {event.description && event.description !== 'No comments' && (
+                            <div className="at-desc">{event.description}</div>
+                          )}
+                          <div className="at-date">
+                            {event.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {' '}
+                            {event.date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {pending.map((approval, index) => {
+                      const isCurrent = !hasRejection && approval.role === firstPendingRole;
+                      const dotColor = isCurrent ? '#007bff' : hasRejection ? '#dc3545' : '#adb5bd';
+                      const borderColor = isCurrent ? '#007bff' : hasRejection ? '#dc3545' : '#dee2e6';
+                      const isLast = index === pending.length - 1;
+                      const dotIcon = isCurrent ? '⏳' : hasRejection ? '—' : '○';
+                      const statusText = hasRejection ? 'Not required' : 'Pending approval';
+                      const statusBadge = isCurrent ? 'Awaiting' : hasRejection ? 'Rejected Below' : null;
+                      
+                      return (
+                        <div key={`p-${index}`} className={`at-item at-item-pending${hasRejection ? ' at-item-rejected' : ''}`}>
+                          <div className="at-line-col">
+                            <div
+                              className={`at-dot at-dot-pending${isCurrent ? ' at-dot-current' : ''}`}
+                              style={{ background: dotColor, borderColor: dotColor }}
+                            >
+                              {dotIcon}
+                            </div>
+                            {!isLast && <div className="at-connector at-connector-pending" />}
+                          </div>
+                          <div className="at-content at-content-pending" style={{ borderLeftColor: borderColor }}>
+                            <div className="at-title" style={{ color: isCurrent ? '#212529' : hasRejection ? '#6c757d' : '#adb5bd' }}>
+                              {approval.role.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                              {statusBadge && <span className={`badge ms-2 ${isCurrent ? 'bg-primary' : 'bg-secondary'}`} style={{ fontSize: '0.7rem' }}>{statusBadge}</span>}
+                            </div>
+                            <div className="at-date" style={{ color: isCurrent ? '#495057' : hasRejection ? '#adb5bd' : '#adb5bd' }}>{statusText}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Edit History Section */}
+      {(() => {
+        const validEdits = editHistory.filter(edit => edit.changes && Object.keys(edit.changes).length > 0);
+        if (validEdits.length === 0) return null;
+        return (
+          <div className="ed-card mt-3">
+            <div className="d-flex justify-content-between align-items-center">
+              <h5 className="ed-card-title mb-0">Edit History</h5>
+              <button className="btn btn-sm btn-outline-secondary" onClick={() => setShowEditHistory(!showEditHistory)}>
+                {showEditHistory ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {showEditHistory && validEdits.map((edit, index) => (
+              <div key={index} className="edit-history-card mb-3 p-3 mt-2" style={{ border: '1px solid #ddd', borderRadius: '5px', backgroundColor: '#f8f9fa' }}>
+                <div className="edit-header">
+                  <strong>Edit #{validEdits.length - index}</strong>
+                  <span className="text-muted ms-2">by {edit.editorName} ({edit.editorEmail})</span>
+                  <span className="text-muted ms-2">on {new Date(edit.editedAt).toLocaleString()}</span>
+                </div>
+                <div className="edit-changes mt-2">
+                  <strong>Changes Made:</strong>
+                  {Object.keys(edit.changes || {}).length === 0 ? (
+                    <p className="text-muted mt-2">No changes recorded</p>
+                  ) : (
+                    <table className="table table-sm table-bordered mt-2">
+                      <thead className="table-light">
+                        <tr>
+                          <th style={{ width: '25%' }}>Field</th>
+                          <th style={{ width: '37.5%' }}>Old Value</th>
+                          <th style={{ width: '37.5%' }}>New Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(edit.changes || {}).map(([field, change]) => {
+                          if (field === 'budgetBreakup') return null;
+                          const formatValue = (value) => {
+                            if (value === null || value === undefined) return 'N/A';
+                            if (Array.isArray(value)) return value.join(', ');
+                            if (typeof value === 'object' && !(value instanceof Date)) return JSON.stringify(value);
+                            if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value))) {
+                              const date = new Date(value);
+                              if (!isNaN(date.getTime())) return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                            }
+                            return String(value);
+                          };
+                          const dateFields = ['startDate', 'endDate'];
+                          if (dateFields.includes(field)) {
+                            if (formatValue(change.oldValue) === formatValue(change.newValue)) return null;
+                          }
+                          const displayField = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                          return (
+                            <tr key={field}>
+                              <td><strong>{displayField}</strong></td>
+                              <td style={{ color: '#dc3545', wordBreak: 'break-word', backgroundColor: '#fff5f5' }}>{formatValue(change.oldValue)}</td>
+                              <td style={{ color: '#28a745', wordBreak: 'break-word', backgroundColor: '#f0fff4' }}>{formatValue(change.newValue)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* Queries Section */}
+      {queries.length > 0 && (
+        <div className="ed-card mt-3">
+          <h5 className="ed-card-title">Queries</h5>
+          <div className="queries-section">
+            {queries.map((query) => (
+              <div key={query.queryId} className="query-card mb-3 p-3" style={{ border: '1px solid #ddd', borderRadius: '5px' }}>
+                <div className="query-header">
+                  <strong>Query from {query.askerRole}:</strong>
+                  <span className="text-muted ms-2">{new Date(query.raisedAt).toLocaleDateString()}</span>
+                  <span className={`badge ms-2 ${query.status === 'Pending' ? 'bg-warning' : 'bg-success'}`}>{query.status}</span>
+                </div>
+                <div className="query-text mt-2"><p><strong>Query:</strong> {query.queryText}</p></div>
+                {query.response && (
+                  <div className="query-response mt-2">
+                    <p><strong>Response:</strong> {query.response}</p>
+                    <small className="text-muted">Responded on: {new Date(query.answeredAt).toLocaleDateString()}</small>
+                  </div>
+                )}
+                {query.status === 'Pending' && role === 'club-secretary' && (
+                  <button className="btn btn-sm btn-primary mt-2" onClick={() => handleQueryReply(query)}>Reply to Query</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="ed-actions">
+        {role !== 'club-secretary' && canCurrentUserApprove(eventDetails.approvals) && (
+          <>
+            <button className="btn btn-success" onClick={() => handleApprovalClick('Approved')}>Approve</button>
+            <button className="btn btn-danger" onClick={() => handleApprovalClick('Rejected')}>Reject</button>
+            <button className="btn btn-warning" onClick={() => handleApprovalClick('Query')}>Raise Query</button>
           </>
         )}
+        <button className="btn btn-primary" onClick={handleGeneratePDF}>Generate & Preview PDF</button>
+        {canCloseEvent() && (
+          <button className="btn btn-dark" onClick={() => setShowCloseModal(true)}>Close Event</button>
+        )}
+        {canRaiseApprovedQuery() && (
+          <button className="btn btn-info" onClick={() => setShowApprovedQueryModal(true)}>Raise Query</button>
+        )}
+      </div>
+
+      {/* PDF Preview */}
+      {isPDFGenerated && (
+        <div className="ed-card mt-3">
+          <iframe
+            id="pdf-preview"
+            key={pdfPreviewUrl || pdfPreviewDataUrl}
+            className="pdf-preview"
+            style={{ width: '100%', height: '500px', border: 'none' }}
+            src={pdfPreviewUrl || pdfPreviewDataUrl || undefined}
+            title="PDF Preview"
+          />
+          {!pdfPreviewUrl && pdfPreviewDataUrl && (
+            <p style={{ marginTop: '8px' }}>
+              If the preview stays blank, <a href={pdfPreviewDataUrl} target="_blank" rel="noopener noreferrer">open the PDF in a new tab</a>.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div className="modal-content" style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', minWidth: '400px', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h4>Edit Event Details</h4>
+            <div className="form-group mb-2"><label>Event Name</label><input className="form-control" name="eventName" value={editForm.eventName || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Part of Gymkhana Calendar</label><select className="form-control" name="partOfGymkhanaCalendar" value={editForm.partOfGymkhanaCalendar || ''} onChange={handleEditChange}><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
+            <div className="form-group mb-2"><label>Event Type</label><input className="form-control" name="eventType" value={editForm.eventType || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Club Name</label><input className="form-control" name="clubName" value={editForm.clubName || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Start Date</label><input type="date" className="form-control" name="startDate" value={editForm.startDate || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>End Date</label><input type="date" className="form-control" name="endDate" value={editForm.endDate || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Event Venue</label><input className="form-control" name="eventVenue" value={editForm.eventVenue || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Source of Budget</label><input className="form-control" name="sourceOfBudget" value={editForm.sourceOfBudget || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2">
+              <label>Budget Breakup</label>
+              {editBudgetBreakup.map((item, idx) => (
+                <div key={idx} className="d-flex mb-2 align-items-center">
+                  <input className="form-control me-2" style={{ width: '50%' }} placeholder="Label" value={item.label} onChange={e => handleBudgetBreakupChange(idx, 'label', e.target.value)} />
+                  <input className="form-control me-2" style={{ width: '35%' }} placeholder="Amount" type="number" min="0" value={item.amount} onChange={e => handleBudgetBreakupChange(idx, 'amount', e.target.value)} />
+                  <button className="btn btn-danger btn-sm" type="button" onClick={() => handleRemoveBudgetBreakup(idx)}>&times;</button>
+                </div>
+              ))}
+              <button className="btn btn-outline-primary btn-sm mt-1" type="button" onClick={handleAddBudgetBreakup}>Add Item</button>
+              <div className="mt-2"><strong>Estimated Budget: </strong>₹{calculatedEstimatedBudget}</div>
+            </div>
+            <div className="form-group mb-2"><label>Name of the Organizer</label><input className="form-control" name="nameOfTheOrganizer" value={editForm.nameOfTheOrganizer || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Designation</label><input className="form-control" name="designation" value={editForm.designation || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Email</label><input className="form-control" name="email" value={editForm.email || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Phone Number</label><input className="form-control" name="phoneNumber" value={editForm.phoneNumber || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Requirements (comma separated)</label><input className="form-control" name="requirements" value={editForm.requirements || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Any Additional Amenities</label><input className="form-control" name="anyAdditionalAmenities" value={editForm.anyAdditionalAmenities || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2">
+              <label>Event Description</label>
+              <ReactQuill
+                theme="snow"
+                value={editForm.eventDescription || ''}
+                onChange={handleEditDescriptionChange}
+                modules={{ toolbar: [[{ header: [1, 2, 3, false] }], ['bold', 'italic', 'underline', 'strike'], [{ list: 'ordered' }, { list: 'bullet' }], ['link'], ['clean']] }}
+                style={{ backgroundColor: '#fff' }}
+              />
+            </div>
+            <div className="form-group mb-2"><label>Internal Participants</label><input className="form-control" name="internalParticipants" value={editForm.internalParticipants || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>External Participants</label><input className="form-control" name="externalParticipants" value={editForm.externalParticipants || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>List of Collaborating Organizations</label><input className="form-control" name="listOfCollaboratingOrganizations" value={editForm.listOfCollaboratingOrganizations || ''} onChange={handleEditChange} /></div>
+            <div className="modal-buttons mt-3">
+              <button className="btn btn-secondary me-2" onClick={() => setShowEditModal(false)}>Cancel</button>
+              <button className="btn btn-success" onClick={handleEditSubmit}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
 
         {/* Comment Modal */}
         {showModal && (
@@ -1892,48 +1887,6 @@ const EventDetails = () => {
             </div>
           </div>
         )}
-      </div>
-
-      {/* Event Timeline - Right Sidebar */}
-      <div className="event-timeline">
-        <h5>📅 Timeline</h5>
-        <div className="timeline-events">
-          {buildTimelineEvents().map((event, index) => {
-            const styles = {
-              icon: {
-                borderColor: event.color,
-                backgroundColor: event.color,
-                color: 'white'
-              },
-              content: {
-                borderLeftColor: event.color,
-                backgroundColor: `${event.color}10` // Add transparency
-              }
-            };
-            
-            return (
-              <div key={index} className="timeline-event">
-                <div className="timeline-event-icon" style={styles.icon}>
-                  {event.icon}
-                </div>
-                <div className="timeline-event-content" style={styles.content}>
-                  <div className="timeline-event-title">{event.title}</div>
-                  <div className="timeline-event-description">{event.description}</div>
-                  <div className="timeline-event-date">
-                    {event.date.toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
     </div>
   );
 };

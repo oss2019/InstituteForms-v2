@@ -4,6 +4,8 @@ import toast, { Toaster } from "react-hot-toast";
 import API from '/src/api/api';
 import { generatePDF } from "../../utils/pdfGenerator";
 import StudentDashboard from "../StudentDashboard/EventDashboard.jsx";
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import "./EventForm.css";
 
 const EventForm = () => {
@@ -138,7 +140,15 @@ const EventForm = () => {
       "email", "phoneNumber", "eventDescription", "externalParticipants", "internalParticipants"
     ];
 
-    if (requiredFields.some(field => !formData[field])) {
+    if (requiredFields.some(field => {
+      const val = formData[field];
+      if (field === "eventDescription") {
+        // Quill produces "<p><br></p>" for empty content
+        const stripped = (val || "").replace(/<[^>]*>/g, "").trim();
+        return !stripped;
+      }
+      return !val;
+    })) {
       return false;
     }
 
@@ -321,7 +331,7 @@ const EventForm = () => {
             name="eventVenue"
             value={formData.eventVenue}
             onChange={handleChange}
-            placeholder="Event Venue (If multiple venues, mention all venues separted by comma)"
+            placeholder="Event Venue (If multiple venues, mention all venues separated by comma)"
             required
           />
         </div>
@@ -594,16 +604,22 @@ const EventForm = () => {
         {/* Event Description Section */}
         <div className="mb-3">
           <label htmlFor="eventDescription" className="form-label">Brief Description of the Event</label>
-          <textarea
-            className="form-control"
-            id="eventDescription"
-            name="eventDescription"
-            rows="4"
+          <ReactQuill
+            theme="snow"
             value={formData.eventDescription}
-            onChange={handleChange}
+            onChange={(value) => setFormData({ ...formData, eventDescription: value })}
             placeholder="Give a brief description of the event."
-            required
-          ></textarea>
+            modules={{
+              toolbar: [
+                [{ header: [1, 2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                ['link'],
+                ['clean']
+              ]
+            }}
+            style={{ backgroundColor: '#fff' }}
+          />
         </div>
 
         {/* Participants Section */}
