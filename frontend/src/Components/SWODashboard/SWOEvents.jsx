@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import '../StaffDashboard/ProcessedEventApplications.css';
 import {
-  Card, Container, Row, Col, Form, Button,
+  Container, Form, Button, Row, Col,
   InputGroup, Accordion, Badge, Modal
 } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
@@ -21,7 +21,9 @@ const SWOEvents = () => {
   const [semesterOptions, setSemesterOptions]     = useState([]);
   const [loading, setLoading]                     = useState(true);
   const [error, setError]                         = useState(null);
-  const [activeTab, setActiveTab]                 = useState('approved');
+  const [activeTab, setActiveTab]                 = useState(() => {
+    return localStorage.getItem('swoEventsActiveTab') || 'approved';
+  });
 
   // Filters
   const [selectedSemester, setSelectedSemester]           = useState('');
@@ -134,6 +136,11 @@ const SWOEvents = () => {
   };
 
   useEffect(() => { fetchAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist activeTab to localStorage
+  useEffect(() => {
+    localStorage.setItem('swoEventsActiveTab', activeTab);
+  }, [activeTab]);
 
   // Keep event type options in sync once data loads
   useEffect(() => {
@@ -263,113 +270,49 @@ const SWOEvents = () => {
     </div>
   );
 
-  // Card for APPROVED events – Raise Query + Close Event
+  // Table row for APPROVED events – Raise Query + Close Event
   const renderApprovedCard = (app) => (
-    <Col md={6} key={app._id}>
-      <Card className="dashboard-card mb-4 approved">
-        <Card.Body>
-          <Card.Title
-            style={{ cursor: 'pointer', color: '#0d6efd', textDecoration: 'underline' }}
-            onClick={() => navigate(`/event-details/${app._id}`)}
-          >
-            {app.eventName}
-          </Card.Title>
-          <Card.Text as="div">
-            <small>
-              <strong>Club:</strong> {app.clubName}&nbsp;|&nbsp;<strong>Type:</strong> {app.eventType}<br />
-              <strong>Organizer:</strong> {app.nameOfTheOrganizer}<br />
-              <strong>Venue:</strong> {app.eventVenue}<br />
-              <strong>Date:</strong> {new Date(app.startDate).toLocaleDateString()} – {new Date(app.endDate).toLocaleDateString()}<br />
-              <strong>Semester:</strong> {app.semester || 'N/A'}
-            </small>
-            {renderApprovalChain(app.approvals)}
-          </Card.Text>
-          <div className="d-flex gap-2 mt-3 flex-wrap">
-            <Button size="sm" variant="outline-primary" onClick={() => navigate(`/event-details/${app._id}`)}>
-              View Details
-            </Button>
-            <Button
-              size="sm"
-              variant="outline-warning"
-              onClick={() => { setQueryText(''); setQueryModal({ show: true, eventId: app._id, eventName: app.eventName }); }}
-            >
-              Raise Query
-            </Button>
-            <Button
-              size="sm"
-              variant="outline-danger"
-              onClick={() => setCloseModal({ show: true, eventId: app._id, eventName: app.eventName })}
-            >
-              Close Event
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
-    </Col>
+    <tr key={app._id} className="event-row" onClick={() => navigate(`/event-details/${app._id}`)} style={{ cursor: 'pointer' }}>
+      <td className="event-name" style={{ color: '#0d6efd' }}>
+        {app.eventName}
+      </td>
+      <td className="event-organizer">{app.nameOfTheOrganizer}</td>
+      <td className="event-date">{new Date(app.startDate).toLocaleDateString()}</td>
+      <td className="event-status">Approved</td>
+      <td style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem' }} onClick={e => e.stopPropagation()}>
+        {app.referenceNo || 'NA'}
+      </td>
+    </tr>
   );
 
-  // Card for IN-PROGRESS events – view only, NO action buttons
+  // Table row for IN-PROGRESS events – view only, NO action buttons
   const renderInitiatedCard = (app) => (
-    <Col md={6} key={app._id}>
-      <Card className="dashboard-card mb-4 pending">
-        <Card.Body>
-          <Card.Title
-            style={{ cursor: 'pointer', color: '#0d6efd', textDecoration: 'underline' }}
-            onClick={() => navigate(`/event-details/${app._id}`)}
-          >
-            {app.eventName}
-          </Card.Title>
-          <Card.Text as="div">
-            <small>
-              <strong>Club:</strong> {app.clubName}&nbsp;|&nbsp;<strong>Type:</strong> {app.eventType}<br />
-              <strong>Organizer:</strong> {app.nameOfTheOrganizer}<br />
-              <strong>Venue:</strong> {app.eventVenue}<br />
-              <strong>Date:</strong> {new Date(app.startDate).toLocaleDateString()} – {new Date(app.endDate).toLocaleDateString()}<br />
-              <strong>Semester:</strong> {app.semester || 'N/A'}<br />
-              <strong>Status:</strong> {getOverallStatus(app.approvals)}
-            </small>
-            {renderApprovalChain(app.approvals)}
-          </Card.Text>
-          {/* View only – no approve/reject/query buttons */}
-          <div className="mt-3">
-            <Button size="sm" variant="outline-secondary" onClick={() => navigate(`/event-details/${app._id}`)}>
-              View Details
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
-    </Col>
+    <tr key={app._id} className="event-row" onClick={() => navigate(`/event-details/${app._id}`)} style={{ cursor: 'pointer' }}>
+      <td className="event-name" style={{ color: '#0d6efd' }}>
+        {app.eventName}
+      </td>
+      <td className="event-organizer">{app.nameOfTheOrganizer}</td>
+      <td className="event-date">{new Date(app.startDate).toLocaleDateString()}</td>
+      <td className="event-status">{getOverallStatus(app.approvals)}</td>
+      <td style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem' }} onClick={e => e.stopPropagation()}>
+        {app.referenceNo || 'NA'}
+      </td>
+    </tr>
   );
 
-  // Card for CLOSED events – view only
+  // Table row for CLOSED events – view only
   const renderClosedCard = (app) => (
-    <Col md={6} key={app._id}>
-      <Card className="dashboard-card mb-4" style={{ borderColor: '#6c757d' }}>
-        <Card.Body>
-          <Card.Title
-            style={{ cursor: 'pointer', color: '#0d6efd', textDecoration: 'underline' }}
-            onClick={() => navigate(`/event-details/${app._id}`)}
-          >
-            {app.eventName}
-          </Card.Title>
-          <Card.Text as="div">
-            <small>
-              <strong>Club:</strong> {app.clubName}&nbsp;|&nbsp;<strong>Type:</strong> {app.eventType}<br />
-              <strong>Organizer:</strong> {app.nameOfTheOrganizer}<br />
-              <strong>Venue:</strong> {app.eventVenue}<br />
-              <strong>Date:</strong> {new Date(app.startDate).toLocaleDateString()} – {new Date(app.endDate).toLocaleDateString()}<br />
-              <strong>Closed By:</strong> {app.closedBy || 'N/A'}&nbsp;|&nbsp;
-              <strong>Closed On:</strong> {app.closedAt ? new Date(app.closedAt).toLocaleDateString() : 'N/A'}
-            </small>
-          </Card.Text>
-          <div className="mt-3">
-            <Button size="sm" variant="outline-secondary" onClick={() => navigate(`/event-details/${app._id}`)}>
-              View Details
-            </Button>
-          </div>
-        </Card.Body>
-      </Card>
-    </Col>
+    <tr key={app._id} className="event-row" onClick={() => navigate(`/event-details/${app._id}`)} style={{ cursor: 'pointer' }}>
+      <td className="event-name" style={{ color: '#0d6efd' }}>
+        {app.eventName}
+      </td>
+      <td className="event-organizer">{app.nameOfTheOrganizer}</td>
+      <td className="event-date">{new Date(app.startDate).toLocaleDateString()}</td>
+      <td className="event-status">Closed</td>
+      <td style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem' }} onClick={e => e.stopPropagation()}>
+        {app.referenceNo || 'NA'}
+      </td>
+    </tr>
   );
 
   const renderGrouped = (grouped, renderCard, emptyMsg) => (
@@ -381,7 +324,20 @@ const SWOEvents = () => {
               {sem} ({events.length} event{events.length !== 1 ? 's' : ''})
             </Accordion.Header>
             <Accordion.Body>
-              <Row>{events.map(renderCard)}</Row>
+              <table className="table table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th className="event-name">Event Name</th>
+                    <th className="event-organizer">Organizer</th>
+                    <th className="event-date">Date</th>
+                    <th className="event-status">Status</th>
+                    <th style={{ textAlign: 'center' }}>Reference No</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.map(renderCard)}
+                </tbody>
+              </table>
             </Accordion.Body>
           </Accordion.Item>
         ))}
@@ -393,11 +349,11 @@ const SWOEvents = () => {
 
   const renderPagination = (pag, page, onPageChange) =>
     pag.totalPages > 1 && (
-      <div className="d-flex justify-content-center mb-4 gap-3 align-items-center">
+      <div className="d-flex justify-content-center mb-4 align-items-center flex-wrap gap-3">
         <Button variant="outline-primary" disabled={!pag.hasPrev} onClick={() => onPageChange(page - 1)}>
           Previous
         </Button>
-        <span className="align-self-center">Page {pag.currentPage} of {pag.totalPages}</span>
+        <span style={{ minWidth: '120px', textAlign: 'center' }}>Page {pag.currentPage} of {pag.totalPages}</span>
         <Button variant="outline-primary" disabled={!pag.hasNext} onClick={() => onPageChange(page + 1)}>
           Next
         </Button>
