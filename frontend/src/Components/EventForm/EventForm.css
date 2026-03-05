@@ -117,3 +117,18 @@
     flex-direction: column;
   }
 }
+
+/* Ensure picker layout does not clip navigation arrows */
+.MuiPickersLayout-root {
+overflow: visible !important;
+}
+
+.MuiPickersLayout-contentWrapper {
+padding-right: 20px !important;
+overflow: visible !important;
+}
+
+/* keep arrow switcher fully visible */
+.MuiTimeClock-arrowSwitcher {
+margin-right: 6px !important;
+}

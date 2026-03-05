@@ -283,8 +283,8 @@ const EventDetails = () => {
         eventName: eventDetails.eventName,
         eventType: eventDetails.eventType,
         clubName: eventDetails.clubName,
-        startDate: eventDetails.startDate?.slice(0, 10),
-        endDate: eventDetails.endDate?.slice(0, 10),
+        startDate: eventDetails.startDate ? (eventDetails.startDate.slice(0, 16).includes('T') ? eventDetails.startDate.slice(0, 16) : `${eventDetails.startDate.slice(0, 10)}T00:00`) : '',
+        endDate: eventDetails.endDate ? (eventDetails.endDate.slice(0, 16).includes('T') ? eventDetails.endDate.slice(0, 16) : `${eventDetails.endDate.slice(0, 10)}T00:00`) : '',
         eventVenue: eventDetails.eventVenue,
         sourceOfBudget: eventDetails.sourceOfBudget,
         // estimatedBudget: eventDetails.estimatedBudget, // REMOVE THIS LINE
@@ -866,9 +866,9 @@ const EventDetails = () => {
                 />
               </div>
               <div className="form-group mb-2">
-                <label>Start Date</label>
+                <label>Start Date &amp; Time</label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   className="form-control"
                   name="startDate"
                   value={editForm.startDate || ""}
@@ -876,9 +876,9 @@ const EventDetails = () => {
                 />
               </div>
               <div className="form-group mb-2">
-                <label>End Date</label>
+                <label>End Date &amp; Time</label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   className="form-control"
                   name="endDate"
                   value={editForm.endDate || ""}
@@ -1432,8 +1432,8 @@ const EventDetails = () => {
             <div className="form-group mb-2"><label>Part of Gymkhana Calendar</label><select className="form-control" name="partOfGymkhanaCalendar" value={editForm.partOfGymkhanaCalendar || ''} onChange={handleEditChange}><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
             <div className="form-group mb-2"><label>Event Type</label><input className="form-control" name="eventType" value={editForm.eventType || ''} onChange={handleEditChange} /></div>
             <div className="form-group mb-2"><label>Club Name</label><input className="form-control" name="clubName" value={editForm.clubName || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Start Date</label><input type="date" className="form-control" name="startDate" value={editForm.startDate || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>End Date</label><input type="date" className="form-control" name="endDate" value={editForm.endDate || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>Start Date &amp; Time</label><input type="datetime-local" className="form-control" name="startDate" value={editForm.startDate || ''} onChange={handleEditChange} /></div>
+            <div className="form-group mb-2"><label>End Date &amp; Time</label><input type="datetime-local" className="form-control" name="endDate" value={editForm.endDate || ''} onChange={handleEditChange} /></div>
             <div className="form-group mb-2"><label>Event Venue</label><input className="form-control" name="eventVenue" value={editForm.eventVenue || ''} onChange={handleEditChange} /></div>
             <div className="form-group mb-2"><label>Source of Budget</label><input className="form-control" name="sourceOfBudget" value={editForm.sourceOfBudget || ''} onChange={handleEditChange} /></div>
             <div className="form-group mb-2">
