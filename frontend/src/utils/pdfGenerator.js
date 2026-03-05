@@ -316,9 +316,27 @@ hr { border: none; border-top: 1px solid #000; margin: 8px 0; }
 
 <div class="f">
   3. Date and Timings <strong>(in days)</strong> of the Event Proposed:&nbsp;
-  <span class="ul">${(formData.startDate || '').split('T')[0]}</span>
+  <span class="ul">
+    ${new Date(formData.startDate).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })}
+  </span>
   &nbsp;to&nbsp;
-  <span class="ul">${(formData.endDate || '').split('T')[0]}</span>
+  <span class="ul">
+    ${new Date(formData.endDate).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })}
+  </span>
 </div>
 
 <div class="f" style="margin-left:16px;">
@@ -339,7 +357,7 @@ hr { border: none; border-top: 1px solid #000; margin: 8px 0; }
 </div>
 
 <div class="f">
-  5. Estimated Budget: ₹&nbsp;<span class="ul" style="min-width:140px;">${totalBudget}</span>
+  5. Estimated Budget: ₹&nbsp;<span class="ul" style="min-width:140px;">${totalBudget}&nbsp;&nbsp;(${formData.budgetAnnexureNumber})</span>
   &nbsp;(Mention Annexure No. as per the approved budget. Please provide a detailed breakup below.)
 </div>
 
@@ -436,9 +454,9 @@ ${descArea}
   <!-- Expected participants -->
   <div class="f" style="text-align:justify; margin-top:6px;">
     <strong>Expected Number of Participants:&nbsp;&nbsp;External:&nbsp;</strong>
-    <span class="ul" style="min-width:90px;">${formData.externalParticipants || ''}</span>
+    <span class="ul" style="min-width:90px;">${formData.externalParticipants || 0}</span>
     &nbsp;&nbsp;&nbsp;<strong>Internal:&nbsp;</strong>
-    <span class="ul" style="min-width:80px;">${formData.internalParticipants || ''}</span>
+    <span class="ul" style="min-width:80px;">${formData.internalParticipants || 0}</span>
   </div>
 
   <!-- Declaration -->

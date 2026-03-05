@@ -114,7 +114,7 @@ const EventDashboard = () => {
           {getOverallStatus(event.approvals)}
         </span>
       </td>
-      <td className="event-ref">{event.referenceNo || "809898808ex"}</td>
+      <td className="event-ref">{event.referenceNumber || "809898808ex"}</td>
     </tr>
   );
 

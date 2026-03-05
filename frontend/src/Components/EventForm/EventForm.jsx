@@ -523,7 +523,7 @@ const EventForm = () => {
             Budget Annexure Number (in Club Budget)
           </label>
           <input
-            type="number" className="form-control"
+            type="text" className="form-control"
             id="budgetAnnexureNumber" name="budgetAnnexureNumber"
             value={formData.budgetAnnexureNumber} onChange={handleChange}
             placeholder="Mention Annexure No. as per the approved budget, put N/A if not applicable"

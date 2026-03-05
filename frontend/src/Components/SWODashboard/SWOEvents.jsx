@@ -280,7 +280,7 @@ const SWOEvents = () => {
       <td className="event-date">{new Date(app.startDate).toLocaleDateString()}</td>
       <td className="event-status">Approved</td>
       <td style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem' }} onClick={e => e.stopPropagation()}>
-        {app.referenceNo || 'NA'}
+        {app.referenceNumber || 'NA'}
       </td>
     </tr>
   );
@@ -295,7 +295,7 @@ const SWOEvents = () => {
       <td className="event-date">{new Date(app.startDate).toLocaleDateString()}</td>
       <td className="event-status">{getOverallStatus(app.approvals)}</td>
       <td style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem' }} onClick={e => e.stopPropagation()}>
-        {app.referenceNo || 'NA'}
+        {app.referenceNumber || 'NA'}
       </td>
     </tr>
   );
@@ -310,7 +310,7 @@ const SWOEvents = () => {
       <td className="event-date">{new Date(app.startDate).toLocaleDateString()}</td>
       <td className="event-status">Closed</td>
       <td style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem' }} onClick={e => e.stopPropagation()}>
-        {app.referenceNo || 'NA'}
+        {app.referenceNumber || 'NA'}
       </td>
     </tr>
   );

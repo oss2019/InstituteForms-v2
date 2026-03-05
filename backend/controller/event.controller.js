@@ -1,5 +1,6 @@
 import EventApproval from "../models/event.model.js";
 import User from "../models/user.model.js";
+import Counter from "../models/counter.model.js";
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 
@@ -85,6 +86,30 @@ const getEmailForCategory = (category) => {
   return match ? match.email : null;
 };
 
+// Generate reference number for event
+const generateReferenceNumber = async (academicYear) => {
+  try {
+    // Extract year for short format (e.g., "2025-2026" -> "25-26")
+    const years = academicYear.split('-');
+    const shortYear = `${years[0].slice(-2)}-${years[1].slice(-2)}`;
+    
+    // Find and increment counter for this academic year
+    const counter = await Counter.findOneAndUpdate(
+      { academicYear },
+      { $inc: { sequenceValue: 1 } },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+    
+    // Format sequence number with leading zeros (001, 002, etc.)
+    const sequenceNumber = String(counter.sequenceValue).padStart(3, '0');
+    
+    // Return formatted reference number
+    return `IITDH/SWO/${shortYear}/${sequenceNumber}`;
+  } catch (error) {
+    console.error("Error generating reference number:", error);
+    throw new Error("Failed to generate reference number");
+  }
+};
 
 // Apply for Event approval
 
@@ -147,6 +172,9 @@ export const applyForEventApproval = async (req, res) => {
     // Determine semester and academic year based on start date
     const semesterInfo = getSemesterInfo(startDate);
 
+    // Generate reference number
+    const referenceNumber = await generateReferenceNumber(semesterInfo.academicYear);
+
     const associateDeanRole = eventType?.toLowerCase() === "cultural"?"associate-dean-socio-cultural":"associate-dean";
 
     // Create the initial approvals array
@@ -163,6 +191,7 @@ export const applyForEventApproval = async (req, res) => {
     // Create a new event approval request
     const newEventApproval = new EventApproval({
       userID,
+      referenceNumber,
       eventName,
       partOfGymkhanaCalendar,
       eventType, // Use the determined eventType

@@ -440,7 +440,7 @@ const PendingApprovals = () => {
             <span style={{fontWeight: 'bold', color: getStatusColor(myStatus)}}>{myStatus}</span>
           )}
         </td>
-        <td className="event-ref">{approval.referenceNo || "N/A"}</td>
+        <td className="event-ref">{approval.referenceNumber || "N/A"}</td>
       </tr>
     );
   };

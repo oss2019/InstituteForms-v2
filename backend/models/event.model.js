@@ -5,6 +5,7 @@ const Schema = mongoose.Schema;
 const eventApprovalSchema = new Schema(
   {
     userID: { type: String, required: true },
+    referenceNumber: { type: String, required: true, unique: true },
     eventName: { type: String, required: true },
     partOfGymkhanaCalendar: { type: String, required: true },
     eventType: { type: String }, // Optional field for tracking event type
@@ -16,7 +17,7 @@ const eventApprovalSchema = new Schema(
     eventVenue: { type: String, required: true },
     sourceOfBudget: { type: String, required: true },
     estimatedBudget: { type: Number, required: true },
-    budgetAnnexureNumber: { type: Number, required: false }, // Annexure number in club budget
+    budgetAnnexureNumber: { type: String, required: false }, // Annexure number in club budget
     nameOfTheOrganizer: { type: String, required: true },
     designation: { type: String, required: true },
     email: { type: String, required: true },

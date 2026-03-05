@@ -182,7 +182,7 @@ const EventDetails = () => {
     if (eventDetails?.createdAt) {
       events.push({
         type: "created",
-        date: new Date(eventDetails.createdAt),
+        date: new Date(new Date(eventDetails.createdAt).getTime() - 10000),
         title: "Event Created",
         description: "Event application submitted",
         icon: "⭐",
@@ -1067,8 +1067,33 @@ const EventDetails = () => {
             <h5 className="ed-card-title">Event Information</h5>
             <div className="ed-info-row"><span className="ed-info-label">Club Name</span><span className="ed-info-value">{eventDetails.clubName}</span></div>
             <div className="ed-info-row"><span className="ed-info-label">Type</span><span className="ed-info-value">{eventDetails.eventType || '—'}</span></div>
-            <div className="ed-info-row"><span className="ed-info-label">Start Date</span><span className="ed-info-value">{new Date(eventDetails.startDate).toLocaleDateString()}</span></div>
-            <div className="ed-info-row"><span className="ed-info-label">End Date</span><span className="ed-info-value">{new Date(eventDetails.endDate).toLocaleDateString()}</span></div>
+            <div className="ed-info-row">
+  <span className="ed-info-label">Start Date & Time</span>
+  <span className="ed-info-value">
+    {new Date(eventDetails.startDate).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).replace(',', '')}
+  </span>
+</div>
+
+<div className="ed-info-row">
+  <span className="ed-info-label">End Date & Time</span>
+  <span className="ed-info-value">
+    {new Date(eventDetails.endDate).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).replace(',', '')}
+  </span>
+</div>
             <div className="ed-info-row"><span className="ed-info-label">Venue</span><span className="ed-info-value">{eventDetails.eventVenue}</span></div>
             <div className="ed-info-row"><span className="ed-info-label">Source of Budget</span><span className="ed-info-value">{eventDetails.sourceOfBudget}</span></div>
             <div className="ed-info-row"><span className="ed-info-label">Estimated Budget</span><span className="ed-info-value">₹{eventDetails.estimatedBudget}</span></div>
