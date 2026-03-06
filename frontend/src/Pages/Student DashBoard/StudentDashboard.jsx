@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from "react-hot-toast";
 
@@ -11,7 +11,17 @@ import './StudentDashboard.css';
 function StudentDashboard() {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [userRole, setUserRole] = useState('Club Secretary');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const role = localStorage.getItem('role');
+    if (role === 'general-secretary') {
+      setUserRole('General Secretary');
+    } else {
+      setUserRole('Club Secretary');
+    }
+  }, []);
 
   const handleLogout = () => {
     toast.success("Logout successful!");
@@ -53,7 +63,7 @@ function StudentDashboard() {
 
       <nav className={`sidebar-nav ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2 className="sidebar-title">Club Secretary</h2>
+          <h2 className="sidebar-title">{userRole}</h2>
           <button onClick={() => setSidebarOpen(false)} className="sidebar-close-button">
             <FiX />
           </button>

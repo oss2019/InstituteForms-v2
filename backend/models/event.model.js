@@ -16,6 +16,7 @@ const eventApprovalSchema = new Schema(
     academicYear: { type: String, required: false }, // Academic year (e.g., "2024-2025")
     eventVenue: { type: String, required: true },
     sourceOfBudget: { type: String, required: true },
+    fundType: { type: String, enum: ["SAF", "HEF"], required: false }, // Fund type for General Secretary (SAF or HEF)
     estimatedBudget: { type: Number, required: true },
     budgetAnnexureNumber: { type: String, required: false }, // Annexure number in club budget
     nameOfTheOrganizer: { type: String, required: true },

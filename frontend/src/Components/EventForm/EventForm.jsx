@@ -241,6 +241,7 @@ const EventForm = () => {
     endDate: "",
     eventVenue: "",
     sourceOfBudget: "",
+    fundType: "", // For General Secretary (SAF or HEF)
     othersSourceOfBudget: "",
     estimatedBudget: 0,
     budgetAnnexureNumber: "",
@@ -264,10 +265,13 @@ const EventForm = () => {
   const [pdfPreviewUrl, setPdfPreviewUrl]           = useState("");
   const [pdfPreviewDataUrl, setPdfPreviewDataUrl]   = useState("");
   const [isPDFGenerated, setIsPDFGenerated]         = useState(false);
+  const [userRole, setUserRole]                     = useState("");
   const pdfObjectUrlRef = useRef(null);
 
   useEffect(() => {
     const userName = localStorage.getItem("name");
+    const role = localStorage.getItem("role");
+    setUserRole(role);
     setFormData(prev => ({ ...prev, clubName: userName || "" }));
   }, []);
 
@@ -351,6 +355,14 @@ const EventForm = () => {
       "designation", "email", "phoneNumber", "eventDescription",
       "externalParticipants", "internalParticipants",
     ];
+
+    // Add fundType validation for General Secretary
+    if (userRole === "general-secretary") {
+      if (!formData.fundType) {
+        toast.error("Please select a fund type (SAF or HEF).");
+        return false;
+      }
+    }
 
     if (requiredFields.some(field => {
       const val = formData[field];
@@ -500,6 +512,41 @@ const EventForm = () => {
             placeholder="Event Venue (If multiple venues, mention all separated by comma)" required
           />
         </div>
+
+        {/* ── Fund Type for General Secretary (SAF/HEF) ──────────── */}
+        {userRole === "general-secretary" && (
+          <div className="mb-3">
+            <label className="form-label d-block">Select Fund Type:</label>
+            <div className="form-check">
+              <input
+                className="form-check-input"
+                type="radio"
+                id="fundTypeSAF"
+                name="fundType"
+                value="SAF"
+                checked={formData.fundType === "SAF"}
+                onChange={handleChange}
+              />
+              <label className="form-check-label" htmlFor="fundTypeSAF">
+                SAF
+              </label>
+            </div>
+            <div className="form-check">
+              <input
+                className="form-check-input"
+                type="radio"
+                id="fundTypeHEF"
+                name="fundType"
+                value="HEF"
+                checked={formData.fundType === "HEF"}
+                onChange={handleChange}
+              />
+              <label className="form-check-label" htmlFor="fundTypeHEF">
+                HEF
+              </label>
+            </div>
+          </div>
+        )}
 
         {/* ── Source of Budget ───────────────────────────────────── */}
         <div className="mb-3">

@@ -34,6 +34,10 @@ const Home = () => {
           "students-welfare-office"
         ];
 
+        const allowedRolesForClubSecretary = [
+          "club-secretary", "general-secretary"
+        ];
+
         const loginUser = (userRole) => {
             toast.success("Login successful!");
             localStorage.setItem("user-info", JSON.stringify({ email, name, token, image, role, category }));
@@ -59,8 +63,8 @@ const Home = () => {
 
         if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
           loginUser("staff");
-        } else if (role === selectedRole) {
-          loginUser(selectedRole);
+        } else if (selectedRole === "club-secretary" && allowedRolesForClubSecretary.includes(role)) {
+          loginUser("club-secretary");
         } else {
           toast.error("Not authorized for this role.");
         }

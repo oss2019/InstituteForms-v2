@@ -356,6 +356,14 @@ hr { border: none; border-top: 1px solid #000; margin: 8px 0; }
   </div>
 </div>
 
+${formData.fundType ? `<div class="f" style="display:flex; align-items:baseline; flex-wrap:wrap; gap:3px;">
+  &nbsp;&nbsp;Fund Type:&nbsp;
+  <div class="cb-row">
+    ${checkbox(formData.fundType === "SAF", "SAF (Student Activity Fund)")}
+    ${checkbox(formData.fundType === "HEF", "HEF (High Event Fund)")}
+  </div>
+</div>` : ''}
+
 <div class="f">
   5. Estimated Budget: ₹&nbsp;<span class="ul" style="min-width:140px;">${totalBudget}&nbsp;&nbsp;(${formData.budgetAnnexureNumber})</span>
   &nbsp;(Mention Annexure No. as per the approved budget. Please provide a detailed breakup below.)

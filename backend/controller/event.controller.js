@@ -124,6 +124,7 @@ export const applyForEventApproval = async (req, res) => {
       eventVenue,
       budgetBreakup,
       sourceOfBudget,
+      fundType,
       budgetAnnexureNumber,
       estimatedBudget,
       nameOfTheOrganizer,
@@ -152,7 +153,7 @@ export const applyForEventApproval = async (req, res) => {
 
     // Set eventType based on user's type if club-secretary, else fallback to req.body.eventType
     let eventType = req.body.eventType || null;
-    if (user.role === "club-secretary") {
+    if (user.role === "club-secretary" || user.role === "general-secretary") {
       eventType = user.type;
     }
 
@@ -175,18 +176,29 @@ export const applyForEventApproval = async (req, res) => {
     // Generate reference number
     const referenceNumber = await generateReferenceNumber(semesterInfo.academicYear);
 
-    const associateDeanRole = eventType?.toLowerCase() === "cultural"?"associate-dean-socio-cultural":"associate-dean";
+    const associateDeanRole = eventType && eventType.toLowerCase() === "cultural" ? "associate-dean-socio-cultural" : "associate-dean";
 
     // Create the initial approvals array
-    const approvals = [
-      { role: "club-secretary", status: "Approved", comment: "", timestamp: new Date() },
-      { role: "general-secretary", status: "Pending", comment: "" },
-      { role: "treasurer", status: "Pending", comment: "" },
-      { role: "president", status: "Pending", comment: "" },
-      { role: "ARSW", status: "Pending", comment: "" },
-      { role: associateDeanRole, status: "Pending", comment: "" },
-      { role: "dean", status: "Pending", comment: "" },
-    ];
+    // If submitter is general-secretary, auto-approve both club-secretary and general-secretary
+    const approvals = user.role === "general-secretary" 
+      ? [
+          { role: "club-secretary", status: "Approved", comment: "Auto-approved (GS-submitted event)", timestamp: new Date() },
+          { role: "general-secretary", status: "Approved", comment: "Auto-approved (GS-submitted event)", timestamp: new Date() },
+          { role: "treasurer", status: "Pending", comment: "" },
+          { role: "president", status: "Pending", comment: "" },
+          { role: "ARSW", status: "Pending", comment: "" },
+          { role: associateDeanRole, status: "Pending", comment: "" },
+          { role: "dean", status: "Pending", comment: "" },
+        ]
+      : [
+          { role: "club-secretary", status: "Approved", comment: "", timestamp: new Date() },
+          { role: "general-secretary", status: "Pending", comment: "" },
+          { role: "treasurer", status: "Pending", comment: "" },
+          { role: "president", status: "Pending", comment: "" },
+          { role: "ARSW", status: "Pending", comment: "" },
+          { role: associateDeanRole, status: "Pending", comment: "" },
+          { role: "dean", status: "Pending", comment: "" },
+        ];
 
     // Create a new event approval request
     const newEventApproval = new EventApproval({
@@ -203,6 +215,7 @@ export const applyForEventApproval = async (req, res) => {
       eventVenue,
       budgetBreakup,
       sourceOfBudget,
+      fundType,
       budgetAnnexureNumber,
       estimatedBudget,
       nameOfTheOrganizer,
