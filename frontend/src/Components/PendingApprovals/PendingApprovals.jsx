@@ -428,16 +428,22 @@ const PendingApprovals = () => {
     const myStatus = myApproval?.status || "Pending";
     const isInitiatedTab = activeTab === 'initiated';
     const hierarchyStatus = getCurrentHierarchyStatus(approval.approvals);
+    
+    // Check if ANY role in the approval chain has rejected the event
+    const isRejected = approval.approvals?.some(app => app.status === "Rejected");
+    
+    // Use 'Rejected' status if any rejection exists, otherwise use personal status
+    const displayStatus = isRejected ? 'Rejected' : myStatus;
 
     return (
-      <tr key={approval._id} className={`event-row ${myStatus.toLowerCase()}`} onClick={() => handleViewDetails(approval._id)}>
+      <tr key={approval._id} className={`event-row ${displayStatus.toLowerCase()}`} onClick={() => handleViewDetails(approval._id)}>
         <td className="event-name">{approval.eventName || "Untitled Event"}</td>
         <td className="event-date">{new Date(approval.startDate).toLocaleDateString()}</td>
         <td className="event-status">
           {isInitiatedTab ? (
             <span style={{fontSize: '0.85rem'}}>{hierarchyStatus}</span>
           ) : (
-            <span style={{fontWeight: 'bold', color: getStatusColor(myStatus)}}>{myStatus}</span>
+            <span style={{fontWeight: 'bold', color: getStatusColor(displayStatus)}}>{displayStatus}</span>
           )}
         </td>
         <td className="event-ref">{approval.referenceNumber || "N/A"}</td>
