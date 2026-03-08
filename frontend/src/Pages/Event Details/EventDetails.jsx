@@ -229,11 +229,11 @@ const EventDetails = () => {
       });
     }
     
-    // Add query raised and answered from queries array
+    // Add query raised from queries array (only if not answered)
     if (eventDetails?.queries) {
       eventDetails.queries.forEach((query) => {
-        // Show query raised
-        if (query.raisedAt) {
+        // Show query raised only if NOT answered
+        if (query.raisedAt && !query.answeredAt) {
           events.push({
             type: "query-raised",
             date: new Date(query.raisedAt),
@@ -243,37 +243,10 @@ const EventDetails = () => {
             color: "#ffc107"
           });
         }
-        
-        // Show query answered
-        if (query.answeredAt) {
-          events.push({
-            type: "query-answered",
-            date: new Date(query.answeredAt),
-            title: "Query Answered",
-            description: query.response || "Response provided",
-            icon: "📝",
-            color: "#20c997"
-          });
-        }
       });
     }
 
-    // Add edit history
-    if (eventDetails?.editHistory) {
-      eventDetails.editHistory.forEach((edit) => {
-        if (edit.editedAt) {
-          const changedFields = Object.keys(edit.changes || {}).join(", ");
-          events.push({
-            type: "edit",
-            date: new Date(edit.editedAt),
-            title: "Event Edited",
-            description: `Fields changed: ${changedFields || "Details updated"}`,
-            icon: "✏️",
-            color: "#fd7e14"
-          });
-        }
-      });
-    }
+    // Do not add edit history to timeline
     
     // Sort events by date
     return events.sort((a, b) => a.date - b.date);
