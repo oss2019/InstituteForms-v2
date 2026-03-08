@@ -201,7 +201,7 @@ export const applyForEventApproval = async (req, res) => {
         ];
 
     // Create a new event approval request
-    const newEventApproval = new EventApproval({
+    const eventApprovalData = {
       userID,
       referenceNumber,
       eventName,
@@ -215,7 +215,6 @@ export const applyForEventApproval = async (req, res) => {
       eventVenue,
       budgetBreakup,
       sourceOfBudget,
-      fundType,
       budgetAnnexureNumber,
       estimatedBudget,
       nameOfTheOrganizer,
@@ -229,7 +228,14 @@ export const applyForEventApproval = async (req, res) => {
       externalParticipants,
       listOfCollaboratingOrganizations,
       approvals,
-    });
+    };
+
+    // Only include fundType if it's provided and not a club-secretary
+    if (fundType && user.role !== "club-secretary") {
+      eventApprovalData.fundType = fundType;
+    }
+
+    const newEventApproval = new EventApproval(eventApprovalData);
 
     // Save the new approval
     const savedApproval = await newEventApproval.save();

@@ -232,35 +232,91 @@ const DateWithMUITimePicker = ({ value, onChange, minValue, label, id }) => {
 /* ═══════════════════════════════════════════════════════════════════
    EventForm
 ═══════════════════════════════════════════════════════════════════ */
-const EventForm = () => {
-  const [formData, setFormData] = useState({
-    eventName: "",
-    partOfGymkhanaCalendar: "",
-    clubName: "",
-    startDate: "",
-    endDate: "",
-    eventVenue: "",
-    sourceOfBudget: "",
-    fundType: "", // For General Secretary (SAF or HEF)
-    othersSourceOfBudget: "",
-    estimatedBudget: 0,
-    budgetAnnexureNumber: "",
-    budgetBreakup: [{ expenseHead: "", estimatedAmount: "" }],
-    nameOfTheOrganizer: "",
-    designation: "",
-    email: "",
-    phoneNumber: "",
-    requirements: [],
-    anyAdditionalAmenities: "",
-    eventDescription: "",
-    internalParticipants: "",
-    externalParticipants: "",
-    listOfCollaboratingOrganizations: "",
-  });
+const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEditMode = false }) => {
+  const initializeFormData = () => {
+    if (initialData) {
+      // Normalize requirements for the form
+      let normalizedRequirements = [];
+      if (Array.isArray(initialData.requirements)) {
+        normalizedRequirements = initialData.requirements
+          .map(r => typeof r === 'string' ? { name: r, description: '' } : r)
+          .filter(r => r && r.name);
+      }
+
+      // Normalize additional amenities
+      let normalizedAmenities = [];
+      if (Array.isArray(initialData.additionalAmenities)) {
+        normalizedAmenities = initialData.additionalAmenities
+          .map(a => ({ amenityName: a.amenityName || a.name || '', description: a.description || '' }))
+          .filter(a => a.amenityName);
+      }
+
+      // Normalize budget breakup
+      let normalizedBudget = [];
+      if (Array.isArray(initialData.budgetBreakup)) {
+        normalizedBudget = initialData.budgetBreakup.map(item => ({
+          expenseHead: item.expenseHead || item.label || '',
+          estimatedAmount: item.estimatedAmount || item.amount || ''
+        }));
+      }
+
+      return {
+        eventName: initialData.eventName || "",
+        partOfGymkhanaCalendar: initialData.partOfGymkhanaCalendar || "",
+        clubName: initialData.clubName || "",
+        startDate: initialData.startDate ? (initialData.startDate.slice(0, 16).includes('T') ? initialData.startDate.slice(0, 16) : `${initialData.startDate.slice(0, 10)}T00:00`) : "",
+        endDate: initialData.endDate ? (initialData.endDate.slice(0, 16).includes('T') ? initialData.endDate.slice(0, 16) : `${initialData.endDate.slice(0, 10)}T00:00`) : "",
+        eventVenue: initialData.eventVenue || "",
+        sourceOfBudget: initialData.sourceOfBudget || "",
+        fundType: initialData.fundType || "",
+        othersSourceOfBudget: initialData.othersSourceOfBudget || "",
+        estimatedBudget: initialData.estimatedBudget || 0,
+        budgetAnnexureNumber: initialData.budgetAnnexureNumber || "",
+        budgetBreakup: normalizedBudget.length > 0 ? normalizedBudget : [{ expenseHead: "", estimatedAmount: "" }],
+        nameOfTheOrganizer: initialData.nameOfTheOrganizer || "",
+        designation: initialData.designation || "",
+        email: initialData.email || "",
+        phoneNumber: initialData.phoneNumber || "",
+        requirements: normalizedRequirements,
+        additionalAmenities: normalizedAmenities,
+        eventDescription: initialData.eventDescription || "",
+        internalParticipants: initialData.internalParticipants || "",
+        externalParticipants: initialData.externalParticipants || "",
+        listOfCollaboratingOrganizations: initialData.listOfCollaboratingOrganizations || "",
+      };
+    }
+
+    return {
+      eventName: "",
+      partOfGymkhanaCalendar: "",
+      clubName: "",
+      startDate: "",
+      endDate: "",
+      eventVenue: "",
+      sourceOfBudget: "",
+      fundType: "",
+      othersSourceOfBudget: "",
+      estimatedBudget: 0,
+      budgetAnnexureNumber: "",
+      budgetBreakup: [{ expenseHead: "", estimatedAmount: "" }],
+      nameOfTheOrganizer: "",
+      designation: "",
+      email: "",
+      phoneNumber: "",
+      requirements: [],
+      additionalAmenities: [],
+      eventDescription: "",
+      internalParticipants: "",
+      externalParticipants: "",
+      listOfCollaboratingOrganizations: "",
+    };
+  };
+
+  const [formData, setFormData] = useState(initializeFormData());
 
   // Separate checkbox state for "Any Additional Amenities"
-  const [amenitiesChecked, setAmenitiesChecked]   = useState(false);
-  const [isAgreementChecked, setisAgreementChecked] = useState(false);
+  const [amenitiesChecked, setAmenitiesChecked]   = useState(initialData && initialData.additionalAmenities && initialData.additionalAmenities.length > 0);
+  const [isAgreementChecked, setisAgreementChecked] = useState(isEditMode); // Auto-check for edit mode
   const [isFormSubmitted, setIsFormSubmitted]       = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl]           = useState("");
   const [pdfPreviewDataUrl, setPdfPreviewDataUrl]   = useState("");
@@ -284,11 +340,11 @@ const EventForm = () => {
     };
   }, []);
 
-  /* ── When amenities checkbox is unchecked, clear the text ──────── */
+  /* ── When amenities checkbox is unchecked, clear the array ──────── */
   const handleAmenitiesCheckbox = (e) => {
     const checked = e.target.checked;
     setAmenitiesChecked(checked);
-    if (!checked) setFormData(prev => ({ ...prev, anyAdditionalAmenities: "" }));
+    if (!checked) setFormData(prev => ({ ...prev, additionalAmenities: [] }));
   };
 
   const handleChange = (e) => {
@@ -379,8 +435,8 @@ const EventForm = () => {
     if (formData.requirements.some(req => !req.description || req.description.trim() === ""))
       return false;
 
-    // If amenities checkbox is ticked, a description is required
-    if (amenitiesChecked && !formData.anyAdditionalAmenities?.trim())
+    // If amenities checkbox is ticked, check that all amenities have names and descriptions
+    if (amenitiesChecked && formData.additionalAmenities.some(amenity => !amenity.amenityName?.trim() || !amenity.description?.trim()))
       return false;
 
     return true;
@@ -408,25 +464,69 @@ const EventForm = () => {
     setFormData({ ...formData, budgetBreakup: list, estimatedBudget: total });
   };
 
+  const handleAddAmenityRow = () => {
+    setFormData({
+      ...formData,
+      additionalAmenities: [...formData.additionalAmenities, { amenityName: "", description: "" }],
+    });
+  };
+
+  const handleAmenityChange = (index, e) => {
+    const { name, value } = e.target;
+    const list = [...formData.additionalAmenities];
+    list[index][name] = value;
+    setFormData({ ...formData, additionalAmenities: list });
+  };
+
+  const handleRemoveAmenityRow = (index) => {
+    const list = [...formData.additionalAmenities];
+    list.splice(index, 1);
+    setFormData({ ...formData, additionalAmenities: list });
+  };
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       if (formData.requirements.some(req => !req.description || req.description.trim() === "")) {
         toast.error("Please fill in descriptions for all selected requirements.");
-      } else if (amenitiesChecked && !formData.anyAdditionalAmenities?.trim()) {
-        toast.error("Please describe the additional amenities required.");
+      } else if (amenitiesChecked && formData.additionalAmenities.some(amenity => !amenity.amenityName?.trim() || !amenity.description?.trim())) {
+        toast.error("Please fill in names and descriptions for all additional amenities.");
       } else {
         toast.error("Please fill out all required fields.");
       }
       return;
     }
 
-    const userID      = localStorage.getItem("userID");
-    const requestData = { ...formData, userID };
+    const userID = localStorage.getItem("userID");
+    
+    // Merge additional amenities into requirements before sending
+    const mergedRequirements = [
+      ...formData.requirements,
+      ...formData.additionalAmenities.map(amenity => ({
+        name: amenity.amenityName,
+        description: amenity.description
+      }))
+    ];
+
+    const requestData = { 
+      ...formData, 
+      userID,
+      requirements: mergedRequirements
+    };
+    
+    // Remove additionalAmenities from the request as it's now merged into requirements
+    delete requestData.additionalAmenities;
 
     try {
-      const response = await API.post("/event/apply", requestData);
-      toast.success(response.data.message || "Event proposal submitted successfully!");
-      setTimeout(() => setIsFormSubmitted(true), 1200);
+      // If onSubmit callback is provided (edit mode), use it
+      if (onSubmit) {
+        await onSubmit(requestData);
+        if (onClose) onClose();
+      } else {
+        // Default behavior for create mode
+        const response = await API.post("/event/apply", requestData);
+        toast.success(response.data.message || "Event proposal submitted successfully!");
+        setTimeout(() => setIsFormSubmitted(true), 1200);
+      }
     } catch (error) {
       console.error("Error submitting event:", error);
       toast.error(error.response?.data?.message || "Failed to submit the proposal.");
@@ -741,7 +841,7 @@ const EventForm = () => {
           </div>
         )}
 
-        {/* ── Any Additional Amenities (checkbox + conditional input) */}
+        {/* ── Any Additional Amenities (checkbox + conditional table) */}
         <div className="mb-3">
           <div className="form-check mb-2">
             <input
@@ -755,14 +855,53 @@ const EventForm = () => {
             </label>
           </div>
           {amenitiesChecked && (
-            <input
-              type="text" className="form-control"
-              id="anyAdditionalAmenities" name="anyAdditionalAmenities"
-              value={formData.anyAdditionalAmenities}
-              onChange={handleChange}
-              placeholder="Describe the additional amenities needed"
-              required
-            />
+            <>
+              <label className="form-label d-block mb-3">Additional Amenities - Details:</label>
+              <table className="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Sl.No</th>
+                    <th>Amenity Name</th>
+                    <th>Description</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {formData.additionalAmenities.map((item, index) => (
+                    <tr key={index}>
+                      <td className="align-middle text-center">{index + 1}</td>
+                      <td>
+                        <input
+                          type="text" className="form-control"
+                          name="amenityName" value={item.amenityName}
+                          onChange={(e) => handleAmenityChange(index, e)}
+                          placeholder="e.g., Projector, Microphone" required
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text" className="form-control"
+                          name="description" value={item.description}
+                          onChange={(e) => handleAmenityChange(index, e)}
+                          placeholder="Describe why this amenity is needed" required
+                        />
+                      </td>
+                      <td className="align-middle text-center">
+                        <button
+                          type="button" className="btn btn-sm btn-danger"
+                          onClick={() => handleRemoveAmenityRow(index)}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <button type="button" className="btn btn-sm btn-secondary" onClick={handleAddAmenityRow}>
+                + Add Amenity
+              </button>
+            </>
           )}
         </div>
 
@@ -842,38 +981,47 @@ const EventForm = () => {
         )}
 
         {/* ── Agreement checkbox ─────────────────────────────────── */}
-        <div className="form-check my-4">
-          <input
-            className="form-check-input" type="checkbox"
-            id="responsibilityCheck"
-            checked={isAgreementChecked}
-            onChange={() => setisAgreementChecked(!isAgreementChecked)}
-          />
-          <label className="form-check-label" htmlFor="responsibilityCheck">
-            I, <strong>{formData.nameOfTheOrganizer || "[Organizer Name]"}</strong>, will take
-            full responsibility to organize and conduct the event to the best of my ability and
-            as per institute rules.
-          </label>
-        </div>
+        {!isEditMode && (
+          <div className="form-check my-4">
+            <input
+              className="form-check-input" type="checkbox"
+              id="responsibilityCheck"
+              checked={isAgreementChecked}
+              onChange={() => setisAgreementChecked(!isAgreementChecked)}
+            />
+            <label className="form-check-label" htmlFor="responsibilityCheck">
+              I, <strong>{formData.nameOfTheOrganizer || "[Organizer Name]"}</strong>, will take
+              full responsibility to organize and conduct the event to the best of my ability and
+              as per institute rules.
+            </label>
+          </div>
+        )}
 
         <div className="d-flex justify-content-start gap-2">
+          {!isEditMode && (
+            <button
+              type="button" className="btn btn-primary"
+              onClick={handleGeneratePDF} disabled={!isAgreementChecked}
+            >
+              Generate PDF
+            </button>
+          )}
           <button
-            type="button" className="btn btn-primary"
-            onClick={handleGeneratePDF} disabled={!isAgreementChecked}
+            type="button" className={isEditMode ? "btn btn-success" : "btn btn-success"}
+            onClick={handleSubmit} disabled={!isEditMode && !isAgreementChecked}
           >
-            Generate PDF
+            {isEditMode ? "Save Changes" : "Submit for Approval"}
           </button>
-          <button
-            type="button" className="btn btn-success"
-            onClick={handleSubmit} disabled={!isAgreementChecked}
-          >
-            Submit for Approval
-          </button>
+          {isEditMode && onClose && (
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+          )}
         </div>
       </form>
 
       {/* ── PDF Preview ─────────────────────────────────────────── */}
-      {isPDFGenerated && (
+      {!isEditMode && isPDFGenerated && (
         <>
           <iframe
             id="pdf-preview"

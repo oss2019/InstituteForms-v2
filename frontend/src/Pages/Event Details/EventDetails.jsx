@@ -8,6 +8,7 @@ import 'react-quill-new/dist/quill.snow.css';
 import "./EventDetails.css";
 
 import { generatePDF } from "../../utils/pdfGenerator";
+import EventForm from "../../Components/EventForm/EventForm";
 
 const EventDetails = () => {
   const { id } = useParams(); // Extract event ID from the route params
@@ -37,6 +38,8 @@ const EventDetails = () => {
   const [editBudgetBreakup, setEditBudgetBreakup] = useState([]);
   const [showBudgetEditModal, setShowBudgetEditModal] = useState(false);
   const [proposedBudgetBreakup, setProposedBudgetBreakup] = useState([]);
+  // Add state for editing additional amenities
+  const [editAdditionalAmenities, setEditAdditionalAmenities] = useState([]);
 
   useEffect(() => {
     // Function to fetch event details by ID
@@ -280,45 +283,40 @@ const EventDetails = () => {
   useEffect(() => {
     if (showEditModal && eventDetails) {
       setEditForm({
-        eventName: eventDetails.eventName,
-        eventType: eventDetails.eventType,
-        clubName: eventDetails.clubName,
+        eventName: eventDetails.eventName || '',
+        partOfGymkhanaCalendar: eventDetails.partOfGymkhanaCalendar || '',
+        eventType: eventDetails.eventType || '',
+        clubName: eventDetails.clubName || '',
         startDate: eventDetails.startDate ? (eventDetails.startDate.slice(0, 16).includes('T') ? eventDetails.startDate.slice(0, 16) : `${eventDetails.startDate.slice(0, 10)}T00:00`) : '',
         endDate: eventDetails.endDate ? (eventDetails.endDate.slice(0, 16).includes('T') ? eventDetails.endDate.slice(0, 16) : `${eventDetails.endDate.slice(0, 10)}T00:00`) : '',
-        eventVenue: eventDetails.eventVenue,
-        sourceOfBudget: eventDetails.sourceOfBudget,
-        // estimatedBudget: eventDetails.estimatedBudget, // REMOVE THIS LINE
-        nameOfTheOrganizer: eventDetails.nameOfTheOrganizer,
-        designation: eventDetails.designation,
-        email: eventDetails.email,
-        phoneNumber: eventDetails.phoneNumber,
-        requirements: eventDetails.requirements?.join(", "),
-        eventDescription: eventDetails.eventDescription,
-        internalParticipants: eventDetails.internalParticipants,
-        externalParticipants: eventDetails.externalParticipants,
-        listOfCollaboratingOrganizations:
-          eventDetails.listOfCollaboratingOrganizations,
-        anyAdditionalAmenities: eventDetails.anyAdditionalAmenities,
+        eventVenue: eventDetails.eventVenue || '',
+        sourceOfBudget: eventDetails.sourceOfBudget || '',
+        nameOfTheOrganizer: eventDetails.nameOfTheOrganizer || '',
+        designation: eventDetails.designation || '',
+        email: eventDetails.email || '',
+        phoneNumber: eventDetails.phoneNumber || '',
+        requirements: eventDetails.requirements && Array.isArray(eventDetails.requirements) 
+          ? eventDetails.requirements
+              .filter(r => typeof r === 'string' ? r.trim() : r.name && r.name.trim())
+              .map(r => typeof r === 'string' ? r : r.name)
+              .join(", ")
+          : '',
+        eventDescription: eventDetails.eventDescription || '',
+        internalParticipants: eventDetails.internalParticipants || '',
+        externalParticipants: eventDetails.externalParticipants || '',
+        listOfCollaboratingOrganizations: eventDetails.listOfCollaboratingOrganizations || '',
       });
-      // Normalize various possible shapes of budgetBreakup from backend into
-      // { label, amount } rows used by the edit modal inputs.
+
+      // Normalize budget breakup
       const normalizeBudget = (budget) => {
         if (!Array.isArray(budget)) return [];
         return budget.map((item) => {
           if (!item) return { label: "", amount: "" };
-          // support backend model: { expenseHead, estimatedAmount }
-          // support frontend older shape: { label, amount }
-          // support other variants: { name, value } or plain numbers/strings
           if (typeof item === "string") {
             return { label: item, amount: "" };
           }
-
-          const label =
-            item.expenseHead ?? item.label ?? item.head ?? item.name ?? item.item ?? "";
-
-          const amountRaw =
-            item.estimatedAmount ?? item.estimatedBudget ?? item.amount ?? item.value ?? item.cost ?? "";
-
+          const label = item.expenseHead ?? item.label ?? item.head ?? item.name ?? item.item ?? "";
+          const amountRaw = item.estimatedAmount ?? item.estimatedBudget ?? item.amount ?? item.value ?? item.cost ?? "";
           return {
             label: String(label || ""),
             amount: amountRaw !== null && amountRaw !== undefined && amountRaw !== "" ? String(amountRaw) : "",
@@ -327,6 +325,20 @@ const EventDetails = () => {
       };
 
       setEditBudgetBreakup(normalizeBudget(eventDetails.budgetBreakup));
+
+      // Handle additional amenities - normalize to array of objects
+      const normalizeAmenities = (amenities) => {
+        if (!amenities) return [];
+        if (Array.isArray(amenities)) {
+          return amenities.filter(a => a && (a.amenityName || a.name)).map(a => ({
+            amenityName: a.amenityName || a.name || '',
+            description: a.description || ''
+          }));
+        }
+        return [];
+      };
+
+      setEditAdditionalAmenities(normalizeAmenities(eventDetails.additionalAmenities));
     }
   }, [showEditModal, eventDetails]);
 
@@ -345,6 +357,23 @@ const EventDetails = () => {
 
   const handleRemoveBudgetBreakup = idx => {
     setEditBudgetBreakup(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleAddAmenityRow = () => {
+    setEditAdditionalAmenities(prev => [...prev, { amenityName: "", description: "" }]);
+  };
+
+  const handleAmenityChange = (index, e) => {
+    const { name, value } = e.target;
+    setEditAdditionalAmenities(prev =>
+      prev.map((item, i) =>
+        i === index ? { ...item, [name]: value } : item
+      )
+    );
+  };
+
+  const handleRemoveAmenityRow = (index) => {
+    setEditAdditionalAmenities(prev => prev.filter((_, i) => i !== index));
   };
 
   // Calculate estimated budget from breakup
@@ -448,47 +477,30 @@ const EventDetails = () => {
     }
   };
 
-  const handleEditChange = (e) => {
-    setEditForm({ ...editForm, [e.target.name]: e.target.value });
-  };
-
-  const handleEditDescriptionChange = (value) => {
-    setEditForm({ ...editForm, eventDescription: value });
-  };
-
-  const handleEditSubmit = async () => {
+  const handleEditFormSubmit = async (requestData) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
-      // Transform editBudgetBreakup into backend schema: { expenseHead, estimatedAmount }
-      const transformedBudget = editBudgetBreakup
-        .filter(item => (item.label || "").trim() !== "")
-        .map(item => ({
-          expenseHead: (item.label || "").trim(),
-          estimatedAmount: Number(parseFloat(item.amount)) || 0,
-        }));
 
       await axios.patch(`${apiUrl}/event/edit`, {
         eventId: eventDetails._id,
         userID: localStorage.getItem("userID"),
-        updates: {
-          ...editForm,
-          requirements: editForm.requirements
-            ? editForm.requirements.split(",").map((r) => r.trim())
-            : [],
-          budgetBreakup: transformedBudget,
-          estimatedBudget: calculatedEstimatedBudget,
-        },
+        updates: requestData,
       });
-      toast.success("Event updated successfully! Query status preserved.");
+      
+      toast.success("Event updated successfully!");
       setShowEditModal(false);
+      
       // Refresh event details
       const response = await axios.get(`${apiUrl}/event/${eventDetails._id}`);
       setEventDetails(response.data);
+      
       // Refresh edit history
       const historyResponse = await axios.get(`${apiUrl}/event/${eventDetails._id}/edit-history`);
       setEditHistory(historyResponse.data.editHistory || []);
     } catch (error) {
+      console.error("Edit error:", error);
       toast.error("Failed to update event.");
+      throw error;
     }
   };
 
@@ -796,265 +808,30 @@ const EventDetails = () => {
         </div>
       )}
 
-      {showEditModal && (
-          <div
-            className="modal-overlay"
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.5)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 1000,
-            }}
-          >
-            <div
-              className="modal-content"
-              style={{
-                backgroundColor: "white",
-                padding: "20px",
-                borderRadius: "8px",
-                minWidth: "400px",
-                maxWidth: "600px",
-                maxHeight: "90vh",
-                overflowY: "auto",
-              }}
-            >
-              <h4>Edit Event Details</h4>
-              <div className="form-group mb-2">
-                <label>Event Name</label>
-                <input
-                  className="form-control"
-                  name="eventName"
-                  value={editForm.eventName || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Part of Gymkhana Calendar</label>
-                <select
-                  className="form-control"
-                  name="partOfGymkhanaCalendar"
-                  value={editForm.partOfGymkhanaCalendar || ""}
-                  onChange={handleEditChange}
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div className="form-group mb-2">
-                <label>Event Type</label>
-                <input
-                  className="form-control"
-                  name="eventType"
-                  value={editForm.eventType || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Club Name</label>
-                <input
-                  className="form-control"
-                  name="clubName"
-                  value={editForm.clubName || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Start Date &amp; Time</label>
-                <input
-                  type="datetime-local"
-                  className="form-control"
-                  name="startDate"
-                  value={editForm.startDate || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>End Date &amp; Time</label>
-                <input
-                  type="datetime-local"
-                  className="form-control"
-                  name="endDate"
-                  value={editForm.endDate || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Event Venue</label>
-                <input
-                  className="form-control"
-                  name="eventVenue"
-                  value={editForm.eventVenue || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Source of Budget</label>
-                <input
-                  className="form-control"
-                  name="sourceOfBudget"
-                  value={editForm.sourceOfBudget || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              {/* Remove Estimated Budget input */}
-              {/* Budget Breakup Section */}
-              <div className="form-group mb-2">
-                <label>Budget Breakup</label>
-                {editBudgetBreakup.map((item, idx) => (
-                  <div key={idx} className="d-flex mb-2 align-items-center">
-                    <input
-                      className="form-control me-2"
-                      style={{ width: "50%" }}
-                      placeholder="Label"
-                      value={item.label}
-                      onChange={e =>
-                        handleBudgetBreakupChange(idx, "label", e.target.value)
-                      }
-                    />
-                    <input
-                      className="form-control me-2"
-                      style={{ width: "35%" }}
-                      placeholder="Amount"
-                      type="number"
-                      min="0"
-                      value={item.amount}
-                      onChange={e =>
-                        handleBudgetBreakupChange(idx, "amount", e.target.value)
-                      }
-                    />
-                    <button
-                      className="btn btn-danger btn-sm"
-                      type="button"
-                      onClick={() => handleRemoveBudgetBreakup(idx)}
-                      title="Remove"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
-                <button
-                  className="btn btn-outline-primary btn-sm mt-1"
-                  type="button"
-                  onClick={handleAddBudgetBreakup}
-                >
-                  Add Item
-                </button>
-                <div className="mt-2">
-                  <strong>Estimated Budget: </strong>
-                  ₹{calculatedEstimatedBudget}
-                </div>
-              </div>
-              <div className="form-group mb-2">
-                <label>Name of the Organizer</label>
-                <input
-                  className="form-control"
-                  name="nameOfTheOrganizer"
-                  value={editForm.nameOfTheOrganizer || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Designation</label>
-                <input
-                  className="form-control"
-                  name="designation"
-                  value={editForm.designation || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Email</label>
-                <input
-                  className="form-control"
-                  name="email"
-                  value={editForm.email || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Phone Number</label>
-                <input
-                  className="form-control"
-                  name="phoneNumber"
-                  value={editForm.phoneNumber || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Requirements (comma separated)</label>
-                <input
-                  className="form-control"
-                  name="requirements"
-                  value={editForm.requirements || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Any Additional Amenities</label>
-                <input
-                  className="form-control"
-                  name="anyAdditionalAmenities"
-                  value={editForm.anyAdditionalAmenities || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Event Description</label>
-                <textarea
-                  className="form-control"
-                  name="eventDescription"
-                  value={editForm.eventDescription || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Internal Participants</label>
-                <input
-                  className="form-control"
-                  name="internalParticipants"
-                  value={editForm.internalParticipants || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>External Participants</label>
-                <input
-                  className="form-control"
-                  name="externalParticipants"
-                  value={editForm.externalParticipants || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>List of Collaborating Organizations</label>
-                <input
-                  className="form-control"
-                  name="listOfCollaboratingOrganizations"
-                  value={editForm.listOfCollaboratingOrganizations || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="modal-buttons mt-3">
-                <button
-                  className="btn btn-secondary me-2"
-                  onClick={() => setShowEditModal(false)}
-                >
-                  Cancel
-                </button>
-                <button className="btn btn-success" onClick={handleEditSubmit}>
-                  Save Changes
-                </button>
-              </div>
+      {/* Edit Modal - Using EventForm Component */}
+      {showEditModal && eventDetails && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', zIndex: 1000, overflowY: 'auto', paddingTop: '20px' }}>
+          <div className="modal-content" style={{ backgroundColor: 'white', borderRadius: '8px', minWidth: '500px', maxWidth: '800px', marginBottom: '40px' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0 }}>Edit Event Details</h4>
+              <button 
+                type="button" 
+                className="btn btn-close" 
+                onClick={() => setShowEditModal(false)}
+                aria-label="Close"
+              ></button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <EventForm 
+                initialData={eventDetails}
+                isEditMode={true}
+                onSubmit={handleEditFormSubmit}
+                onClose={() => setShowEditModal(false)}
+              />
             </div>
           </div>
-        )}
+        </div>
+      )}
 
       {/* Main Grid Layout */}
       <div className="ed-grid">
@@ -1448,53 +1225,26 @@ const EventDetails = () => {
         </div>
       )}
 
-      {/* Edit Modal */}
-      {showEditModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
-          <div className="modal-content" style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', minWidth: '400px', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h4>Edit Event Details</h4>
-            <div className="form-group mb-2"><label>Event Name</label><input className="form-control" name="eventName" value={editForm.eventName || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Part of Gymkhana Calendar</label><select className="form-control" name="partOfGymkhanaCalendar" value={editForm.partOfGymkhanaCalendar || ''} onChange={handleEditChange}><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
-            <div className="form-group mb-2"><label>Event Type</label><input className="form-control" name="eventType" value={editForm.eventType || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Club Name</label><input className="form-control" name="clubName" value={editForm.clubName || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Start Date &amp; Time</label><input type="datetime-local" className="form-control" name="startDate" value={editForm.startDate || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>End Date &amp; Time</label><input type="datetime-local" className="form-control" name="endDate" value={editForm.endDate || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Event Venue</label><input className="form-control" name="eventVenue" value={editForm.eventVenue || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Source of Budget</label><input className="form-control" name="sourceOfBudget" value={editForm.sourceOfBudget || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2">
-              <label>Budget Breakup</label>
-              {editBudgetBreakup.map((item, idx) => (
-                <div key={idx} className="d-flex mb-2 align-items-center">
-                  <input className="form-control me-2" style={{ width: '50%' }} placeholder="Label" value={item.label} onChange={e => handleBudgetBreakupChange(idx, 'label', e.target.value)} />
-                  <input className="form-control me-2" style={{ width: '35%' }} placeholder="Amount" type="number" min="0" value={item.amount} onChange={e => handleBudgetBreakupChange(idx, 'amount', e.target.value)} />
-                  <button className="btn btn-danger btn-sm" type="button" onClick={() => handleRemoveBudgetBreakup(idx)}>&times;</button>
-                </div>
-              ))}
-              <button className="btn btn-outline-primary btn-sm mt-1" type="button" onClick={handleAddBudgetBreakup}>Add Item</button>
-              <div className="mt-2"><strong>Estimated Budget: </strong>₹{calculatedEstimatedBudget}</div>
+      {/* Edit Modal - Using EventForm Component */}
+      {showEditModal && eventDetails && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', zIndex: 1000, overflowY: 'auto', paddingTop: '20px' }}>
+          <div className="modal-content" style={{ backgroundColor: 'white', borderRadius: '8px', minWidth: '500px', maxWidth: '800px', marginBottom: '40px' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0 }}>Edit Event Details</h4>
+              <button 
+                type="button" 
+                className="btn btn-close" 
+                onClick={() => setShowEditModal(false)}
+                aria-label="Close"
+              ></button>
             </div>
-            <div className="form-group mb-2"><label>Name of the Organizer</label><input className="form-control" name="nameOfTheOrganizer" value={editForm.nameOfTheOrganizer || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Designation</label><input className="form-control" name="designation" value={editForm.designation || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Email</label><input className="form-control" name="email" value={editForm.email || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Phone Number</label><input className="form-control" name="phoneNumber" value={editForm.phoneNumber || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Requirements (comma separated)</label><input className="form-control" name="requirements" value={editForm.requirements || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>Any Additional Amenities</label><input className="form-control" name="anyAdditionalAmenities" value={editForm.anyAdditionalAmenities || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2">
-              <label>Event Description</label>
-              <ReactQuill
-                theme="snow"
-                value={editForm.eventDescription || ''}
-                onChange={handleEditDescriptionChange}
-                modules={{ toolbar: [[{ header: [1, 2, 3, false] }], ['bold', 'italic', 'underline', 'strike'], [{ list: 'ordered' }, { list: 'bullet' }], ['link'], ['clean']] }}
-                style={{ backgroundColor: '#fff' }}
+            <div style={{ padding: '20px' }}>
+              <EventForm 
+                initialData={eventDetails}
+                isEditMode={true}
+                onSubmit={handleEditFormSubmit}
+                onClose={() => setShowEditModal(false)}
               />
-            </div>
-            <div className="form-group mb-2"><label>Internal Participants</label><input className="form-control" name="internalParticipants" value={editForm.internalParticipants || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>External Participants</label><input className="form-control" name="externalParticipants" value={editForm.externalParticipants || ''} onChange={handleEditChange} /></div>
-            <div className="form-group mb-2"><label>List of Collaborating Organizations</label><input className="form-control" name="listOfCollaboratingOrganizations" value={editForm.listOfCollaboratingOrganizations || ''} onChange={handleEditChange} /></div>
-            <div className="modal-buttons mt-3">
-              <button className="btn btn-secondary me-2" onClick={() => setShowEditModal(false)}>Cancel</button>
-              <button className="btn btn-success" onClick={handleEditSubmit}>Save Changes</button>
             </div>
           </div>
         </div>

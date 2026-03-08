@@ -143,16 +143,19 @@ const createHTMLContent = (formData) => {
   // Include normal requirements that have descriptions
   const reqFilled = formData.requirements.filter(r => r.name && r.description?.trim());
 
-  // Also append "Any additional amenities" as the last row if it has content
-  const amenityText = formData.anyAdditionalAmenities?.trim();
-  if (amenityText) {
-    reqFilled.push({ name: "Any additional amenities", description: amenityText });
+  // Also append additional amenities if they exist
+  if (Array.isArray(formData.additionalAmenities) && formData.additionalAmenities.length > 0) {
+    const amenities = formData.additionalAmenities.filter(a => a.amenityName?.trim() && a.description?.trim());
+    reqFilled.push(...amenities.map(a => ({ name: a.amenityName, description: a.description })));
   }
 
   const reqRows = Math.max(reqFilled.length, 10);
 
-  // ── Additional amenities cell for facilities table (page 1): "Yes: <value>" or "No"
-  const amenityCell = amenityText ? `Yes: ${amenityText}` : "No";
+  // ── Additional amenities cell for facilities table (page 1): "Yes: count" or "No"
+  const additionalAmenitiesCount = Array.isArray(formData.additionalAmenities) 
+    ? formData.additionalAmenities.filter(a => a.amenityName?.trim()).length 
+    : 0;
+  const amenityCell = additionalAmenitiesCount > 0 ? `Yes: ${additionalAmenitiesCount} Amenity(ies)` : "No";
 
   return `<!DOCTYPE html>
 <html lang="hi">
@@ -544,6 +547,7 @@ ${descArea}
 <div class="dean-space"></div>
 
 <div class="dean-lbl">
+<div class="sig-line" style="text-align:center; width:30%; margin:0 auto 6px;">
   ${signed('dean')}
   <span class="hi">डीन</span>&nbsp;/Dean<br>
   <span class="hi">छात्र कल्याण</span>&nbsp;/Student Welfare
