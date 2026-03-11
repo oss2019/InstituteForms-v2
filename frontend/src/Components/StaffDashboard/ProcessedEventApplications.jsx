@@ -115,7 +115,7 @@ const StaffDashboard = () => {
       setGroupedRejected(groupedRejected);
 
       // Fetch closed applications (only for authorized roles)
-      if (['associate-dean', 'dean', 'ARSW'].includes(storedUserRole)) {
+      if (['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW'].includes(storedUserRole)) {
         try {
           const closedResponse = await axios.post(`${apiUrl}/event/closed`, {
             role: storedUserRole,

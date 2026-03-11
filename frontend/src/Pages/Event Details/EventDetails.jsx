@@ -357,7 +357,7 @@ const EventDetails = () => {
 
   // Handlers for ARSW/Associate Dean/Dean budget editing
   const canEditBudget = () => {
-    return role === "ARSW" || role === "associate-dean" || role === "dean";
+    return role === "ARSW" || role === "associate-dean" || role === "associate-dean-socio-cultural" || role === "dean";
   };
 
   const handleOpenBudgetEditModal = () => {
@@ -685,7 +685,7 @@ const EventDetails = () => {
 
   // Check if event can be closed
   const canCloseEvent = () => {
-    if (!['associate-dean', 'dean', 'ARSW'].includes(role)) return false;
+    if (!['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW'].includes(role)) return false;
     if (eventDetails.status === 'Closed') return false;
     
     const allApproved = eventDetails.approvals.every(app => app.status === 'Approved');
@@ -700,7 +700,7 @@ const EventDetails = () => {
 
   // Check if can raise query on approved event
   const canRaiseApprovedQuery = () => {
-    if (!['associate-dean', 'dean', 'ARSW'].includes(role)) return false;
+    if (!['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW'].includes(role)) return false;
     if (eventDetails.status === 'Closed') return false;
     
     const allApproved = eventDetails.approvals.every(app => app.status === 'Approved');

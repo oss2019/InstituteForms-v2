@@ -34,6 +34,7 @@ function StaffDashboard() {
       'president': 'President',
       'ARSW': 'ARSW',
       'associate-dean': 'Associate Dean',
+      'associate-dean-socio-cultural': 'Associate Dean (Socio-Cult)',
       'dean': 'Dean'
     };
     const storedRole = localStorage.getItem('role');
