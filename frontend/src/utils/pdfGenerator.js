@@ -518,7 +518,7 @@ ${descArea}
       </div>
     </div>
     <div class="sig-box" style="flex:0 0 auto; text-align:right; max-width:240px;">
-      ${signed('associate-dean')}
+      ${signed('associate-dean') || signed('associate-dean-socio-cultural')}
       <div class="sig-line" style="text-align:right;">
         <span class="hi">एसोसिएट डीन (जीमखाना/&nbsp;एच एंड एम)</span>&nbsp;/<br>
         <span class="hi">सामाजिक सांस्कृतिक</span><br>

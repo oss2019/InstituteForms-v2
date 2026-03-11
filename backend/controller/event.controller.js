@@ -1506,7 +1506,7 @@ export const editBudget = async (req, res) => {
     }
 
     // Check if the user has permission to edit budget
-    if (!["ARSW", "associate-dean", "dean"].includes(role)) {
+    if (!["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(role)) {
       return res.status(403).json({ 
         message: "Only ARSW, Associate Dean, or Dean can edit the budget." 
       });
