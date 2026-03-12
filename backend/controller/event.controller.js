@@ -718,7 +718,7 @@ export const approveApplication = async (req, res) => {
     const approvalIndex = eventApproval.approvals.findIndex(
       (approval) => approval.role === role && approval.status === "Pending"
     );
-
+    console.log("Approval Index:", approvalIndex);
     if (approvalIndex === -1) {
       return res.status(400).json({ message: "No pending approval found for this role." });
     }

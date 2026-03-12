@@ -130,6 +130,8 @@ const EventDetails = () => {
       "associate-dean",
       "dean"
     ];
+    console.log("Approvals:", eventDetails.approvals);
+    console.log("Role:", role);
 
     // If there's a rejection, no one can approve anymore
     const hasRejection = approvals.some(
@@ -138,12 +140,11 @@ const EventDetails = () => {
     if (hasRejection) {
       return false;
     }
-
-    // Check if current user's role has a pending status
-    const currentUserApproval = approvals.find(
-      (approval) => approval.role === role
-    );
-    return currentUserApproval && currentUserApproval.status === "Pending";
+    const currentIndex = approvals.findIndex((approval) => approval.role === role);
+    if (currentIndex === -1) {return false;} // User's role not in approval hierarchy
+    if (approvals[currentIndex].status !== "Pending") {return false;} // Current user's approval is not pending  
+    return approvals.slice(0, currentIndex).every(approval => approval.status === "Approved");
+    
   };
 
   const canEditEvent = () => {
@@ -357,7 +358,20 @@ const EventDetails = () => {
 
   // Handlers for ARSW/Associate Dean/Dean budget editing
   const canEditBudget = () => {
-    return role === "ARSW" || role === "associate-dean" || role === "associate-dean-socio-cultural" || role === "dean";
+    if (!["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(role)) {
+      return false;
+    }
+
+    if (!eventDetails) {
+      return false;
+    }
+    // Check if it's this role's turn in the approval hierarchy
+    if (canCurrentUserApprove(eventDetails.approvals)) {
+      return true;
+    }
+
+    // Check if all previous approvals are approved
+    return false;
   };
 
   const handleOpenBudgetEditModal = () => {
