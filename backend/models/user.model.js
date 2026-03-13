@@ -18,7 +18,7 @@ const userSchema = new Schema({
     },
   password: {type: String, required: false},
   name: { type: String, required: false },
-  role: {type: String, default: "club-secretary",enum: ["student", "club-secretary", "general-secretary", "treasurer", "vice-president", "ARSW", "associate-dean", "dean"]},
+  role: {type: String, default: "club-secretary",enum: ["student", "club-secretary", "general-secretary", "treasurer", "president", "vice-president", "ARSW", "associate-dean", "dean", "mess-secretary", "canteen-secretary", "fic-mess-canteen", "gen-sec-hostel", "hostel-manager", "warden", "adean-hostel", "transit-facility", "sw-office"]},
   type: {
     type: String,
     enum: ["Technical", "Cultural", "Sports"],

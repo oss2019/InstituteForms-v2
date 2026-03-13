@@ -5,6 +5,7 @@ import StudentDashboard from "./Pages/Student DashBoard/StudentDashboard.jsx";
 import StaffDashboard from "./Pages/Staff Dashboard/StaffDashboard.jsx";
 import StudentPortal from "./Pages/Student Portal/StudentPortal.jsx";
 import EventDetails from "./Pages/Event Details/EventDetails.jsx";
+import WelfareStaffDashboard from "./Pages/Welfare Staff/WelfareStaffDashboard.jsx";
 import { Toaster } from "react-hot-toast";
 import PageNotFound from "./Pages/Page Not Found/PageNotFound.jsx";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -28,7 +29,7 @@ function App() {
           <Route
             path="/staff"
             element={
-              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean"]}>
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean", "transit-facility", "fic-mess-canteen", "hostel-manager", "warden", "adean-hostel", "sw-office"]}>
                 <StaffDashboard />
               </ProtectedRoute>
             }
@@ -36,8 +37,17 @@ function App() {
           <Route
             path="/event-details/:id"
             element={
-              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean"]}>
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean", "fic-mess-canteen", "hostel-manager", "warden", "adean-hostel", "sw-office"]}>
                 <EventDetails />
+              </ProtectedRoute>
+            }
+          />
+          {/* ── Welfare secretary portal ── */}
+          <Route
+            path="/welfare-staff"
+            element={
+              <ProtectedRoute requiredRoles={["mess-secretary", "canteen-secretary", "gen-sec-hostel"]}>
+                <WelfareStaffDashboard />
               </ProtectedRoute>
             }
           />

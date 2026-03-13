@@ -17,10 +17,12 @@ const StudentNavbar = () => {
   };
 
   const links = [
-    { to: "/student",              label: "Dashboard", end: true },
-    { to: "/student/mess",         label: "Mess Feedback" },
-    { to: "/student/canteen",      label: "Canteen Feedback" },
-    { to: "/student/accommodation",label: "Accommodation" },
+    { to: "/student",                      label: "Dashboard",          end: true },
+    { to: "/student/mess",                 label: "Mess Complaint" },
+    { to: "/student/canteen",              label: "Canteen Complaint" },
+    { to: "/student/hostel",               label: "Hostel Complaint" },
+    { to: "/student/accommodation-booking",label: "Accommodation Booking" },
+    { to: "/student/my-complaints",        label: "My Complaints" },
   ];
 
   return (

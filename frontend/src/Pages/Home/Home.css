@@ -136,13 +136,13 @@
 }
 
 .home-cards-row {
-  display: flex;
-  gap: 1.6rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(250px, 1fr));
+  gap: 1.2rem;
   align-items: stretch;
   justify-content: center;
-  flex-wrap: wrap;
   width: 100%;
-  max-width: 820px;
+  max-width: 620px;
 }
 
 /* 
@@ -150,8 +150,8 @@
  */
 .role-card {
   position: relative;
-  width: 218px;
-  min-height: 260px;
+  width: 100%;
+  min-height: 345px;
   border-radius: var(--radius);
   background: var(--white);
   border: 1.5px solid var(--border);
@@ -272,6 +272,13 @@
   pointer-events: none;
   background: var(--card-hover-bg);
   overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.role-card--student {
+  grid-column: 1 / -1;
+  justify-self: center;
+  max-width: 315px;
 }
 
 .card-login--visible {
@@ -416,9 +423,21 @@
 
   .home-cards-area { padding: 2rem 1.5rem; }
 
-  .home-cards-row { gap: 1.2rem; }
+  .home-cards-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.2rem;
+    max-width: 820px;
+  }
 
-  .role-card { width: 190px; min-height: 240px; }
+  .role-card { width: 220px; min-height: 300px; }
+
+  .role-card--student {
+    grid-column: auto;
+    justify-self: auto;
+    max-width: none;
+  }
 }
 
 /* mobile */
@@ -437,7 +456,7 @@
 
   .role-card {
     width: min(340px, 90vw);
-    min-height: 230px;
+    min-height: 280px;
   }
 
   .role-card--active {

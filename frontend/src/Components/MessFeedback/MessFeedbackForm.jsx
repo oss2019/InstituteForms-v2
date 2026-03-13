@@ -49,6 +49,7 @@ const MessFeedbackForm = () => {
   const name  = user.name  || email.split("@")[0] || "";
 
   const initState = {
+    title: "",
     mealType: "Lunch",
     date: todayStr(),
     overallRating:  0,
@@ -75,7 +76,16 @@ const MessFeedbackForm = () => {
       ? form.issues.filter((i) => i !== issue)
       : [...form.issues, issue]);
 
+  const deriveSeverity = (rating) => {
+    if (rating <= 1) return "critical";
+    if (rating <= 2) return "high";
+    if (rating <= 3) return "medium";
+    return "low";
+  };
+
   const validate = () => {
+    if (!form.title.trim()) return "Please provide a short complaint title / summary.";
+    if (!form.specificDishFeedback.trim()) return "Please provide a complaint description.";
     const required = ["overallRating","foodQuality","hygiene","serviceSpeed","portionSize","valueForMoney"];
     for (const r of required) {
       if (!form[r] || form[r] < 1) return `Please rate: ${RATINGS.find(x => x.key === r)?.label}`;
@@ -83,18 +93,38 @@ const MessFeedbackForm = () => {
     return "";
   };
 
+  const [complaintId, setComplaintId] = useState("");
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const err = validate();
     if (err) { setError(err); return; }
     setError("");
     setLoading(true);
+    const user = JSON.parse(localStorage.getItem("user-info") || "{}");
     try {
-      await api.post("/feedback/mess", {
-        ...form,
-        studentEmail: email,
-        studentName: name,
+      const res = await api.post("/welfare/submit", {
+        complaintType: "mess",
+        userId:        user._id || user.id,
+        studentEmail:  email,
+        studentName:   name,
+        title:         form.title.trim(),
+        description:   form.specificDishFeedback.trim(),
+        severity:      deriveSeverity(form.overallRating),
+        mealType:      form.mealType,
+        mealDate:      form.date,
+        overallRating: form.overallRating,
+        foodQuality:   form.foodQuality,
+        hygiene:       form.hygiene,
+        serviceSpeed:  form.serviceSpeed,
+        portionSize:   form.portionSize,
+        valueForMoney: form.valueForMoney,
+        issues:        form.issues,
+        specificDishFeedback: form.specificDishFeedback,
+        suggestions:   form.suggestions,
+        wouldRecommendChange: form.wouldRecommendChange,
       });
+      setComplaintId(res.data.complaint?.complaintId || "");
       setSubmitted(true);
     } catch (ex) {
       setError(ex.response?.data?.message || "Submission failed. Please try again.");
@@ -108,15 +138,20 @@ const MessFeedbackForm = () => {
       <div className="sf-page">
         <div className="sf-success">
           <div className="sf-success__icon">✅</div>
-          <h3>Feedback Submitted!</h3>
+          <h3>Complaint Submitted!</h3>
+          {complaintId && (
+            <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: ".6rem", padding: ".6rem 1rem", margin: ".5rem 0", fontFamily: "monospace", fontSize: ".95rem", color: "#166534", fontWeight: 700 }}>
+              Tracking ID: {complaintId}
+            </div>
+          )}
           <p>
-            Thank you, {name}. Your mess feedback has been recorded and will be
-            reviewed by the Mess Secretary. We track all submissions and work
-            towards improvement.
+            Thank you, {name}. Your mess complaint has been submitted and forwarded
+            to the <strong>Mess Secretary</strong> for review. Use the tracking ID
+            above to follow up in <em>My Complaints</em>.
           </p>
-          <button className="sf-btn-submit" style={{ marginTop: ".5rem" }} onClick={() => { setForm(initState); setSubmitted(false); }}>
-            Submit Another
-          </button>
+          <Link to="/student/my-complaints" style={{ fontSize: ".83rem", color: "#2a5298", marginTop: ".5rem" }}>
+            View My Complaints →
+          </Link>
           <Link to="/student" style={{ fontSize: ".83rem", color: "#2a5298", marginTop: ".5rem" }}>
             ← Back to Dashboard
           </Link>
@@ -128,14 +163,28 @@ const MessFeedbackForm = () => {
   return (
     <div className="sf-page">
       <div className="sf-header">
-        <h2>🍽️ Mess Feedback Form</h2>
+        <h2>🍽️ Mess Complaint Form</h2>
         <p>
-          Help us improve your dining experience. Be as specific as possible —
-          your feedback goes directly to the <strong>Mess Secretary</strong>.
+          Report a mess-related complaint with clear details. Your complaint goes
+          directly to the <strong>Mess Secretary</strong> for action.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
+        {/* ── Complaint Title ── */}
+        <div className="sf-row" style={{ marginBottom: 0 }}>
+          <div className="sf-field" style={{ gridColumn: "1 / -1" }}>
+            <label>Complaint Title / Summary <span className="req">*</span></label>
+            <input
+              className="sf-input"
+              placeholder="e.g. Stale food served"
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+              required
+            />
+          </div>
+        </div>
+
         {/* ── Section 1: Identity & Meal Info ── */}
         <div className="sf-section-title">1. Meal Details</div>
         <div className="sf-row">
@@ -189,7 +238,7 @@ const MessFeedbackForm = () => {
         <div className="sf-section-title">4. Detailed Feedback</div>
         <div className="sf-row">
           <div className="sf-field" style={{ gridColumn: "1 / -1" }}>
-            <label>Specific Dish / Item Feedback</label>
+            <label>Complaint Description <span className="req">*</span></label>
             <textarea
               className="sf-textarea"
               placeholder="e.g. Monday's dal was undercooked; the roti was hard and cold..."
@@ -232,7 +281,7 @@ const MessFeedbackForm = () => {
             Reset Form
           </button>
           <button type="submit" className="sf-btn-submit" disabled={loading}>
-            {loading ? "Submitting…" : "Submit Feedback"}
+            {loading ? "Submitting…" : "Submit Complaint"}
           </button>
         </div>
       </form>

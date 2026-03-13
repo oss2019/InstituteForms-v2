@@ -6,6 +6,8 @@ import cors from "cors"
 import userRoute from "./route/user.route.js"
 import eventRoute from "./route/event.route.js"
 import feedbackRoute from "./route/feedback.route.js"
+import welfareRoute from "./route/welfare.route.js"
+import accommodationBookingRoute from "./route/accommodationBooking.route.js"
 
 
 const app = express()
@@ -27,6 +29,8 @@ mongoose.connect(URI).then(() => {
  app.use("/user", userRoute);
  app.use("/event", eventRoute);
  app.use("/feedback", feedbackRoute);
+ app.use("/welfare", welfareRoute);
+ app.use("/accommodation-booking", accommodationBookingRoute);
 
 
 

@@ -49,10 +49,13 @@ const Home = () => {
         token: authResult.credential,
       });
       const { user, token } = result.data;
-      const staffRoles = ["president","treasurer","ARSW","associate-dean","general-secretary","dean"];
+      const staffRoles = ["president","treasurer","ARSW","associate-dean","general-secretary","dean","transit-facility","fic-mess-canteen","hostel-manager","warden","adean-hostel","sw-office"];
+      const welfareSecretaryRoles = ["mess-secretary","canteen-secretary","gen-sec-hostel"];
 
       if (selectedRole === "staff" && staffRoles.includes(user.role)) {
         saveAndNavigate(user, token, "/staff");
+      } else if (selectedRole === "club-secretary" && welfareSecretaryRoles.includes(user.role)) {
+        saveAndNavigate(user, token, "/welfare-staff");
       } else if (user.role === selectedRole) {
         saveAndNavigate(user, token, `/${selectedRole}`);
       } else {
@@ -82,11 +85,14 @@ const Home = () => {
     try {
       const result = await axios.post(`${API}/user/login`, { email, password });
       const { user, token } = result.data;
-      const staffRoles = ["president","treasurer","ARSW","associate-dean","general-secretary","dean"];
+      const staffRoles = ["president","treasurer","ARSW","associate-dean","general-secretary","dean","transit-facility","fic-mess-canteen","hostel-manager","warden","adean-hostel","sw-office"];
+      const welfareSecretaryRoles = ["mess-secretary","canteen-secretary","gen-sec-hostel"];
       if (selectedRole === "staff" && staffRoles.includes(user.role)) {
         saveAndNavigate(user, token, "/staff");
       } else if (user.role === "club-secretary" && selectedRole === "club-secretary") {
         saveAndNavigate(user, token, "/club-secretary");
+      } else if (selectedRole === "club-secretary" && welfareSecretaryRoles.includes(user.role)) {
+        saveAndNavigate(user, token, "/welfare-staff");
       } else {
         toast.error("Not authorised for this portal.");
       }
@@ -150,7 +156,7 @@ const Home = () => {
               return (
                 <div
                   key={card.id}
-                  className={`role-card ${active ? "role-card--active" : ""}`}
+                  className={`role-card ${card.id === "student" ? "role-card--student" : ""} ${active ? "role-card--active" : ""}`}
                   onMouseEnter={() => handleMouseEnter(card.id)}
                   onMouseLeave={handleMouseLeave}
                 >
@@ -199,7 +205,7 @@ const Home = () => {
                             theme="outline"
                             text="signin_with"
                             shape="rectangular"
-                            width="240"
+                            width="210"
                           />
                         </div>
                       </>
@@ -216,7 +222,7 @@ const Home = () => {
                             theme="filled_blue"
                             text="signin_with"
                             shape="rectangular"
-                            width="240"
+                            width="210"
                           />
                         </div>
                       </div>

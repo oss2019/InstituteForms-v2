@@ -18,15 +18,7 @@ const ISSUE_CATEGORIES = [
   "Other",
 ];
 
-const HOSTEL_BLOCKS = [
-  "H1 – Boys Hostel",
-  "H2 – Boys Hostel",
-  "H3 – Boys Hostel",
-  "H4 – Boys Hostel",
-  "Girls Hostel",
-  "Faculty Quarters",
-  "Other",
-];
+const HOSTEL_BLOCKS = ["Hostel 1", "Hostel 2"];
 
 const todayStr = () => new Date().toISOString().split("T")[0];
 
@@ -36,16 +28,16 @@ const AccommodationForm = () => {
   const name  = user.name  || email.split("@")[0] || "";
 
   const initState = {
+    title:         "",
     rollNumber:    "",
     contactNumber: "",
-    hostelBlock:   "H1 – Boys Hostel",
+    hostelBlock:   "Hostel 1",
     roomNumber:    "",
     issueCategory: "Plumbing",
     issueDescription: "",
     priorityLevel: "Medium",
     preferredResolutionDate: "",
     attachmentUrl: "",
-    contactPreference: "Email",
   };
 
   const [form, setForm]           = useState(initState);
@@ -55,13 +47,19 @@ const AccommodationForm = () => {
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
+  const priorityToSeverity = { Low: "low", Medium: "medium", High: "high", Urgent: "critical" };
+
   const validate = () => {
-    if (!form.rollNumber.trim())       return "Roll number is required.";
-    if (!form.contactNumber.trim())    return "Contact number is required.";
-    if (!form.roomNumber.trim())       return "Room number is required.";
+    if (!form.title.trim())          return "Please provide a short complaint title / summary.";
+    if (!form.rollNumber.trim())     return "Roll number is required.";
+    if (!form.contactNumber.trim())  return "Contact number is required.";
+    if (!/^\d{10}$/.test(form.contactNumber)) return "Contact number must be exactly 10 digits.";
+    if (!form.roomNumber.trim())     return "Room number is required.";
     if (!form.issueDescription.trim()) return "Please describe the issue in detail.";
     return "";
   };
+
+  const [complaintId, setComplaintId] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,12 +67,27 @@ const AccommodationForm = () => {
     if (err) { setError(err); return; }
     setError("");
     setLoading(true);
+    const user = JSON.parse(localStorage.getItem("user-info") || "{}");
     try {
-      await api.post("/feedback/accommodation", {
-        ...form,
-        studentEmail: email,
-        studentName: name,
+      const res = await api.post("/welfare/submit", {
+        complaintType:           "hostel",
+        userId:                  user._id || user.id,
+        studentEmail:            email,
+        studentName:             name,
+        title:                   form.title.trim(),
+        description:             form.issueDescription.trim(),
+        severity:                priorityToSeverity[form.priorityLevel] || "medium",
+        rollNumber:              form.rollNumber,
+        contactNumber:           form.contactNumber,
+        hostelBlock:             form.hostelBlock,
+        roomNumber:              form.roomNumber,
+        issueCategory:           form.issueCategory,
+        issueDescription:        form.issueDescription,
+        priorityLevel:           form.priorityLevel,
+        preferredResolutionDate: form.preferredResolutionDate || undefined,
+        attachmentUrl:           form.attachmentUrl,
       });
+      setComplaintId(res.data.complaint?.complaintId || "");
       setSubmitted(true);
     } catch (ex) {
       setError(ex.response?.data?.message || "Submission failed. Please try again.");
@@ -88,15 +101,20 @@ const AccommodationForm = () => {
       <div className="sf-page">
         <div className="sf-success">
           <div className="sf-success__icon">✅</div>
-          <h3>Request Submitted!</h3>
+          <h3>Complaint Submitted!</h3>
+          {complaintId && (
+            <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: ".6rem", padding: ".6rem 1rem", margin: ".5rem 0", fontFamily: "monospace", fontSize: ".95rem", color: "#166534", fontWeight: 700 }}>
+              Tracking ID: {complaintId}
+            </div>
+          )}
           <p>
-            Your accommodation request has been recorded. The{" "}
-            <strong>Hostel Management</strong> team will review your issue and
-            reach out via your preferred contact method.
+            Your hostel complaint has been recorded and forwarded to the{" "}
+            <strong>General Secretary - Hostel</strong>. Use the tracking ID above
+            to follow up in <em>My Complaints</em>.
           </p>
-          <button className="sf-btn-submit" style={{ marginTop: ".5rem" }} onClick={() => { setForm(initState); setSubmitted(false); }}>
-            Submit Another Request
-          </button>
+          <Link to="/student/my-complaints" style={{ fontSize: ".83rem", color: "#2a5298", marginTop: ".5rem" }}>
+            View My Complaints →
+          </Link>
           <Link to="/student" style={{ fontSize: ".83rem", color: "#2a5298", marginTop: ".5rem" }}>
             ← Back to Dashboard
           </Link>
@@ -111,14 +129,29 @@ const AccommodationForm = () => {
   return (
     <div className="sf-page">
       <div className="sf-header">
-        <h2>🏠 Accommodation &amp; Hostel Complaint Form</h2>
+        <h2>🏠 Hostel Complaint Form</h2>
         <p>
-          Report hostel maintenance issues, facility complaints or raise requests.
-          Submissions are forwarded to the <strong>Hostel Management / Warden</strong>.
+          Report hostel issues and maintenance requirements. Your complaint
+          follows the hostel workflow and is forwarded to the <strong>General
+          Secretary - Hostel</strong> first.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
+        {/* ── Complaint Title ── */}
+        <div className="sf-row" style={{ marginBottom: 0 }}>
+          <div className="sf-field" style={{ gridColumn: "1 / -1" }}>
+            <label>Complaint Title / Summary <span className="req">*</span></label>
+            <input
+              className="sf-input"
+              placeholder="e.g. Water leakage in room"
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+              required
+            />
+          </div>
+        </div>
+
         {/* ── Section 1: Personal Info ── */}
         <div className="sf-section-title">1. Personal Information</div>
         <div className="sf-row">
@@ -147,14 +180,17 @@ const AccommodationForm = () => {
               type="tel"
               placeholder="10-digit mobile number"
               value={form.contactNumber}
-              onChange={(e) => set("contactNumber", e.target.value)}
+              onChange={(e) => set("contactNumber", e.target.value.replace(/\D/g, "").slice(0, 10))}
+              inputMode="numeric"
+              pattern="[0-9]{10}"
+              maxLength={10}
               required
             />
           </div>
         </div>
 
         {/* ── Section 2: Room Info ── */}
-        <div className="sf-section-title">2. Room &amp; Hostel Details</div>
+        <div className="sf-section-title">2. Accommodation Details</div>
         <div className="sf-row">
           <div className="sf-field">
             <label>Hostel Block <span className="req">*</span></label>
@@ -223,12 +259,6 @@ const AccommodationForm = () => {
               onChange={(e) => set("preferredResolutionDate", e.target.value)}
             />
           </div>
-          <div className="sf-field">
-            <label>Preferred Contact Method</label>
-            <select className="sf-select" value={form.contactPreference} onChange={(e) => set("contactPreference", e.target.value)}>
-              {["Email","Phone","WhatsApp","In-Person"].map(c => <option key={c}>{c}</option>)}
-            </select>
-          </div>
         </div>
 
         <div className="sf-row">
@@ -262,7 +292,7 @@ const AccommodationForm = () => {
             Reset Form
           </button>
           <button type="submit" className="sf-btn-submit" disabled={loading}>
-            {loading ? "Submitting…" : "Submit Request"}
+            {loading ? "Submitting…" : "Submit Complaint"}
           </button>
         </div>
       </form>

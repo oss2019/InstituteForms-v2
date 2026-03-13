@@ -61,6 +61,20 @@
   flex-grow: 1;
 }
 
+/* Visual divider between nav groups (e.g. Events / Welfare) */
+.sidebar-section-divider {
+  padding: .45rem 1.5rem .3rem;
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #adb5bd;
+  margin-top: .5rem;
+  border-top: 1px solid var(--border-color);
+  pointer-events: none;
+  user-select: none;
+}
+
 .sidebar-button {
   display: flex;
   align-items: center;

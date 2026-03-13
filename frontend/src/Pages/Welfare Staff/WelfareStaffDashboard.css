@@ -1,0 +1,211 @@
+/* ═══════════════════════════════════════════════════════════════
+   WELFARE STAFF DASHBOARD  –  layout styles
+   Mirrors the StaffDashboard.css pattern for visual consistency
+═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --wsd-sidebar-bg:   #ffffff;
+  --wsd-bg:           #f0f4f8;
+  --wsd-border:       #dee2e6;
+  --wsd-text:         #1e3a5f;
+  --wsd-text-sub:     #6c757d;
+  --wsd-accent:       #2a5298;
+  --wsd-hover-bg:     #eff4ff;
+  --wsd-shadow:       0 2px 8px rgba(0,0,0,.09);
+}
+
+/* ── Outer layout ────────────────────────────────────────────── */
+.wsd-layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--wsd-bg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────── */
+.wsd-sidebar {
+  width: 260px;
+  background: var(--wsd-sidebar-bg);
+  border-right: 1px solid var(--wsd-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: transform .3s ease;
+}
+
+.wsd-sidebar__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--wsd-border);
+}
+
+.wsd-sidebar__role {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--wsd-text);
+}
+
+.wsd-sidebar__sub {
+  font-size: .78rem;
+  color: var(--wsd-text-sub);
+  margin-top: .2rem;
+}
+
+.wsd-sidebar__close {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: var(--wsd-text-sub);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.wsd-sidebar__close:hover { color: var(--wsd-text); }
+
+.wsd-sidebar__menu {
+  list-style: none;
+  padding: .75rem 0;
+  margin: 0;
+  flex-grow: 1;
+}
+
+.wsd-sidebar__btn {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  width: 100%;
+  padding: .9rem 1.5rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: .95rem;
+  color: var(--wsd-text-sub);
+  cursor: pointer;
+  transition: all .18s;
+  border-left: 4px solid transparent;
+}
+
+.wsd-sidebar__btn svg { font-size: 1.15rem; flex-shrink: 0; }
+
+.wsd-sidebar__btn:hover {
+  background: var(--wsd-hover-bg);
+  color: var(--wsd-text);
+}
+
+.wsd-sidebar__btn--active {
+  background: var(--wsd-hover-bg);
+  color: var(--wsd-accent);
+  font-weight: 700;
+  border-left-color: var(--wsd-accent);
+}
+
+.wsd-sidebar__btn--danger:hover {
+  color: #d93742;
+  background: #fff0f1;
+}
+
+/* ── Main content ────────────────────────────────────────────── */
+.wsd-main {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.wsd-content {
+  padding: 2rem 2rem 3rem;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.wsd-content__heading {
+  margin-bottom: 1.75rem;
+}
+
+.wsd-content__heading h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--wsd-text);
+  margin: 0 0 .3rem;
+}
+
+.wsd-content__heading p {
+  font-size: .88rem;
+  color: var(--wsd-text-sub);
+  margin: 0;
+}
+
+/* ── Mobile elements (hidden by default) ────────────────────── */
+.wsd-overlay,
+.wsd-mobile-header {
+  display: none;
+}
+
+.wsd-hamburger {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--wsd-text);
+  padding: .5rem 1rem;
+}
+
+.wsd-mobile-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--wsd-text);
+}
+
+/* ── Mobile breakpoint ───────────────────────────────────────── */
+@media (max-width: 768px) {
+  .wsd-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100%;
+    z-index: 1001;
+    transform: translateX(-100%);
+    width: 80%;
+    max-width: 280px;
+    box-shadow: none;
+  }
+
+  .wsd-sidebar--open {
+    transform: translateX(0);
+    box-shadow: 4px 0 20px rgba(0,0,0,.18);
+  }
+
+  .wsd-sidebar__close { display: block; }
+
+  .wsd-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.38);
+    z-index: 1000;
+  }
+
+  .wsd-mobile-header {
+    display: flex;
+    align-items: center;
+    height: 58px;
+    padding: 0 .5rem;
+    background: var(--wsd-sidebar-bg);
+    border-bottom: 1px solid var(--wsd-border);
+    box-shadow: var(--wsd-shadow);
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    gap: .5rem;
+  }
+
+  .wsd-content {
+    padding: 1rem 1rem 2rem;
+  }
+}

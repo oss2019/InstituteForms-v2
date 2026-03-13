@@ -3,6 +3,8 @@ import StudentNavbar from "../../Components/StudentNavbar/StudentNavbar";
 import MessFeedbackForm from "../../Components/MessFeedback/MessFeedbackForm";
 import CanteenFeedbackForm from "../../Components/CanteenFeedback/CanteenFeedbackForm";
 import AccommodationForm from "../../Components/AccommodationForm/AccommodationForm";
+import AccommodationBookingForm from "../../Components/AccommodationBooking/AccommodationBookingForm";
+import MyComplaints from "../../Components/WelfareComplaints/MyComplaints";
 import Footer from "../../Components/Footer/Footer";
 import "./StudentPortal.css";
 
@@ -16,22 +18,36 @@ const StudentHome = () => {
       to:    "/student/mess",
       icon:  "🍽️",
       cls:   "sp-quick-card__icon--mess",
-      title: "Mess Feedback",
-      desc:  "Rate meals, report issues with food quality, hygiene, service and portions.",
+      title: "Mess Complaint",
+      desc:  "Submit a formal complaint about food quality, hygiene, service or quantity. Tracked with a unique ID.",
     },
     {
       to:    "/student/canteen",
       icon:  "☕",
       cls:   "sp-quick-card__icon--canteen",
-      title: "Canteen Feedback",
-      desc:  "Share your experience about canteen outlets, pricing, hygiene and staff.",
+      title: "Canteen Complaint",
+      desc:  "Report issues with canteen outlets — pricing, hygiene, staff behaviour, or product quality.",
     },
     {
-      to:    "/student/accommodation",
+      to:    "/student/hostel",
       icon:  "🏠",
       cls:   "sp-quick-card__icon--accom",
-      title: "Accommodation",
-      desc:  "Report maintenance issues, raise hostel requests and facility complaints.",
+      title: "Hostel Complaint",
+      desc:  "Report hostel maintenance and infrastructure issues with full workflow tracking.",
+    },
+    {
+      to:    "/student/my-complaints",
+      icon:  "📋",
+      cls:   "sp-quick-card__icon--canteen",
+      title: "My Complaints",
+      desc:  "Track complaints you submitted and reply to queries from the reviewing authorities.",
+    },
+    {
+      to:    "/student/accommodation-booking",
+      icon:  "🛏️",
+      cls:   "sp-quick-card__icon--accom",
+      title: "Accommodation Booking",
+      desc:  "Book mess block guest rooms for parents/relatives and track approval workflow status.",
     },
   ];
 
@@ -64,9 +80,11 @@ const StudentPortal = () => {
       <div className="sp-content">
         <Routes>
           <Route index element={<StudentHome />} />
-          <Route path="mess"          element={<MessFeedbackForm />} />
-          <Route path="canteen"       element={<CanteenFeedbackForm />} />
-          <Route path="accommodation" element={<AccommodationForm />} />
+          <Route path="mess"              element={<MessFeedbackForm />} />
+          <Route path="canteen"           element={<CanteenFeedbackForm />} />
+          <Route path="hostel"            element={<AccommodationForm />} />
+          <Route path="accommodation-booking" element={<AccommodationBookingForm />} />
+          <Route path="my-complaints"     element={<MyComplaints />} />
         </Routes>
       </div>
       <Footer />

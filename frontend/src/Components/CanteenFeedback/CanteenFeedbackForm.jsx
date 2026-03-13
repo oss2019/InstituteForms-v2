@@ -27,12 +27,9 @@ const RATINGS = [
 ];
 
 const OUTLETS = [
-  "Main Canteen",
-  "Tea & Snack Stall",
-  "Juice Corner",
-  "Night Canteen",
-  "Tuck Shop",
-  "Other",
+  "Veg Canteen",
+  "Non Veg Canteen",
+  "Tea Trends",
 ];
 
 const StarRating = ({ name, value, onChange }) => (
@@ -54,7 +51,8 @@ const CanteenFeedbackForm = () => {
   const name  = user.name  || email.split("@")[0] || "";
 
   const initState = {
-    outletName: "Main Canteen",
+    title: "",
+    outletName: "Veg Canteen",
     visitDate: todayStr(),
     itemsPurchased: "",
     foodQuality:    0,
@@ -79,8 +77,17 @@ const CanteenFeedbackForm = () => {
       ? form.issues.filter((i) => i !== issue)
       : [...form.issues, issue]);
 
+  const deriveSeverity = (rating) => {
+    if (rating <= 1) return "critical";
+    if (rating <= 2) return "high";
+    if (rating <= 3) return "medium";
+    return "low";
+  };
+
   const validate = () => {
+    if (!form.title.trim()) return "Please provide a short complaint title / summary.";
     if (!form.itemsPurchased.trim()) return "Please mention the items you purchased.";
+    if (!form.additionalComments.trim()) return "Please provide a complaint description.";
     const required = ["foodQuality","priceFairness","hygieneRating","staffBehaviour","overallRating"];
     for (const r of required) {
       if (!form[r] || form[r] < 1) return `Please rate: ${RATINGS.find(x => x.key === r)?.label}`;
@@ -88,18 +95,37 @@ const CanteenFeedbackForm = () => {
     return "";
   };
 
+  const [complaintId, setComplaintId] = useState("");
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const err = validate();
     if (err) { setError(err); return; }
     setError("");
     setLoading(true);
+    const user = JSON.parse(localStorage.getItem("user-info") || "{}");
     try {
-      await api.post("/feedback/canteen", {
-        ...form,
-        studentEmail: email,
-        studentName: name,
+      const res = await api.post("/welfare/submit", {
+        complaintType:  "canteen",
+        userId:         user._id || user.id,
+        studentEmail:   email,
+        studentName:    name,
+        title:          form.title.trim(),
+        description:    form.additionalComments.trim(),
+        severity:       deriveSeverity(form.overallRating),
+        outletName:     form.outletName,
+        visitDate:      form.visitDate,
+        itemsPurchased: form.itemsPurchased,
+        foodQuality:    form.foodQuality,
+        priceFairness:  form.priceFairness,
+        hygieneRating:  form.hygieneRating,
+        staffBehaviour: form.staffBehaviour,
+        overallRating:  form.overallRating,
+        issues:         form.issues,
+        suggestions:    form.suggestions,
+        additionalComments: form.additionalComments,
       });
+      setComplaintId(res.data.complaint?.complaintId || "");
       setSubmitted(true);
     } catch (ex) {
       setError(ex.response?.data?.message || "Submission failed. Please try again.");
@@ -113,14 +139,20 @@ const CanteenFeedbackForm = () => {
       <div className="sf-page">
         <div className="sf-success">
           <div className="sf-success__icon">✅</div>
-          <h3>Feedback Submitted!</h3>
+          <h3>Complaint Submitted!</h3>
+          {complaintId && (
+            <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: ".6rem", padding: ".6rem 1rem", margin: ".5rem 0", fontFamily: "monospace", fontSize: ".95rem", color: "#166534", fontWeight: 700 }}>
+              Tracking ID: {complaintId}
+            </div>
+          )}
           <p>
-            Thank you, {name}. Your canteen feedback has been recorded and will
-            be reviewed by the <strong>Canteen Secretary</strong>.
+            Thank you, {name}. Your canteen complaint has been submitted and
+            forwarded to the <strong>Canteen Secretary</strong> for review.
+            Use the tracking ID above to follow up in <em>My Complaints</em>.
           </p>
-          <button className="sf-btn-submit" style={{ marginTop: ".5rem" }} onClick={() => { setForm(initState); setSubmitted(false); }}>
-            Submit Another
-          </button>
+          <Link to="/student/my-complaints" style={{ fontSize: ".83rem", color: "#2a5298", marginTop: ".5rem" }}>
+            View My Complaints →
+          </Link>
           <Link to="/student" style={{ fontSize: ".83rem", color: "#2a5298", marginTop: ".5rem" }}>
             ← Back to Dashboard
           </Link>
@@ -132,14 +164,28 @@ const CanteenFeedbackForm = () => {
   return (
     <div className="sf-page">
       <div className="sf-header">
-        <h2>☕ Canteen Feedback Form</h2>
+        <h2>☕ Canteen Complaint Form</h2>
         <p>
-          Help improve canteen services at IIT Dharwad. Your feedback is
+          Report canteen-related complaints clearly. Your complaint is
           reviewed by the <strong>Canteen Secretary</strong>.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} noValidate>
+        {/* ── Complaint Title ── */}
+        <div className="sf-row" style={{ marginBottom: 0 }}>
+          <div className="sf-field" style={{ gridColumn: "1 / -1" }}>
+            <label>Complaint Title / Summary <span className="req">*</span></label>
+            <input
+              className="sf-input"
+              placeholder="e.g. Poor food quality"
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
+              required
+            />
+          </div>
+        </div>
+
         {/* ── Section 1: Visit Details ── */}
         <div className="sf-section-title">1. Visit Details</div>
         <div className="sf-row">
@@ -212,7 +258,7 @@ const CanteenFeedbackForm = () => {
             />
           </div>
           <div className="sf-field" style={{ gridColumn: "1 / -1" }}>
-            <label>Additional Comments</label>
+            <label>Complaint Description <span className="req">*</span></label>
             <textarea
               className="sf-textarea"
               placeholder="Any other feedback, compliments or concerns..."
@@ -234,7 +280,7 @@ const CanteenFeedbackForm = () => {
             Reset Form
           </button>
           <button type="submit" className="sf-btn-submit" disabled={loading}>
-            {loading ? "Submitting…" : "Submit Feedback"}
+            {loading ? "Submitting…" : "Submit Complaint"}
           </button>
         </div>
       </form>
