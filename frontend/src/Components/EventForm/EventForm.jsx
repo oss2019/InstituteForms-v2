@@ -329,8 +329,16 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
   useEffect(() => {
     const userName = localStorage.getItem("name");
     const role = localStorage.getItem("role");
+    const type = localStorage.getItem("category"); // Get the category/type for general secretary
     setUserRole(role);
-    setFormData(prev => ({ ...prev, clubName: userName || "" }));
+    
+    // If general secretary, use type + " Council" as clubName
+    let clubNameValue = userName || "";
+    if (role === "general-secretary" && type) {
+      clubNameValue = `${type} Council`;
+    }
+    
+    setFormData(prev => ({ ...prev, clubName: clubNameValue }));
   }, []);
 
   useEffect(() => {
