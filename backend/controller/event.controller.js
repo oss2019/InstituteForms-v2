@@ -128,6 +128,7 @@ export const applyForEventApproval = async (req, res) => {
       budgetAnnexureNumber,
       estimatedBudget,
       nameOfTheOrganizer,
+      organizerRoleNumber,
       designation,
       email,
       phoneNumber,
@@ -218,6 +219,7 @@ export const applyForEventApproval = async (req, res) => {
       budgetAnnexureNumber,
       estimatedBudget,
       nameOfTheOrganizer,
+      organizerRoleNumber,
       designation,
       email,
       phoneNumber,
@@ -1404,7 +1406,7 @@ export const editEventDetails = async (req, res) => {
     // List of fields that can be updated
     const editableFields = [
       "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
-      "eventVenue", "sourceOfBudget", "budgetAnnexureNumber", "estimatedBudget", "nameOfTheOrganizer", "designation",
+      "eventVenue", "sourceOfBudget", "budgetAnnexureNumber", "estimatedBudget", "nameOfTheOrganizer", "organizerRoleNumber", "designation",
       "email", "phoneNumber", "requirements", "anyAdditionalAmenities", "eventDescription",
       "internalParticipants", "externalParticipants", "listOfCollaboratingOrganizations", "budgetBreakup"
     ];

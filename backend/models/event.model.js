@@ -20,6 +20,8 @@ const eventApprovalSchema = new Schema(
     estimatedBudget: { type: Number, required: true },
     budgetAnnexureNumber: { type: String, required: false }, // Annexure number in club budget
     nameOfTheOrganizer: { type: String, required: true },
+    organizerRollNumber: { type: String, required: true },
+    organizerRoleNumber: { type: String, required: true },
     designation: { type: String, required: true },
     email: { type: String, required: true },
     phoneNumber: { type: String, required: true },

@@ -274,6 +274,7 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
         budgetAnnexureNumber: initialData.budgetAnnexureNumber || "",
         budgetBreakup: normalizedBudget.length > 0 ? normalizedBudget : [{ expenseHead: "", estimatedAmount: "" }],
         nameOfTheOrganizer: initialData.nameOfTheOrganizer || "",
+        organizerRoleNumber: initialData.organizerRoleNumber || "",
         designation: initialData.designation || "",
         email: initialData.email || "",
         phoneNumber: initialData.phoneNumber || "",
@@ -300,6 +301,7 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
       budgetAnnexureNumber: "",
       budgetBreakup: [{ expenseHead: "", estimatedAmount: "" }],
       nameOfTheOrganizer: "",
+      organizerRoleNumber: "",
       designation: "",
       email: "",
       phoneNumber: "",
@@ -408,7 +410,7 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
     const requiredFields = [
       "eventName", "partOfGymkhanaCalendar", "clubName", "startDate", "endDate",
       "eventVenue", "sourceOfBudget", "budgetAnnexureNumber", "nameOfTheOrganizer",
-      "designation", "email", "phoneNumber", "eventDescription",
+      "organizerRoleNumber", "designation", "email", "phoneNumber", "eventDescription",
       "externalParticipants", "internalParticipants",
     ];
 
@@ -764,6 +766,16 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
               value={formData.nameOfTheOrganizer} onChange={handleChange} required
             />
           </div>
+          <div className="col-md-6 mb-3">
+            <label htmlFor="organizerRoleNumber" className="form-label">Role Number</label>
+            <input
+              type="text" className="form-control"
+              id="organizerRoleNumber" name="organizerRoleNumber"
+              value={formData.organizerRoleNumber} onChange={handleChange} required
+            />
+          </div>
+        </div>
+        <div className="row">
           <div className="col-md-6 mb-3">
             <label htmlFor="designation" className="form-label">Designation</label>
             <input

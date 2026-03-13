@@ -361,8 +361,8 @@ hr { border: none; border-top: 1px solid #000; margin: 8px 0; }
 ${formData.fundType ? `<div class="f" style="display:flex; align-items:baseline; flex-wrap:wrap; gap:3px;">
   &nbsp;&nbsp;Fund Type:&nbsp;
   <div class="cb-row">
-    ${checkbox(formData.fundType === "SAF", "SAF (Student Activity Fund)")}
-    ${checkbox(formData.fundType === "HEF", "HEF (High Event Fund)")}
+    ${checkbox(formData.fundType === "SAF", "SAF")}
+    ${checkbox(formData.fundType === "HEF", "HEF")}
   </div>
 </div>` : ''}
 
@@ -398,7 +398,7 @@ ${formData.fundType ? `<div class="f" style="display:flex; align-items:baseline;
 <div class="ssh" style="margin-top:6px;"><span class="hi">आयोजक विवरण</span>/Organizer Details:</div>
 
 <div class="f">1) Name of the Organizer and Roll no:&nbsp;
-  <span class="ul" style="min-width:250px;">${formData.nameOfTheOrganizer || ''}</span>
+  <span class="ul" style="min-width:350px;">${formData.nameOfTheOrganizer || ''}  ,&nbsp;&nbsp;&nbsp;&nbsp;  ${formData.organizerRoleNumber || ''}</span>
 </div>
 <div class="f">2) Designation:&nbsp;
   <span class="ul" style="min-width:260px;">${formData.designation || ''}</span>
@@ -551,7 +551,7 @@ ${descArea}
   <span class="hi">डीन</span>&nbsp;/Dean<br>
   <span class="hi">छात्र कल्याण</span>&nbsp;/Student Welfare
 </div>
-
+</div>
 <div class="stars">************************************************************************************</div>
 
 <div class="instr-ttl">
