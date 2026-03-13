@@ -398,7 +398,7 @@ ${formData.fundType ? `<div class="f" style="display:flex; align-items:baseline;
 <div class="ssh" style="margin-top:6px;"><span class="hi">आयोजक विवरण</span>/Organizer Details:</div>
 
 <div class="f">1) Name of the Organizer and Roll no:&nbsp;
-  <span class="ul" style="min-width:350px;">${formData.nameOfTheOrganizer || ''}  ,&nbsp;&nbsp;&nbsp;&nbsp;  ${formData.organizerRoleNumber || ''}</span>
+  <span class="ul" style="min-width:350px;">${formData.nameOfTheOrganizer || ''}  ,&nbsp;&nbsp;&nbsp;&nbsp;  ${formData.organizerRollNumber || ''}</span>
 </div>
 <div class="f">2) Designation:&nbsp;
   <span class="ul" style="min-width:260px;">${formData.designation || ''}</span>
