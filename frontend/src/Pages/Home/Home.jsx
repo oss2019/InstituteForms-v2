@@ -148,7 +148,7 @@ const Home = () => {
                       ? "Sign Up"
                       : role === "club-secretary"
                       ? "Club Secretary"
-                      : "Staff Portal"}
+                      : "Administration Portal"}
                   </h2>
                   <div className="toggle-container d-flex align-items-center mt-2">
                     <GoogleLogin
