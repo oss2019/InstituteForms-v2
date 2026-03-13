@@ -507,6 +507,14 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
     }
 
     const userID = localStorage.getItem("userID");
+    const role = localStorage.getItem("role");
+    const type = localStorage.getItem("category"); // Get the category/type for general secretary
+    
+    // Ensure clubName is set correctly for general secretary
+    let finalClubName = formData.clubName;
+    if (role === "general-secretary" && type) {
+      finalClubName = `${type} Council`;
+    }
     
     // Merge additional amenities into requirements before sending
     const mergedRequirements = [
@@ -520,6 +528,7 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
     const requestData = { 
       ...formData, 
       userID,
+      clubName: finalClubName,
       requirements: mergedRequirements
     };
     
