@@ -1299,7 +1299,7 @@ const EventDetails = () => {
                     <small className="text-muted">Responded on: {new Date(query.answeredAt).toLocaleDateString()}</small>
                   </div>
                 )}
-                {query.status === 'Pending' && role === 'club-secretary' && (
+                {query.status === 'Pending' && (role === 'club-secretary' || role === 'general-secretary') && (
                   <button className="btn btn-sm btn-primary mt-2" onClick={() => handleQueryReply(query)}>Reply to Query</button>
                 )}
               </div>
