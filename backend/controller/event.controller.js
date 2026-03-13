@@ -154,8 +154,10 @@ export const applyForEventApproval = async (req, res) => {
 
     // Set eventType based on user's type if club-secretary, else fallback to req.body.eventType
     let eventType = req.body.eventType || null;
-    if (user.role === "club-secretary" || user.role === "general-secretary") {
-      eventType = user.category;
+    if (user.role === "club-secretary") {
+      eventType = user.type; // Club secretaries have 'type' field
+    } else if (user.role === "general-secretary") {
+      eventType = user.category; // General secretaries have 'category' field
     }
 
     const category = eventType;
@@ -1070,9 +1072,9 @@ export const replyToQuery = async (req, res) => {
 
     const query = eventApproval.queries[queryIndex];
 
-    // Check if the user is authorized to reply (only club-secretary)
-    if (userRole !== "club-secretary") {
-      return res.status(403).json({ message: "Only club-secretary can reply to queries." });
+    // Check if the user is authorized to reply (club-secretary or general-secretary as organizer)
+    if (!["club-secretary", "general-secretary"].includes(userRole)) {
+      return res.status(403).json({ message: "Only club-secretary or general-secretary can reply to queries." });
     }
 
     // Update the query with response
