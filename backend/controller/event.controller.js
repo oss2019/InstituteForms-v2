@@ -150,7 +150,7 @@ export const applyForEventApproval = async (req, res) => {
       return res.status(404).json({ message: "User not found. Please log in again." });
     }
 
-    const clubName = user.name;
+    const clubName = req.body.clubName || user.name;
 
     // Set eventType based on user's type if club-secretary, else fallback to req.body.eventType
     let eventType = req.body.eventType || null;
