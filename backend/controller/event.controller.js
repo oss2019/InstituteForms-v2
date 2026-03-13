@@ -1047,18 +1047,23 @@ export const getEventQueries = async (req, res) => {
   }
 };
 
-// Reply to a query (only for club-secretary or organizer)
+// Reply to a query (only for event creator)
 export const replyToQuery = async (req, res) => {
-  const { eventId, queryId, response, userRole, userEmail } = req.body;
+  const { eventId, queryId, response, userRole, userEmail, userID } = req.body;
 
   try {
-    if (!eventId || !queryId || !response) {
-      return res.status(400).json({ message: "Event ID, query ID, and response are required." });
+    if (!eventId || !queryId || !response || !userID) {
+      return res.status(400).json({ message: "Event ID, query ID, response, and userID are required." });
     }
 
     const eventApproval = await EventApproval.findById(eventId);
     if (!eventApproval) {
       return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Check if the user is the event creator
+    if (eventApproval.userID.toString() !== userID.toString()) {
+      return res.status(403).json({ message: "Only the event creator can reply to queries." });
     }
 
     // Find the query
@@ -1072,7 +1077,7 @@ export const replyToQuery = async (req, res) => {
 
     const query = eventApproval.queries[queryIndex];
 
-    // Check if the user is authorized to reply (club-secretary or general-secretary as organizer)
+    // Check if the user role is valid (club-secretary or general-secretary)
     if (!["club-secretary", "general-secretary"].includes(userRole)) {
       return res.status(403).json({ message: "Only club-secretary or general-secretary can reply to queries." });
     }

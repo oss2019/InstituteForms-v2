@@ -27,6 +27,7 @@ const EventDetails = () => {
   const pdfObjectUrlRef = useRef(null);
   const navigate = useNavigate(); // Initialize navigate hook
   const role = localStorage.getItem("role"); // Fetch role from localStorage
+  const userID = localStorage.getItem("userID"); // Fetch current user's ID
   const userEmail =
     localStorage.getItem("email") || localStorage.getItem("userEmail"); // Get user email
   const [showEditModal, setShowEditModal] = useState(false);
@@ -714,6 +715,7 @@ const EventDetails = () => {
         response: queryResponse,
         userRole: role,
         userEmail: userEmail,
+        userID: userID,
       });
 
       toast.success("Query response submitted successfully!");
@@ -1299,7 +1301,7 @@ const EventDetails = () => {
                     <small className="text-muted">Responded on: {new Date(query.answeredAt).toLocaleDateString()}</small>
                   </div>
                 )}
-                {query.status === 'Pending' && (role === 'club-secretary' || role === 'general-secretary') && (
+                {query.status === 'Pending' && eventDetails && eventDetails.userID?.toString() === userID?.toString() && (
                   <button className="btn btn-sm btn-primary mt-2" onClick={() => handleQueryReply(query)}>Reply to Query</button>
                 )}
               </div>
