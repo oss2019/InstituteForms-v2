@@ -508,12 +508,15 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
 
     const userID = localStorage.getItem("userID");
     const role = localStorage.getItem("role");
-    const type = localStorage.getItem("category"); // Get the category/type for general secretary
+    const category = localStorage.getItem("category");
     
     // Ensure clubName is set correctly for general secretary
     let finalClubName = formData.clubName;
-    if (role === "general-secretary" && type) {
-      finalClubName = `${type} Council`;
+    if (role === "general-secretary" && category) {
+      finalClubName = `${category} Council`;
+    } else if (!finalClubName) {
+      // If clubName is still empty, use the fallback
+      finalClubName = localStorage.getItem("name") || "";
     }
     
     // Merge additional amenities into requirements before sending
