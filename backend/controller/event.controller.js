@@ -128,7 +128,7 @@ export const applyForEventApproval = async (req, res) => {
       budgetAnnexureNumber,
       estimatedBudget,
       nameOfTheOrganizer,
-      organizerRoleNumber,
+      organizerRollNumber,
       designation,
       email,
       phoneNumber,
@@ -155,7 +155,7 @@ export const applyForEventApproval = async (req, res) => {
     // Set eventType based on user's type if club-secretary, else fallback to req.body.eventType
     let eventType = req.body.eventType || null;
     if (user.role === "club-secretary" || user.role === "general-secretary") {
-      eventType = user.type;
+      eventType = user.category;
     }
 
     const category = eventType;
@@ -219,7 +219,7 @@ export const applyForEventApproval = async (req, res) => {
       budgetAnnexureNumber,
       estimatedBudget,
       nameOfTheOrganizer,
-      organizerRoleNumber,
+      organizerRollNumber,
       designation,
       email,
       phoneNumber,
@@ -1406,7 +1406,7 @@ export const editEventDetails = async (req, res) => {
     // List of fields that can be updated
     const editableFields = [
       "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
-      "eventVenue", "sourceOfBudget", "budgetAnnexureNumber", "estimatedBudget", "nameOfTheOrganizer", "organizerRoleNumber", "designation",
+      "eventVenue", "sourceOfBudget", "budgetAnnexureNumber", "estimatedBudget", "nameOfTheOrganizer", "organizerRollNumber", "designation",
       "email", "phoneNumber", "requirements", "anyAdditionalAmenities", "eventDescription",
       "internalParticipants", "externalParticipants", "listOfCollaboratingOrganizations", "budgetBreakup"
     ];

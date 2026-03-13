@@ -274,7 +274,7 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
         budgetAnnexureNumber: initialData.budgetAnnexureNumber || "",
         budgetBreakup: normalizedBudget.length > 0 ? normalizedBudget : [{ expenseHead: "", estimatedAmount: "" }],
         nameOfTheOrganizer: initialData.nameOfTheOrganizer || "",
-        organizerRoleNumber: initialData.organizerRoleNumber || "",
+        organizerRollNumber: initialData.organizerRollNumber || "",
         designation: initialData.designation || "",
         email: initialData.email || "",
         phoneNumber: initialData.phoneNumber || "",
@@ -301,7 +301,7 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
       budgetAnnexureNumber: "",
       budgetBreakup: [{ expenseHead: "", estimatedAmount: "" }],
       nameOfTheOrganizer: "",
-      organizerRoleNumber: "",
+      organizerRollNumber: "",
       designation: "",
       email: "",
       phoneNumber: "",
@@ -329,13 +329,14 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
   useEffect(() => {
     const userName = localStorage.getItem("name");
     const role = localStorage.getItem("role");
-    const type = localStorage.getItem("category"); // Get the category/type for general secretary
+    // Try both "category" and "type" keys for general secretary type
+    let category = localStorage.getItem("category") || localStorage.getItem("type");
     setUserRole(role);
     
-    // If general secretary, use type + " Council" as clubName
+    // If general secretary, use category + " Council" as clubName
     let clubNameValue = userName || "";
-    if (role === "general-secretary" && type) {
-      clubNameValue = `${type} Council`;
+    if (role === "general-secretary" && category) {
+      clubNameValue = `${category} Council`;
     }
     
     setFormData(prev => ({ ...prev, clubName: clubNameValue }));
@@ -418,7 +419,7 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
     const requiredFields = [
       "eventName", "partOfGymkhanaCalendar", "clubName", "startDate", "endDate",
       "eventVenue", "sourceOfBudget", "budgetAnnexureNumber", "nameOfTheOrganizer",
-      "organizerRoleNumber", "designation", "email", "phoneNumber", "eventDescription",
+      "organizerRollNumber", "designation", "email", "phoneNumber", "eventDescription",
       "externalParticipants", "internalParticipants",
     ];
 
@@ -508,7 +509,8 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
 
     const userID = localStorage.getItem("userID");
     const role = localStorage.getItem("role");
-    const category = localStorage.getItem("category");
+    // Try both "category" and "type" keys for general secretary type
+    let category = localStorage.getItem("category") || localStorage.getItem("type");
     
     // Ensure clubName is set correctly for general secretary
     let finalClubName = formData.clubName;
@@ -532,6 +534,7 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
       ...formData, 
       userID,
       clubName: finalClubName,
+      organizerRollNumber: formData.organizerRollNumber,
       requirements: mergedRequirements
     };
     
@@ -787,11 +790,11 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
             />
           </div>
           <div className="col-md-6 mb-3">
-            <label htmlFor="organizerRoleNumber" className="form-label">Role Number</label>
+            <label htmlFor="organizerRollNumber" className="form-label">Roll Number</label>
             <input
               type="text" className="form-control"
-              id="organizerRoleNumber" name="organizerRoleNumber"
-              value={formData.organizerRoleNumber} onChange={handleChange} required
+              id="organizerRollNumber" name="organizerRollNumber"
+              value={formData.organizerRollNumber} onChange={handleChange} required
             />
           </div>
         </div>
