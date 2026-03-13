@@ -50,6 +50,28 @@ const eventApprovalSchema = new Schema(
     proposedEstimatedBudget: { type: Number, required: false },
     budgetEditedBy: { type: String, required: false }, // Role of who edited the budget
     budgetEditedAt: { type: Date, required: false },
+    arsw_budget_revisions: [
+      {
+        revisionNumber: { type: Number, required: true }, // 1st edit, 2nd edit, etc.
+        proposedBudgetBreakup: [
+          {
+            expenseHead: { type: String, required: true },
+            estimatedAmount: { type: Number, required: true }
+          }
+        ],
+        proposedEstimatedBudget: { type: Number, required: true },
+        editedBy: { type: String, required: true }, // Role that made the edit (ARSW)
+        editedAt: { type: Date, default: Date.now },
+        clubSecretaryApprovalStatus: {
+          type: String,
+          enum: ["Pending", "Approved", "QueryRaised"],
+          default: "Pending"
+        }, // Club secretary's response to this revision
+        clubSecretaryResponse: { type: String, required: false }, // Query or approval comment from club secretary
+        respondedAt: { type: Date, required: false }, // When club secretary reviewed
+        isFinalized: { type: Boolean, default: false } // Indicates if ARSW approved this revision as final
+      }
+    ],
     approvals: [
       {
         role: {

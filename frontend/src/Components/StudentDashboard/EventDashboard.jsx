@@ -62,6 +62,14 @@ const EventDashboard = () => {
     if (approvals.every(app => app.status === "Approved")) return "Approved";
     return "Pending";
   };
+
+  const hasPendingBudgetRevision = (event) => {
+    return event.arsw_budget_revisions?.some(r => r.clubSecretaryApprovalStatus === "Pending");
+  };
+
+  const hasQueryOnBudgetRevision = (event) => {
+    return event.arsw_budget_revisions?.some(r => r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized);
+  };
   
   useEffect(() => {
     const applyFiltersAndSort = () => {
@@ -110,13 +118,34 @@ const EventDashboard = () => {
       <td className="event-name">{event.eventName}</td>
       <td className="event-date">{new Date(event.startDate).toLocaleDateString()}</td>
       <td className="event-status">
-        <span style={{fontWeight: 'bold', color: getStatusColor(getOverallStatus(event.approvals))}}>
-          {getOverallStatus(event.approvals)}
+        <span style={{fontWeight: 'bold', color: getStatusColorWithBudget(event)}}>
+          {getDisplayStatus(event)}
         </span>
       </td>
       <td className="event-ref">{event.referenceNumber || "809898808ex"}</td>
     </tr>
   );
+
+  const getDisplayStatus = (event) => {
+    const baseStatus = getOverallStatus(event.approvals);
+    if (hasPendingBudgetRevision(event)) {
+      return `${baseStatus} (Budget Review)`;
+    }
+    if (hasQueryOnBudgetRevision(event)) {
+      return `${baseStatus} (Budget Query)`;
+    }
+    return baseStatus;
+  };
+
+  const getStatusColorWithBudget = (event) => {
+    if (hasPendingBudgetRevision(event)) {
+      return '#dc3545'; // Red for pending budget review
+    }
+    if (hasQueryOnBudgetRevision(event)) {
+      return '#fd7e14'; // Orange for budget query
+    }
+    return getStatusColor(getOverallStatus(event.approvals));
+  };
 
   const getStatusColor = (status) => {
     switch(status) {

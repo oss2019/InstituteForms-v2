@@ -21,6 +21,7 @@ import {
   getPendingApprovalsWithFilters,
   getEditHistory,
   editBudget,
+  respondToBudgetRevision,
   getFullyApprovedEvents,
   getAllInitiatedEvents,
 } from "../controller/event.controller.js";
@@ -74,6 +75,9 @@ router.patch("/edit", editEventDetails);
 
 // Edit budget breakup (PATCH) - for ARSW/Associate Dean/Dean
 router.patch("/edit-budget", editBudget);
+
+// Respond to budget revision (PATCH) - for club secretary to accept or raise query
+router.patch("/respond-budget-revision", respondToBudgetRevision);
 
 // Get edit history for an event (GET)
 router.get("/:eventId/edit-history", getEditHistory);

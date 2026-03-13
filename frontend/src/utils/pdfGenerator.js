@@ -123,10 +123,9 @@ const createHTMLContent = (formData) => {
     formData.approvals?.find(a => a.role === role)?.status === "Approved"
       ? `<div class="dsigned">Digitally Signed</div>` : "";
 
-  const bRows = formData.proposedBudgetBreakup?.length > 0
-    ? formData.proposedBudgetBreakup : formData.budgetBreakup;
+  const bRows = formData.budgetBreakup;
 
-  const totalBudget = Number(formData.proposedEstimatedBudget ?? formData.estimatedBudget ?? 0).toFixed(2);
+  const totalBudget = Number(formData.estimatedBudget ?? 0).toFixed(2);
 
   // ── Description: Quill outputs HTML; render it directly, no blank lines
   const rawDesc = (formData.eventDescription || "")

@@ -41,6 +41,12 @@ const EventDetails = () => {
   // Add state for editing additional amenities
   const [editAdditionalAmenities, setEditAdditionalAmenities] = useState([]);
 
+  // Add state for budget revision review (club secretary)
+  const [showBudgetRevisionModal, setShowBudgetRevisionModal] = useState(false);
+  const [selectedRevision, setSelectedRevision] = useState(null);
+  const [revisionResponse, setRevisionResponse] = useState("");
+  const [revisionResponseType, setRevisionResponseType] = useState("Approved"); // "Approved" or "QueryRaised"
+
   useEffect(() => {
     // Function to fetch event details by ID
     const fetchEventDetails = async () => {
@@ -177,7 +183,101 @@ const EventDetails = () => {
     
     return true;
   };
-  
+
+  // Helper function to check if there's a pending budget revision for club secretary
+  const getPendingBudgetRevision = () => {
+    if (!eventDetails?.arsw_budget_revisions) return null;
+    return eventDetails.arsw_budget_revisions.find(r => r.clubSecretaryApprovalStatus === "Pending");
+  };
+
+  // Helper function to check if club secretary needs to respond to a query on budget
+  const getQueryOnBudgetRevision = () => {
+    if (!eventDetails?.arsw_budget_revisions) return null;
+    return eventDetails.arsw_budget_revisions.find(r => r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized);
+  };
+
+  // Helper function to get ARSW budget revision with query for display
+  const getARSWBudgetQueryRevision = () => {
+    if (!eventDetails?.arsw_budget_revisions) return null;
+    return eventDetails.arsw_budget_revisions.find(r => r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized);
+  };
+
+  // Helper function to check if ARSW can edit budget after query
+  const canARSWEditAfterQuery = () => {
+    if (role !== "ARSW") return false;
+    const arswApproval = eventDetails?.approvals?.find(a => a.role === "ARSW");
+    if (!arswApproval) return false;
+    return arswApproval.status === "Query" || arswApproval.status === "Edited";
+  };
+
+  // Helper function to check if can take action (reject/query) despite being in edit mode
+  const canTakeActionWhenEdited = (approvals) => {
+    const currentApproval = approvals.find((approval) => approval.role === role);
+    if (!currentApproval) return false;
+    // Allow Reject and Query when status is "Edited" or "Query" (after ARSW edits budget)
+    return currentApproval.status === "Edited" || currentApproval.status === "Query";
+  };
+
+  // Helper function to check if budget revision has been finalized
+  const isBudgetFinalized = () => {
+    if (!eventDetails?.arsw_budget_revisions) return false;
+    const lastRevision = eventDetails.arsw_budget_revisions[eventDetails.arsw_budget_revisions.length - 1];
+    return lastRevision && lastRevision.isFinalized;
+  };
+
+  // Open budget revision review modal
+  const handleOpenBudgetRevisionReview = (revision) => {
+    setSelectedRevision(revision);
+    setRevisionResponse("");
+    setRevisionResponseType("Approved");
+    setShowBudgetRevisionModal(true);
+  };
+
+  // Handle club secretary's response to budget revision
+  const handleRespondToBudgetRevision = async () => {
+    if (!selectedRevision) {
+      toast.error("No revision selected");
+      return;
+    }
+
+    if (revisionResponseType === "QueryRaised" && !revisionResponse.trim()) {
+      toast.error("Please provide a query/feedback");
+      return;
+    }
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      
+      await axios.patch(`${apiUrl}/event/respond-budget-revision`, {
+        eventId: eventDetails._id,
+        revisionNumber: selectedRevision.revisionNumber,
+        status: revisionResponseType,
+        response: revisionResponseType === "QueryRaised" ? revisionResponse : ""
+      });
+
+      toast.success(`Budget revision ${revisionResponseType === "Approved" ? "approved" : "query raised"} successfully!`);
+      setShowBudgetRevisionModal(false);
+      
+      // Refresh event details
+      const response = await axios.get(`${apiUrl}/event/${eventDetails._id}`);
+      setEventDetails(response.data);
+    } catch (error) {
+      console.error("Error responding to budget revision:", error);
+      toast.error(error.response?.data?.message || "Failed to respond to budget revision");
+    }
+  };
+
+  // Auto-show budget revision modal if there's a pending revision and user is club secretary
+  useEffect(() => {
+    if (eventDetails && role === "club-secretary" && !showBudgetRevisionModal) {
+      const pendingRevision = getPendingBudgetRevision();
+      if (pendingRevision && !showBudgetRevisionModal) {
+        // Only show automatically once - don't block the user from viewing other parts
+        // handleOpenBudgetRevisionReview(pendingRevision);
+      }
+    }
+  }, [eventDetails, role, showBudgetRevisionModal]);
+
   // Helper function to build timeline events
   const buildTimelineEvents = () => {
     const events = [];
@@ -407,7 +507,19 @@ const EventDetails = () => {
       });
     };
 
-    const normalized = normalizeBudget(eventDetails.budgetBreakup);
+    // Check if there's a query revision - if so, use that as the base for editing
+    const queryRevision = getQueryOnBudgetRevision();
+    let budgetToEdit;
+    
+    if (queryRevision && queryRevision.proposedBudgetBreakup) {
+      // Use the proposed budget from the query revision
+      budgetToEdit = queryRevision.proposedBudgetBreakup;
+    } else {
+      // Otherwise use the current budgetBreakup
+      budgetToEdit = eventDetails.budgetBreakup;
+    }
+
+    const normalized = normalizeBudget(budgetToEdit);
     setProposedBudgetBreakup(normalized.length ? normalized : []);
     setShowBudgetEditModal(true);
   };
@@ -445,11 +557,15 @@ const EventDetails = () => {
           estimatedAmount: Number(parseFloat(item.amount)) || 0,
         }));
 
+      // Check if this is a finalization (ARSW editing after query)
+      const isFinalization = !!getQueryOnBudgetRevision();
+
       await axios.patch(`${apiUrl}/event/edit-budget`, {
         eventId: eventDetails._id,
         role: role,
         proposedBudgetBreakup: transformedProposedBudget,
         proposedEstimatedBudget: calculatedProposedBudget,
+        isFinalization: isFinalization,
       });
 
       toast.success("Budget edited successfully!");
@@ -887,14 +1003,14 @@ const EventDetails = () => {
                   })}
                 </tbody>
               </table>
-              {canEditBudget() && (
+              {canEditBudget() && (role !== "ARSW" || !isBudgetFinalized()) && (
                 <button className="btn btn-warning btn-sm mt-2" onClick={handleOpenBudgetEditModal}>✏️ Edit Budget</button>
               )}
             </div>
           )}
 
-          {/* Revised Budget */}
-          {eventDetails.proposedBudgetBreakup && eventDetails.proposedBudgetBreakup.length > 0 && (
+          {/* Revised Budget - Hide if finalized */}
+          {eventDetails.proposedBudgetBreakup && eventDetails.proposedBudgetBreakup.length > 0 && !isBudgetFinalized() && (
             <div className="ed-card">
               <h5 className="ed-card-title">Revised Budget <span className="text-muted" style={{ fontSize: '0.85rem', fontWeight: 400 }}>by {eventDetails.budgetEditedBy}</span></h5>
               <p className="mb-2"><strong>Revised Total:</strong> ₹{eventDetails.proposedEstimatedBudget}</p>
@@ -916,6 +1032,23 @@ const EventDetails = () => {
                 </tbody>
               </table>
               <p className="text-muted small mt-1"><em>Edited on: {new Date(eventDetails.budgetEditedAt).toLocaleString()}</em></p>
+              
+              {/* Show query and edit button if ARSW needs to respond to query (but not if already finalized) */}
+              {role === "ARSW" && getQueryOnBudgetRevision() && !isBudgetFinalized() && (
+                <div className="alert alert-info mt-3 mb-0">
+                  <strong>📋 Club Secretary's Query:</strong>
+                  <p className="mt-2 mb-3">{getQueryOnBudgetRevision().clubSecretaryResponse}</p>
+                  <button 
+                    className="btn btn-warning btn-sm" 
+                    onClick={handleOpenBudgetEditModal}
+                  >
+                    ✏️ Edit Budget (Final)
+                  </button>
+                  <small className="d-block mt-2 text-muted">
+                    <em>Your next edit will be final. Club secretary cannot raise further queries.</em>
+                  </small>
+                </div>
+              )}
             </div>
           )}
 
@@ -1177,9 +1310,27 @@ const EventDetails = () => {
 
       {/* Action Buttons */}
       <div className="ed-actions">
-        {role !== 'club-secretary' && canCurrentUserApprove(eventDetails.approvals) && (
+        {/* Approval buttons for ARSW and other roles */}
+        {(canCurrentUserApprove(eventDetails.approvals) || canTakeActionWhenEdited(eventDetails.approvals)) && (
           <>
-            <button className="btn btn-success" onClick={() => handleApprovalClick('Approved')}>Approve</button>
+            {role === "ARSW" && getPendingBudgetRevision() ? (
+              <div className="alert alert-warning mb-3">
+                <strong>⏳ Awaiting Club Secretary Review:</strong> Your budget revision is pending club secretary approval. 
+                <br/>
+                <small>You cannot proceed until they accept or raise a query.</small>
+              </div>
+            ) : null}
+
+            <button 
+              className="btn btn-success" 
+              onClick={() => handleApprovalClick('Approved')}
+              disabled={
+                (role === "ARSW" && getPendingBudgetRevision()) ||
+                (role === "ARSW" && getQueryOnBudgetRevision())
+              }
+            >
+              Approve
+            </button>
             <button className="btn btn-danger" onClick={() => handleApprovalClick('Rejected')}>Reject</button>
             <button className="btn btn-warning" onClick={() => handleApprovalClick('Query')}>Raise Query</button>
           </>
@@ -1555,16 +1706,36 @@ const EventDetails = () => {
                 overflowY: "auto",
               }}
             >
-              <h4>Edit Budget Proposal</h4>
+              <h4>
+                {getQueryOnBudgetRevision() ? "Edit Budget (Final)" : "Edit Budget Proposal"}
+              </h4>
 
-              {/* Original Budget Summary */}
+              {/* Show info about what budget is being edited */}
+              {getQueryOnBudgetRevision() && (
+                <div className="alert alert-info mb-3">
+                  <strong>📋 Reviewing Query Feedback:</strong>
+                  <p className="mt-2 mb-0">{getQueryOnBudgetRevision().clubSecretaryResponse}</p>
+                </div>
+              )}
+
+              {/* Original/Current Budget Summary */}
               <div className="alert alert-secondary mb-3">
-                <h6>Original Budget: ₹{eventDetails.estimatedBudget}</h6>
+                <h6>
+                  {getQueryOnBudgetRevision() ? 
+                    `Previous Proposed Budget: ₹${getQueryOnBudgetRevision().proposedEstimatedBudget}` 
+                    : `Current Budget: ₹${eventDetails.estimatedBudget}`
+                  }
+                </h6>
               </div>
 
               {/* Proposed Budget Breakup Section */}
               <div className="form-group mb-3">
-                <label><strong>Proposed Budget Breakup</strong></label>
+                <label><strong>
+                  {getQueryOnBudgetRevision() ? 
+                    "Revised Budget Breakup (Final)" 
+                    : "Proposed Budget Breakup"
+                  }
+                </strong></label>
                 <div style={{ maxHeight: "400px", overflowY: "auto" }}>
                   <table className="table table-sm table-bordered">
                     <thead className="table-light">
@@ -1647,6 +1818,191 @@ const EventDetails = () => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Budget Revision Review Modal for Club Secretary */}
+        {showBudgetRevisionModal && selectedRevision && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 1000,
+            }}
+          >
+            <div
+              className="modal-content"
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                minWidth: "500px",
+                maxWidth: "700px",
+                maxHeight: "90vh",
+                overflowY: "auto",
+              }}
+            >
+              <h4>Review Budget Revision</h4>
+              <p className="text-muted">
+                ARSW has submitted a revised budget for your event. Please review and respond.
+              </p>
+
+              {/* Revised Budget Details */}
+              <div className="alert alert-info mb-3">
+                <strong>ARSW Revision #{selectedRevision.revisionNumber}</strong>
+                <div className="mt-2">
+                  <p className="mb-1">
+                    <strong>Proposed Budget: </strong>
+                    <span className="text-danger">₹{selectedRevision.proposedEstimatedBudget}</span>
+                  </p>
+                  <p className="mb-1">
+                    <strong>Original Budget: </strong>
+                    ₹{eventDetails.estimatedBudget}
+                  </p>
+                  <p className="mb-0">
+                    <strong>Submitted: </strong>
+                    {new Date(selectedRevision.editedAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Budget Breakup */}
+              <div className="mb-3">
+                <h6>Budget Breakup:</h6>
+                <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+                  <table className="table table-sm table-bordered">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Expense Head</th>
+                        <th style={{ width: "150px" }}>Amount (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedRevision.proposedBudgetBreakup.map((item, idx) => (
+                        <tr key={idx}>
+                          <td>{item.expenseHead}</td>
+                          <td>₹{item.estimatedAmount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Response Options */}
+              <div className="form-group mb-3">
+                <label><strong>Your Response:</strong></label>
+                <div className="mb-2">
+                  <label className="form-check">
+                    <input
+                      type="radio"
+                      className="form-check-input"
+                      name="revisionResponse"
+                      value="Approved"
+                      checked={revisionResponseType === "Approved"}
+                      onChange={(e) => {
+                        setRevisionResponseType(e.target.value);
+                        setRevisionResponse("");
+                      }}
+                    />
+                    <span className="form-check-label">✓ Accept the revised budget</span>
+                  </label>
+                </div>
+                <div>
+                  <label className="form-check">
+                    <input
+                      type="radio"
+                      className="form-check-input"
+                      name="revisionResponse"
+                      value="QueryRaised"
+                      checked={revisionResponseType === "QueryRaised"}
+                      onChange={(e) => {
+                        setRevisionResponseType(e.target.value);
+                        setRevisionResponse("");
+                      }}
+                    />
+                    <span className="form-check-label">? Raise a query/suggestion</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Query Text Area - show if QueryRaised is selected */}
+              {revisionResponseType === "QueryRaised" && (
+                <div className="form-group mb-3">
+                  <label><strong>Your Query/Feedback:</strong></label>
+                  <textarea
+                    className="form-control"
+                    rows="4"
+                    placeholder="Please provide your feedback or query about the proposed budget..."
+                    value={revisionResponse}
+                    onChange={(e) => setRevisionResponse(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="modal-buttons mt-3">
+                <button
+                  className="btn btn-secondary me-2"
+                  onClick={() => {
+                    setShowBudgetRevisionModal(false);
+                    setSelectedRevision(null);
+                    setRevisionResponse("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleRespondToBudgetRevision}
+                  disabled={revisionResponseType === "QueryRaised" && !revisionResponse.trim()}
+                >
+                  <i className="bi bi-check-circle"></i> Submit Response
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Display pending budget revision notification for club secretary */}
+        {role === "club-secretary" && eventDetails && getPendingBudgetRevision() && (
+          <div className="alert alert-warning alert-dismissible fade show mt-3" role="alert">
+            <strong>⚠️ Action Required: Budget Revision Awaiting Your Review</strong>
+            <p className="mb-2">
+              ARSW has submitted a revised budget for your event. Please review and accept or raise a query.
+            </p>
+            <button
+              className="btn btn-sm btn-warning"
+              onClick={() => handleOpenBudgetRevisionReview(getPendingBudgetRevision())}
+            >
+              Review Budget Revision
+            </button>
+            <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        )}
+
+        {/* Display query on budget revision notification for club secretary */}
+        {role === "club-secretary" && eventDetails && getQueryOnBudgetRevision() && (
+          <div className="alert alert-info alert-dismissible fade show mt-3" role="alert">
+            <strong>ℹ️ ARSW Query Response Awaiting Your Input</strong>
+            <p className="mb-2">
+              You raised a query on the budget revision. ARSW may have submitted a response to address your query.
+            </p>
+            <button
+              className="btn btn-sm btn-info"
+              onClick={() => handleOpenBudgetRevisionReview(getQueryOnBudgetRevision())}
+            >
+              View Query Details
+            </button>
+            <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         )}
     </div>
