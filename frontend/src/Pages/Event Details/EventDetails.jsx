@@ -10,6 +10,86 @@ import "./EventDetails.css";
 import { generatePDF } from "../../utils/pdfGenerator";
 import EventForm from "../../Components/EventForm/EventForm";
 
+// Collapsible row for a single budget history entry
+const BudgetHistoryEntry = ({ entry, entryNum, roleLabel, isLatest, revision }) => {
+  const [expanded, setExpanded] = React.useState(false);
+  return (
+    <div
+      className={`border rounded mb-2 ${isLatest ? "border-warning" : "border-light"}`}
+      style={{ overflow: "hidden" }}
+    >
+      {/* Summary row – always visible */}
+      <div
+        className={`d-flex justify-content-between align-items-start px-3 py-2 ${isLatest ? "bg-warning bg-opacity-10" : "bg-light"}`}
+        style={{ cursor: "pointer" }}
+        onClick={() => setExpanded(prev => !prev)}
+      >
+        <div>
+          <span className="fw-semibold" style={{ fontSize: "0.9rem" }}>
+            #{entryNum} · {roleLabel}
+          </span>
+          {isLatest && (
+            <span className="badge bg-warning text-dark ms-2" style={{ fontSize: "0.7rem" }}>Latest</span>
+          )}
+          <div className="text-muted" style={{ fontSize: "0.8rem" }}>
+            {new Date(entry.editedAt).toLocaleString()} · ₹{entry.totalBudget.toLocaleString()}
+          </div>
+          {entry.justification && (
+            <div style={{ fontSize: "0.85rem", marginTop: "2px" }}>
+              <em>"{entry.justification}"</em>
+            </div>
+          )}
+        </div>
+        <span className="text-muted ms-2" style={{ whiteSpace: "nowrap", fontSize: "0.8rem" }}>
+          {expanded ? "▲ Hide" : "▼ Breakdown"}
+        </span>
+      </div>
+
+      {/* Club Secretary response – shown inline without expanding */}
+      {revision?.clubSecretaryResponse && (
+        <div
+          className={`px-3 py-2 border-top ${revision.clubSecretaryApprovalStatus === "Approved" ? "bg-success bg-opacity-10" : "bg-info bg-opacity-10"}`}
+          style={{ fontSize: "0.82rem" }}
+        >
+          <strong>
+            {revision.clubSecretaryApprovalStatus === "Approved" ? "Secretary Approved" : "Secretary Query"}
+            {revision.respondedAt ? ` · ${new Date(revision.respondedAt).toLocaleString()}` : ""}:
+          </strong>{" "}
+          {revision.clubSecretaryResponse}
+        </div>
+      )}
+
+      {/* Budget breakdown – shown on expand */}
+      {expanded && (
+        <div className="px-3 py-2">
+          <table className="table table-sm table-bordered mb-0" style={{ fontSize: "0.85rem" }}>
+            <thead className="table-light">
+              <tr>
+                <th>Expense Head</th>
+                <th style={{ width: "150px" }}>Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entry.budgetBreakup.map((item, i) => (
+                <tr key={i}>
+                  <td>{item.expenseHead}</td>
+                  <td>₹{item.estimatedAmount.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="table-warning fw-semibold">
+                <td>Total</td>
+                <td>₹{entry.totalBudget.toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const EventDetails = () => {
   const { id } = useParams(); // Extract event ID from the route params
   const [eventDetails, setEventDetails] = useState(null); // State for event data
@@ -39,6 +119,8 @@ const EventDetails = () => {
   const [editBudgetBreakup, setEditBudgetBreakup] = useState([]);
   const [showBudgetEditModal, setShowBudgetEditModal] = useState(false);
   const [proposedBudgetBreakup, setProposedBudgetBreakup] = useState([]);
+  const [budgetJustification, setBudgetJustification] = useState("");
+  const [showBudgetHistory, setShowBudgetHistory] = useState(true);
   // Add state for editing additional amenities
   const [editAdditionalAmenities, setEditAdditionalAmenities] = useState([]);
 
@@ -522,6 +604,7 @@ const EventDetails = () => {
 
     const normalized = normalizeBudget(budgetToEdit);
     setProposedBudgetBreakup(normalized.length ? normalized : []);
+    setBudgetJustification("");
     setShowBudgetEditModal(true);
   };
 
@@ -547,9 +630,10 @@ const EventDetails = () => {
   );
 
   const handleBudgetEditSubmit = async () => {
+
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
-      
+
       // Transform proposed budget to backend shape
       const transformedProposedBudget = proposedBudgetBreakup
         .filter(item => (item.label || "").trim() !== "")
@@ -567,6 +651,7 @@ const EventDetails = () => {
         proposedBudgetBreakup: transformedProposedBudget,
         proposedEstimatedBudget: calculatedProposedBudget,
         isFinalization: isFinalization,
+        justification: budgetJustification.trim() || "",
       });
 
       toast.success("Budget edited successfully!");
@@ -1034,6 +1119,16 @@ const EventDetails = () => {
                 </tbody>
               </table>
               <p className="text-muted small mt-1"><em>Edited on: {new Date(eventDetails.budgetEditedAt).toLocaleString()}</em></p>
+              {(() => {
+                const lastEntry = eventDetails.budgetHistory?.length > 0
+                  ? eventDetails.budgetHistory[eventDetails.budgetHistory.length - 1]
+                  : null;
+                return lastEntry?.justification ? (
+                  <div className="alert alert-secondary py-2 px-3 mt-2 mb-0" style={{ fontSize: '0.875rem' }}>
+                    <strong>Justification:</strong> {lastEntry.justification}
+                  </div>
+                ) : null;
+              })()}
               
               {/* Show query and edit button if ARSW needs to respond to query (but not if already finalized) */}
               {role === "ARSW" && getQueryOnBudgetRevision() && !isBudgetFinalized() && (
@@ -1049,6 +1144,58 @@ const EventDetails = () => {
                   <small className="d-block mt-2 text-muted">
                     <em>Your next edit will be final. Club secretary cannot raise further queries.</em>
                   </small>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Budget Modification History */}
+          {eventDetails.budgetHistory && eventDetails.budgetHistory.length > 0 && (
+            <div className="ed-card">
+              <div
+                className="d-flex justify-content-between align-items-center"
+                style={{ cursor: "pointer" }}
+                onClick={() => setShowBudgetHistory(prev => !prev)}
+              >
+                <h5 className="ed-card-title mb-0">
+                  Budget Modification History
+                  <span className="badge bg-secondary ms-2" style={{ fontSize: "0.75rem" }}>
+                    {eventDetails.budgetHistory.length}
+                  </span>
+                </h5>
+                <span className="text-muted small">
+                  {showBudgetHistory ? "▲ Hide" : "▼ Show"}
+                </span>
+              </div>
+
+              {showBudgetHistory && (
+                <div className="mt-3">
+                  {(() => {
+                    return [...eventDetails.budgetHistory].reverse().map((entry, idx) => {
+                      const entryNum = eventDetails.budgetHistory.length - idx;
+                      const roleLabel = entry.editedBy
+                        .replace(/-/g, " ")
+                        .replace(/\b\w/g, c => c.toUpperCase());
+                      let revision = null;
+                      if (entry.editedBy === "ARSW") {
+                        // Find position of this entry among all ARSW entries (oldest-first)
+                        const arswIdx = eventDetails.budgetHistory
+                          .slice(0, eventDetails.budgetHistory.length - idx)
+                          .filter(e => e.editedBy === "ARSW").length - 1;
+                        revision = eventDetails.arsw_budget_revisions?.[arswIdx] || null;
+                      }
+                      return (
+                        <BudgetHistoryEntry
+                          key={idx}
+                          entry={entry}
+                          entryNum={entryNum}
+                          roleLabel={roleLabel}
+                          isLatest={idx === 0}
+                          revision={revision}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>
@@ -1216,7 +1363,27 @@ const EventDetails = () => {
 
       {/* Edit History Section */}
       {(() => {
-        const validEdits = editHistory.filter(edit => edit.changes && Object.keys(edit.changes).length > 0);
+        const formatValue = (value) => {
+          if (value === null || value === undefined) return 'N/A';
+          if (Array.isArray(value)) return value.join(', ');
+          if (typeof value === 'object' && !(value instanceof Date)) return JSON.stringify(value);
+          if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value))) {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+          }
+          return String(value);
+        };
+
+        const getVisibleChanges = (changes) =>
+          Object.entries(changes || {}).filter(([field, change]) =>
+            field !== 'budgetBreakup' &&
+            formatValue(change.oldValue) !== formatValue(change.newValue)
+          );
+
+        const validEdits = editHistory.filter(edit =>
+          edit.changes && getVisibleChanges(edit.changes).length > 0
+        );
+
         if (validEdits.length === 0) return null;
         return (
           <div className="ed-card mt-3">
@@ -1235,46 +1402,27 @@ const EventDetails = () => {
                 </div>
                 <div className="edit-changes mt-2">
                   <strong>Changes Made:</strong>
-                  {Object.keys(edit.changes || {}).length === 0 ? (
-                    <p className="text-muted mt-2">No changes recorded</p>
-                  ) : (
-                    <table className="table table-sm table-bordered mt-2">
-                      <thead className="table-light">
-                        <tr>
-                          <th style={{ width: '25%' }}>Field</th>
-                          <th style={{ width: '37.5%' }}>Old Value</th>
-                          <th style={{ width: '37.5%' }}>New Value</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(edit.changes || {}).map(([field, change]) => {
-                          if (field === 'budgetBreakup') return null;
-                          const formatValue = (value) => {
-                            if (value === null || value === undefined) return 'N/A';
-                            if (Array.isArray(value)) return value.join(', ');
-                            if (typeof value === 'object' && !(value instanceof Date)) return JSON.stringify(value);
-                            if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value))) {
-                              const date = new Date(value);
-                              if (!isNaN(date.getTime())) return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-                            }
-                            return String(value);
-                          };
-                          const dateFields = ['startDate', 'endDate'];
-                          if (dateFields.includes(field)) {
-                            if (formatValue(change.oldValue) === formatValue(change.newValue)) return null;
-                          }
-                          const displayField = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                          return (
-                            <tr key={field}>
-                              <td><strong>{displayField}</strong></td>
-                              <td style={{ color: '#dc3545', wordBreak: 'break-word', backgroundColor: '#fff5f5' }}>{formatValue(change.oldValue)}</td>
-                              <td style={{ color: '#28a745', wordBreak: 'break-word', backgroundColor: '#f0fff4' }}>{formatValue(change.newValue)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
+                  <table className="table table-sm table-bordered mt-2">
+                    <thead className="table-light">
+                      <tr>
+                        <th style={{ width: '25%' }}>Field</th>
+                        <th style={{ width: '37.5%' }}>Old Value</th>
+                        <th style={{ width: '37.5%' }}>New Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getVisibleChanges(edit.changes).map(([field, change]) => {
+                        const displayField = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        return (
+                          <tr key={field}>
+                            <td><strong>{displayField}</strong></td>
+                            <td style={{ color: '#dc3545', wordBreak: 'break-word', backgroundColor: '#fff5f5' }}>{formatValue(change.oldValue)}</td>
+                            <td style={{ color: '#28a745', wordBreak: 'break-word', backgroundColor: '#f0fff4' }}>{formatValue(change.newValue)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             ))}
@@ -1801,12 +1949,28 @@ const EventDetails = () => {
                 </div>
               </div>
 
+              {/* Justification field */}
+              <div className="form-group mb-3">
+                <label>
+                  <strong>Reason / Justification </strong>
+                  <span className="text-muted" style={{ fontWeight: 400, fontSize: "0.85rem" }}></span>
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  placeholder="Briefly explain why this budget modification is needed..."
+                  value={budgetJustification}
+                  onChange={e => setBudgetJustification(e.target.value)}
+                />
+              </div>
+
               <div className="modal-buttons mt-3">
                 <button
                   className="btn btn-secondary me-2"
                   onClick={() => {
                     setShowBudgetEditModal(false);
                     setProposedBudgetBreakup([]);
+                    setBudgetJustification("");
                   }}
                 >
                   Cancel
@@ -1875,6 +2039,15 @@ const EventDetails = () => {
                   </p>
                 </div>
               </div>
+              {(() => {
+                const arswHistoryEntries = (eventDetails.budgetHistory || []).filter(e => e.editedBy === "ARSW");
+                const matchingEntry = arswHistoryEntries[selectedRevision.revisionNumber - 1];
+                return matchingEntry?.justification ? (
+                  <div className="alert alert-warning py-2 px-3 mb-3" style={{ fontSize: '0.875rem' }}>
+                    <strong>ARSW's Reason:</strong> {matchingEntry.justification}
+                  </div>
+                ) : null;
+              })()}
 
               {/* Budget Breakup */}
               <div className="mb-3">
@@ -1936,14 +2109,16 @@ const EventDetails = () => {
                 </div>
               </div>
 
-              {/* Query Text Area - show if QueryRaised is selected */}
+              {/* Query text – only required when raising a query */}
               {revisionResponseType === "QueryRaised" && (
                 <div className="form-group mb-3">
-                  <label><strong>Your Query/Feedback:</strong></label>
+                  <label>
+                    <strong>Your Query / Feedback<span className="text-danger"> *</span></strong>
+                  </label>
                   <textarea
                     className="form-control"
-                    rows="4"
-                    placeholder="Please provide your feedback or query about the proposed budget..."
+                    rows="3"
+                    placeholder="Provide your feedback or query about the proposed budget..."
                     value={revisionResponse}
                     onChange={(e) => setRevisionResponse(e.target.value)}
                   />
@@ -1994,16 +2169,13 @@ const EventDetails = () => {
         {/* Display query on budget revision notification for club secretary */}
         {role === "club-secretary" && eventDetails && getQueryOnBudgetRevision() && (
           <div className="alert alert-info alert-dismissible fade show mt-3" role="alert">
-            <strong>ℹ️ ARSW Query Response Awaiting Your Input</strong>
-            <p className="mb-2">
-              You raised a query on the budget revision. ARSW may have submitted a response to address your query.
+            <strong>⏳ Waiting for ARSW Response</strong>
+            <p className="mb-1 mt-1">
+              You raised the following query on the budget revision. Waiting for ARSW to address it.
             </p>
-            <button
-              className="btn btn-sm btn-info"
-              onClick={() => handleOpenBudgetRevisionReview(getQueryOnBudgetRevision())}
-            >
-              View Query Details
-            </button>
+            <div className="p-2 bg-white rounded border" style={{ fontSize: "0.875rem" }}>
+              {getQueryOnBudgetRevision().clubSecretaryResponse || "—"}
+            </div>
             <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         )}

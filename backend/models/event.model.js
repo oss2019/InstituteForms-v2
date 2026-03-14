@@ -51,6 +51,21 @@ const eventApprovalSchema = new Schema(
     proposedEstimatedBudget: { type: Number, required: false },
     budgetEditedBy: { type: String, required: false }, // Role of who edited the budget
     budgetEditedAt: { type: Date, required: false },
+    // Full audit log of every budget modification by any authorised role
+    budgetHistory: [
+      {
+        editedBy: { type: String, required: true },  // Role that made the change
+        editedAt: { type: Date, default: Date.now },
+        justification: { type: String, required: false, default: "" },
+        budgetBreakup: [
+          {
+            expenseHead: { type: String, required: true },
+            estimatedAmount: { type: Number, required: true }
+          }
+        ],
+        totalBudget: { type: Number, required: true }
+      }
+    ],
     arsw_budget_revisions: [
       {
         revisionNumber: { type: Number, required: true }, // 1st edit, 2nd edit, etc.

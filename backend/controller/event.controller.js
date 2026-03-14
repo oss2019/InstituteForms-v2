@@ -128,7 +128,6 @@ export const applyForEventApproval = async (req, res) => {
       budgetAnnexureNumber,
       estimatedBudget,
       nameOfTheOrganizer,
-      organizerRollNumber,
       designation,
       email,
       phoneNumber,
@@ -139,6 +138,9 @@ export const applyForEventApproval = async (req, res) => {
       externalParticipants,
       listOfCollaboratingOrganizations,
     } = req.body;
+
+    // Support both spellings: old cached frontends may send "organizerRoleNumber"
+    const organizerRollNumber = req.body.organizerRollNumber || req.body.organizerRoleNumber;
 
     console.log("Incoming Payload:", req.body);
 
@@ -1546,7 +1548,7 @@ export const getEditHistory = async (req, res) => {
 
 // Edit budget breakup by ARSW/Associate Dean/Dean
 export const editBudget = async (req, res) => {
-  const { eventId, role, proposedBudgetBreakup, proposedEstimatedBudget } = req.body;
+  const { eventId, role, proposedBudgetBreakup, proposedEstimatedBudget, justification } = req.body;
 
   try {
     // Find the event
@@ -1599,6 +1601,16 @@ export const editBudget = async (req, res) => {
         };
 
         event.arsw_budget_revisions.push(newRevision);
+
+        // Record in full audit history
+        if (!event.budgetHistory) event.budgetHistory = [];
+        event.budgetHistory.push({
+          editedBy: role,
+          editedAt: new Date(),
+          justification: justification.trim(),
+          budgetBreakup: proposedBudgetBreakup,
+          totalBudget: proposedEstimatedBudget
+        });
 
         // Update the ARSW approval status to "Pending" so they can approve
         const arsw_approval = event.approvals.find(app => app.role === "ARSW");
@@ -1667,6 +1679,16 @@ Event Approval System`;
 
         event.arsw_budget_revisions.push(newRevision);
 
+        // Record in full audit history
+        if (!event.budgetHistory) event.budgetHistory = [];
+        event.budgetHistory.push({
+          editedBy: role,
+          editedAt: new Date(),
+          justification: justification.trim(),
+          budgetBreakup: proposedBudgetBreakup,
+          totalBudget: proposedEstimatedBudget
+        });
+
         // Update the ARSW approval status to "Edited" to indicate budget has been edited
         const arsw_approval = event.approvals.find(app => app.role === "ARSW");
         if (arsw_approval) {
@@ -1724,6 +1746,16 @@ Event Approval System`;
       event.estimatedBudget = proposedEstimatedBudget;
       event.budgetEditedBy = role;
       event.budgetEditedAt = new Date();
+
+      // Record in full audit history
+      if (!event.budgetHistory) event.budgetHistory = [];
+      event.budgetHistory.push({
+        editedBy: role,
+        editedAt: new Date(),
+        justification: justification.trim(),
+        budgetBreakup: proposedBudgetBreakup,
+        totalBudget: proposedEstimatedBudget
+      });
 
       await event.save();
 
