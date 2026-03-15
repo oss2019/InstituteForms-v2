@@ -64,7 +64,6 @@ function StaffDashboard() {
   const navItems = [
     { id: 'pendingApprovals', label: 'Pending Applications', icon: <FiMail />, action: () => handleSectionChange('pendingApprovals') },
     { id: 'processedApplications', label: 'Processed Applications', icon: <FiCheckSquare />, action: () => handleSectionChange('processedApplications') },
-    { id: 'logout', label: 'Logout', icon: <FiLogOut />, action: handleLogout, className: 'logout-nav-item' }
   ];
 
   const renderContent = () => {
@@ -107,6 +106,13 @@ function StaffDashboard() {
             </li>
           ))}
         </ul>
+
+        <div className="sidebar-footer">
+          <button className="sidebar-button logout-nav-item" onClick={handleLogout}>
+            <FiLogOut />
+            <span>Logout</span>
+          </button>
+        </div>
       </nav>
 
       <main className="main-content">

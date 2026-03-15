@@ -35,7 +35,6 @@ function SWODashboard() {
 
   const navItems = [
     { id: 'swoEvents', label: 'Events', icon: <FiGrid />, action: () => handleSectionChange('swoEvents') },
-    { id: 'logout', label: 'Logout', icon: <FiLogOut />, action: handleLogout, className: 'logout-nav-item' }
   ];
 
   const renderContent = () => {
@@ -76,6 +75,13 @@ function SWODashboard() {
             </li>
           ))}
         </ul>
+
+        <div className="sidebar-footer">
+          <button className="sidebar-button logout-nav-item" onClick={handleLogout}>
+            <FiLogOut />
+            <span>Logout</span>
+          </button>
+        </div>
       </nav>
 
       <main className="main-content">

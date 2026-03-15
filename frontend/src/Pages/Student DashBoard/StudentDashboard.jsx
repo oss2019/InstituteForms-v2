@@ -39,7 +39,6 @@ function StudentDashboard() {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <FiGrid />, action: () => handleSectionChange('dashboard') },
     { id: 'eventForm', label: 'Submit Event Proposal', icon: <FiPlusSquare />, action: () => handleSectionChange('eventForm') },
-    { id: 'logout', label: 'Logout', icon: <FiLogOut />, action: handleLogout, className: 'logout-nav-item' }
   ];
 
   const renderContent = () => {
@@ -82,6 +81,13 @@ function StudentDashboard() {
             </li>
           ))}
         </ul>
+
+        <div className="sidebar-footer">
+          <button className="sidebar-button logout-nav-item" onClick={handleLogout}>
+            <FiLogOut />
+            <span>Logout</span>
+          </button>
+        </div>
       </nav>
 
       <main className="main-content">
