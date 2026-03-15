@@ -20,7 +20,7 @@ const eventApprovalSchema = new Schema(
     estimatedBudget: { type: Number, required: true },
     budgetAnnexureNumber: { type: String, required: false }, // Annexure number in club budget
     nameOfTheOrganizer: { type: String, required: true },
-    organizerRollNumber: { type: String, required: true },
+    organizerRollNumber: { type: String, required: false },
     designation: { type: String, required: true },
     email: { type: String, required: true },
     phoneNumber: { type: String, required: true },
@@ -135,7 +135,8 @@ const eventApprovalSchema = new Schema(
             "ARSW",
             "associate-dean",
             "associate-dean-socio-cultural",
-            "dean"
+            "dean",
+            "students-welfare-office"
           ],
           required: true,
         },

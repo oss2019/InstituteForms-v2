@@ -910,7 +910,7 @@ const EventDetails = () => {
 
   // Check if event can be closed
   const canCloseEvent = () => {
-    if (!['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW'].includes(role)) return false;
+    if (!['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW', 'students-welfare-office'].includes(role)) return false;
     if (eventDetails.status === 'Closed') return false;
     
     const allApproved = eventDetails.approvals.every(app => app.status === 'Approved');
@@ -925,7 +925,7 @@ const EventDetails = () => {
 
   // Check if can raise query on approved event
   const canRaiseApprovedQuery = () => {
-    if (!['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW'].includes(role)) return false;
+    if (!['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW', 'students-welfare-office'].includes(role)) return false;
     if (eventDetails.status === 'Closed') return false;
     
     const allApproved = eventDetails.approvals.every(app => app.status === 'Approved');
@@ -1492,9 +1492,15 @@ const EventDetails = () => {
                   {queries.map((query) => (
                     <div key={query.queryId} className="query-justification-card">
                       <div className="query-justification-header">
-                        <strong>Query from {query.askerRole}</strong>
+                        <strong>Query from {query.askerRole.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</strong>
                         <span className={`badge ms-2 ${query.status === 'Pending' ? 'bg-warning' : 'bg-success'}`}>{query.status}</span>
                         <span className="text-muted ms-auto" style={{ fontSize: '0.8rem' }}>{new Date(query.raisedAt).toLocaleDateString()}</span>
+                      </div>
+                      <div className="query-details" style={{ fontSize: '0.85rem', color: '#6c757d', marginBottom: '0.5rem' }}>
+                        <div><strong>Raised to:</strong> {query.responderEmail}</div>
+                        {query.isPostApprovalQuery && (
+                          <div className="badge bg-info" style={{ display: 'inline-block', marginTop: '0.3rem' }}>Post-Approval Query</div>
+                        )}
                       </div>
                       <div className="query-justification-text">
                         {query.queryText}
@@ -1546,13 +1552,13 @@ const EventDetails = () => {
             <button className="btn btn-warning" onClick={() => handleApprovalClick('Query')}>Raise Query</button>
           </>
         )}
-        <button className="btn btn-primary" onClick={handleGeneratePDF}>Generate & Preview PDF</button>
         {canCloseEvent() && (
           <button className="btn btn-dark" onClick={() => setShowCloseModal(true)}>Close Event</button>
         )}
         {canRaiseApprovedQuery() && (
           <button className="btn btn-info" onClick={() => setShowApprovedQueryModal(true)}>Raise Query</button>
         )}
+        <button className="btn btn-primary" onClick={handleGeneratePDF}>Generate & Preview PDF</button>
       </div>
 
       {/* PDF Preview */}
