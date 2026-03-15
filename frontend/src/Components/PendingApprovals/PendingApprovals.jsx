@@ -28,8 +28,8 @@ const PendingApprovals = () => {
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState('');
   const [activeTab, setActiveTab] = useState(() => {
-    // Load activeTab from localStorage, default to 'initiated'
-    return localStorage.getItem('pendingApprovalsActiveTab') || 'initiated';
+    // Load activeTab from localStorage, default to 'pending' (Pending My Action)
+    return localStorage.getItem('pendingApprovalsActiveTab') || 'pending';
   });
 
   // Counters for tabs (separate from filtered data)
@@ -92,7 +92,13 @@ const PendingApprovals = () => {
             category: storedUserRole === 'general-secretary' ? userCategory : undefined,
           }
         });
-        setSemesterOptions(response.data || []);
+        // Sort semesters in reverse order (latest first)
+        const sortedSemesters = (response.data || []).sort((a, b) => b.semester.localeCompare(a.semester));
+        setSemesterOptions(sortedSemesters);
+        // Set first semester as default (latest semester)
+        if (sortedSemesters.length > 0 && !selectedSemester) {
+          setSelectedSemester(sortedSemesters[0].semester);
+        }
       } catch (error) {
         console.error('Error fetching semester options:', error);
       }
@@ -113,7 +119,7 @@ const PendingApprovals = () => {
         role: storedUserRole,
         category: storedUserRole === "general-secretary" ? userCategory : undefined,
         page,
-        limit: 10
+        limit: 10000
       };
 
       const response = await axios.post(`${apiUrl}/event/pending/filtered`, requestData);
@@ -161,7 +167,7 @@ const PendingApprovals = () => {
         role: storedUserRole,
         category: storedUserRole === "general-secretary" ? userCategory : undefined,
         page,
-        limit: 10
+        limit: 10000
       };
 
       console.log('📤 Fetching initiated approvals with:', requestData);
@@ -276,7 +282,8 @@ const PendingApprovals = () => {
         result = result.filter(e => 
           e.eventName?.toLowerCase().includes(s) ||
           e.nameOfTheOrganizer?.toLowerCase().includes(s) ||
-          e.eventVenue?.toLowerCase().includes(s)
+          e.eventVenue?.toLowerCase().includes(s) ||
+          e.referenceNumber?.toLowerCase().includes(s)
         );
       }
 
@@ -290,6 +297,12 @@ const PendingApprovals = () => {
           break;
         case 'name-za':
           result.sort((a, b) => (b.eventName || '').localeCompare(a.eventName || ''));
+          break;
+        case 'reference-az':
+          result.sort((a, b) => (a.referenceNumber || "").localeCompare(b.referenceNumber || ""));
+          break;
+        case 'reference-za':
+          result.sort((a, b) => (b.referenceNumber || "").localeCompare(a.referenceNumber || ""));
           break;
         default:
           result.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
@@ -316,6 +329,26 @@ const PendingApprovals = () => {
     setEventTypeFilter('');
     setSortOrder('newest');
   };
+
+  const handleNextSemester = () => {
+    // Next = move backwards in array (to more recent/newer semesters)
+    if (!semesterOptions || semesterOptions.length === 0) return;
+    const currentIndex = semesterOptions.findIndex(opt => opt.semester === selectedSemester);
+    if (currentIndex > 0) {
+      setSelectedSemester(semesterOptions[currentIndex - 1].semester);
+    }
+  };
+
+  const handlePreviousSemester = () => {
+    // Previous = move forward in array (to older semesters)
+    if (!semesterOptions || semesterOptions.length === 0) return;
+    const currentIndex = semesterOptions.findIndex(opt => opt.semester === selectedSemester);
+    if (currentIndex < semesterOptions.length - 1) {
+      setSelectedSemester(semesterOptions[currentIndex + 1].semester);
+    }
+  };
+
+  const currentSemesterIndex = semesterOptions && semesterOptions.length > 0 ? semesterOptions.findIndex(opt => opt.semester === selectedSemester) : 0;
 
   // Handle status update (approve/reject/query)
   const handleStatusUpdate = async () => {
@@ -383,8 +416,9 @@ const PendingApprovals = () => {
   };
 
   const getActionLabel = (action) => {
+    const userRole = localStorage.getItem("role");
     switch (action) {
-      case "Approved": return "Approve";
+      case "Approved": return userRole === 'dean' ? "Approve" : "Recommend";
       case "Rejected": return "Reject";
       case "Query": return "Raise Query";
       default: return "Confirm Action";
@@ -544,6 +578,8 @@ const PendingApprovals = () => {
                 <option value="oldest">Oldest First</option>
                 <option value="name-az">Name A-Z</option>
                 <option value="name-za">Name Z-A</option>
+                <option value="reference-az">Reference # A-Z</option>
+                <option value="reference-za">Reference # Z-A</option>
               </Form.Select>
             </Form.Group>
           </Col>
@@ -553,7 +589,7 @@ const PendingApprovals = () => {
               <InputGroup>
                 <Form.Control
                   type="text"
-                  placeholder="Search by name, organizer, venue..."
+                  placeholder="Search by name, organizer, venue, reference..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -586,59 +622,44 @@ const PendingApprovals = () => {
         <div className="alert alert-danger text-center">{error}</div>
       ) : (
         <>
-          {Object.keys(groupedDisplay).length > 0 ? (
-            <Accordion defaultActiveKey="0" alwaysOpen>
-              {Object.entries(groupedDisplay).map(([groupKey, events], index) => (
-                <Accordion.Item eventKey={index.toString()} key={groupKey}>
-                  <Accordion.Header>
-                    {groupKey} ({events.length} event{events.length !== 1 ? 's' : ''})
-                  </Accordion.Header>
-                  <Accordion.Body>
-                    <table className="events-table">
-                      <thead>
-                        <tr>
-                          <th>Event Name</th>
-                          <th>Date</th>
-                          <th>Status</th>
-                          <th>Reference No</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {events.map(renderEventCard)}
-                      </tbody>
-                    </table>
-                  </Accordion.Body>
-                </Accordion.Item>
-              ))}
-            </Accordion>
+          <h4 className="mb-3">{selectedSemester || activeTab === 'pending' ? 'Pending Approvals' : 'Initiated Events'} - {selectedSemester || 'All Semesters'}</h4>
+          {Object.keys(groupedDisplay).length > 0 && selectedSemester && groupedDisplay[selectedSemester] ? (
+            <table className="events-table mb-4">
+              <thead>
+                <tr>
+                  <th>Event Name</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Reference No</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groupedDisplay[selectedSemester].map(renderEventCard)}
+              </tbody>
+            </table>
           ) : (
             <div className="alert alert-info text-center mt-4">
-              No event applications match your criteria.
+              No event applications match your criteria for the selected semester.
             </div>
           )}
-
-          {/* Pagination Controls */}
-          {pagination.totalPages > 1 && (
-            <div className="d-flex justify-content-center align-items-center mt-4 gap-3">
-              <Button 
-                variant="outline-primary" 
-                disabled={!pagination.hasPrev} 
-                onClick={() => handlePageChange(currentPage - 1)}
-              >
-                &laquo; Previous
-              </Button>
-              <span className="fw-bold">
-                Page {pagination.currentPage} of {pagination.totalPages}
-              </span>
-              <Button 
-                variant="outline-primary" 
-                disabled={!pagination.hasNext} 
-                onClick={() => handlePageChange(currentPage + 1)}
-              >
-                Next &raquo;
-              </Button>
-            </div>
-          )}
+          <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
+            <Button 
+              variant="outline-primary" 
+              onClick={handleNextSemester}
+              disabled={currentSemesterIndex <= 0}
+              title="Next semester (newer)"
+            >
+              Next Semester →
+            </Button>
+            <Button 
+              variant="outline-primary" 
+              onClick={handlePreviousSemester}
+              disabled={currentSemesterIndex >= semesterOptions.length - 1}
+              title="Previous semester (older)"
+            >
+              ← Previous Semester
+            </Button>
+          </div>
         </>
       )}
 

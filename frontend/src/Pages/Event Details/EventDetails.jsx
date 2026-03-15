@@ -388,31 +388,36 @@ const EventDetails = () => {
     // Add approval actions
     if (eventDetails?.approvals) {
       eventDetails.approvals.forEach((approval) => {
-        // Show if action was taken (Approved or Rejected)
-        // For Rejected without timestamp, still show it (use createdAt as reference)
         const hasTimestamp = approval.timestamp;
-        const shouldShow = approval.status === "Approved" || approval.status === "Rejected";
+        const shouldShowApprovalOrReject = approval.status === "Approved" || approval.status === "Rejected";
         
-        if ((hasTimestamp && shouldShow) || (approval.status === "Rejected")) {
+        // Show completed actions (Approved/Rejected) or pending actions
+        if ((hasTimestamp && shouldShowApprovalOrReject) || (approval.status === "Rejected") || approval.status === "Pending") {
           let title = `${approval.role.replace(/-/g, ' ').replace(/^\//, '').toUpperCase()}`;
           let icon = "";
           let color = "#6c757d";
+          let description = approval.comment || "No comments";
           
           if (approval.status === "Approved") {
-            title += " Approved";
+            title += approval.role === 'dean' ? " Approved" : " Recommended";
             icon = "✓";
             color = "#28a745";
           } else if (approval.status === "Rejected") {
             title += " Rejected";
             icon = "✗";
             color = "#dc3545";
+          } else if (approval.status === "Pending") {
+            title += approval.role === 'dean' ? " Pending Approval" : " Pending Recommendation";
+            icon = "⏳";
+            color = "#0dcaf0";
+            description = "Awaiting action";
           }
           
           events.push({
             type: "approval",
             date: new Date(approval.timestamp || eventDetails.createdAt),
             title: title,
-            description: approval.comment || "No comments",
+            description: description,
             icon: icon,
             color: color,
             role: approval.role
@@ -958,7 +963,7 @@ const EventDetails = () => {
   const getActionLabel = (action) => {
     switch (action) {
       case "Approved":
-        return "Approve";
+        return role === 'dean' ? "Approve" : "Recommend";
       case "Rejected":
         return "Reject";
       case "Query":
@@ -1328,11 +1333,10 @@ const EventDetails = () => {
                       <thead className="table-light">
                         <tr>
                           <th style={{ width: '10%' }}>Edit #</th>
-                          <th style={{ width: '15%' }}>By</th>
-                          <th style={{ width: '15%' }}>Date</th>
                           <th style={{ width: '20%' }}>Field</th>
                           <th style={{ width: '20%' }}>Old Value</th>
                           <th style={{ width: '20%' }}>New Value</th>
+                          <th style={{ width: '15%' }}>Date</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1341,11 +1345,10 @@ const EventDetails = () => {
                           return (
                             <tr key={idx}>
                               <td><strong>#{change.editNum}</strong></td>
-                              <td><small>{change.editorName}</small></td>
-                              <td><small>{change.editedAt.toLocaleDateString()}</small></td>
                               <td><strong>{displayField}</strong></td>
                               <td style={{ color: '#dc3545', wordBreak: 'break-word', backgroundColor: '#fff5f5' }}><small>{formatValue(change.oldValue)}</small></td>
                               <td style={{ color: '#28a745', wordBreak: 'break-word', backgroundColor: '#f0fff4' }}><small>{formatValue(change.newValue)}</small></td>
+                              <td><small>{change.editedAt.toLocaleDateString()}</small></td>
                             </tr>
                           );
                         })}
@@ -1442,7 +1445,7 @@ const EventDetails = () => {
                       const borderColor = isCurrent ? '#007bff' : hasRejection ? '#dc3545' : '#dee2e6';
                       const isLast = index === pending.length - 1;
                       const dotIcon = isCurrent ? '⏳' : hasRejection ? '—' : '○';
-                      const statusText = hasRejection ? 'Not required' : 'Pending approval';
+                      const statusText = hasRejection ? 'Not required' : (approval.role === 'dean' ? 'Pending approval' : 'Pending recommendation');
                       const statusBadge = isCurrent ? 'Awaiting' : hasRejection ? 'Rejected Below' : null;
                       
                       return (
@@ -1546,7 +1549,7 @@ const EventDetails = () => {
                 (role === "ARSW" && getQueryOnBudgetRevision())
               }
             >
-              Approve
+              {role === 'dean' ? 'Approve' : 'Recommend'}
             </button>
             <button className="btn btn-danger" onClick={() => handleApprovalClick('Rejected')}>Reject</button>
             <button className="btn btn-warning" onClick={() => handleApprovalClick('Query')}>Raise Query</button>

@@ -64,7 +64,13 @@ const SWOEvents = () => {
     const fetchSemesterOptions = async () => {
       try {
         const res = await axios.get(`${apiUrl}/event/semesters/options`);
-        setSemesterOptions(res.data);
+        // Sort semesters in reverse order (latest first)
+        const sortedSemesters = res.data.sort((a, b) => b.semester.localeCompare(a.semester));
+        setSemesterOptions(sortedSemesters);
+        // Set first semester as default (latest semester)
+        if (sortedSemesters.length > 0 && !selectedSemester) {
+          setSelectedSemester(sortedSemesters[0].semester);
+        }
       } catch (err) {
         console.error('Error fetching semester options:', err);
       }
@@ -80,7 +86,7 @@ const SWOEvents = () => {
         academicYear: selectedAcademicYear || undefined,
         search:       searchTerm         || undefined,
         page,
-        limit: 10,
+        limit: 10000,
       });
       setApprovedEvents(res.data.applications);
       setDisplayApproved(res.data.applications);
@@ -98,7 +104,7 @@ const SWOEvents = () => {
         academicYear: selectedAcademicYear || undefined,
         search:       searchTerm         || undefined,
         page,
-        limit: 10,
+        limit: 10000,
       });
       setInitiatedEvents(res.data.applications);
       setDisplayInitiated(res.data.applications);
@@ -175,13 +181,16 @@ const SWOEvents = () => {
           e.nameOfTheOrganizer?.toLowerCase().includes(s) ||
           e.eventVenue?.toLowerCase().includes(s) ||
           e.eventType?.toLowerCase().includes(s) ||
-          e.semester?.toLowerCase().includes(s)
+          e.semester?.toLowerCase().includes(s) ||
+          e.referenceNumber?.toLowerCase().includes(s)
         );
       }
       switch (sortOrder) {
         case 'oldest':  result.sort((a, b) => new Date(a.startDate) - new Date(b.startDate)); break;
         case 'name-az': result.sort((a, b) => a.eventName.localeCompare(b.eventName)); break;
         case 'name-za': result.sort((a, b) => b.eventName.localeCompare(a.eventName)); break;
+        case 'reference-az': result.sort((a, b) => (a.referenceNumber || "").localeCompare(b.referenceNumber || "")); break;
+        case 'reference-za': result.sort((a, b) => (b.referenceNumber || "").localeCompare(a.referenceNumber || "")); break;
         default:        result.sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
       }
       setDisplay(result);
@@ -207,6 +216,26 @@ const SWOEvents = () => {
     setEventTypeFilter('');
     setSortOrder('newest');
   };
+
+  const handleNextSemester = () => {
+    // Next = move backwards in array (to more recent/newer semesters)
+    if (!semesterOptions || semesterOptions.length === 0) return;
+    const currentIndex = semesterOptions.findIndex(opt => opt.semester === selectedSemester);
+    if (currentIndex > 0) {
+      setSelectedSemester(semesterOptions[currentIndex - 1].semester);
+    }
+  };
+
+  const handlePreviousSemester = () => {
+    // Previous = move forward in array (to older semesters)
+    if (!semesterOptions || semesterOptions.length === 0) return;
+    const currentIndex = semesterOptions.findIndex(opt => opt.semester === selectedSemester);
+    if (currentIndex < semesterOptions.length - 1) {
+      setSelectedSemester(semesterOptions[currentIndex + 1].semester);
+    }
+  };
+
+  const currentSemesterIndex = semesterOptions && semesterOptions.length > 0 ? semesterOptions.findIndex(opt => opt.semester === selectedSemester) : 0;
 
   // ── Actions ──────────────────────────────────────────────────
   const submitQuery = async () => {
@@ -446,6 +475,8 @@ const SWOEvents = () => {
                 <option value="oldest">Oldest</option>
                 <option value="name-az">Name A–Z</option>
                 <option value="name-za">Name Z–A</option>
+                <option value="reference-az">Reference # A–Z</option>
+                <option value="reference-za">Reference # Z–A</option>
               </Form.Select>
             </Form.Group>
           </Col>
@@ -454,7 +485,7 @@ const SWOEvents = () => {
               <Form.Label>Search</Form.Label>
               <InputGroup>
                 <Form.Control
-                  placeholder="Search name, venue, type..."
+                  placeholder="Search name, venue, type, reference..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
@@ -481,24 +512,121 @@ const SWOEvents = () => {
         <>
           {activeTab === 'approved' && (
             <>
-              <h2>Approved Event Applications</h2>
-              {renderGrouped(groupedApproved, renderApprovedCard, 'No approved events found.')}
-              {renderPagination(pagination, currentPage, (p) => { setCurrentPage(p); fetchApproved(p); })}
+              <h2 className="mb-3">Approved Event Applications - {selectedSemester || 'All Semesters'}</h2>
+              {selectedSemester && groupedApproved[selectedSemester] ? (
+                <table className="table table-hover mb-4">
+                  <thead>
+                    <tr>
+                      <th className="event-name">Event Name</th>
+                      <th className="event-organizer">Organizer</th>
+                      <th className="event-date">Date</th>
+                      <th className="event-status">Status</th>
+                      <th style={{ textAlign: 'center' }}>Reference No</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedApproved[selectedSemester].map(renderApprovedCard)}
+                  </tbody>
+                </table>
+              ) : <p className="text-muted">No approved events found for the selected semester.</p>}
+              <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
+                </Button>
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handlePreviousSemester}
+                  disabled={currentSemesterIndex >= semesterOptions.length - 1}
+                  title="Previous semester (older)"
+                >
+                  ← Previous Semester
+                </Button>
+              </div>
             </>
           )}
 
           {activeTab === 'initiated' && (
             <>
-              <h2>In-Progress Event Applications</h2>
-              {renderGrouped(groupedInitiated, renderInitiatedCard, 'No in-progress events found.')}
-              {renderPagination(initiatedPagination, initiatedPage, (p) => { setInitiatedPage(p); fetchInitiated(p); })}
+              <h2 className="mb-3">In-Progress Event Applications - {selectedSemester || 'All Semesters'}</h2>
+              {selectedSemester && groupedInitiated[selectedSemester] ? (
+                <table className="table table-hover mb-4">
+                  <thead>
+                    <tr>
+                      <th className="event-name">Event Name</th>
+                      <th className="event-organizer">Organizer</th>
+                      <th className="event-date">Date</th>
+                      <th className="event-status">Status</th>
+                      <th style={{ textAlign: 'center' }}>Reference No</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedInitiated[selectedSemester].map(renderInitiatedCard)}
+                  </tbody>
+                </table>
+              ) : <p className="text-muted">No in-progress events found for the selected semester.</p>}
+              <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
+                </Button>
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handlePreviousSemester}
+                  disabled={currentSemesterIndex >= semesterOptions.length - 1}
+                  title="Previous semester (older)"
+                >
+                  ← Previous Semester
+                </Button>
+              </div>
             </>
           )}
 
           {activeTab === 'closed' && (
             <>
-              <h2>Closed Event Applications</h2>
-              {renderGrouped(groupedClosed, renderClosedCard, 'No closed events found.')}
+              <h2 className="mb-3">Closed Event Applications - {selectedSemester || 'All Semesters'}</h2>
+              {selectedSemester && groupedClosed[selectedSemester] ? (
+                <table className="table table-hover mb-4">
+                  <thead>
+                    <tr>
+                      <th className="event-name">Event Name</th>
+                      <th className="event-organizer">Organizer</th>
+                      <th className="event-date">Date</th>
+                      <th className="event-status">Status</th>
+                      <th style={{ textAlign: 'center' }}>Reference No</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedClosed[selectedSemester].map(renderClosedCard)}
+                  </tbody>
+                </table>
+              ) : <p className="text-muted">No closed events found for the selected semester.</p>}
+              <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
+                </Button>
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handlePreviousSemester}
+                  disabled={currentSemesterIndex >= semesterOptions.length - 1}
+                  title="Previous semester (older)"
+                >
+                  ← Previous Semester
+                </Button>
+              </div>
             </>
           )}
         </>

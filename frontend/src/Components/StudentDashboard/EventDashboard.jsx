@@ -40,10 +40,14 @@ const EventDashboard = () => {
   }, []);
 
   const prepareFilterOptions = (eventsData) => {
-    const semesters = Array.from(new Set(eventsData.map(e => e.semester).filter(Boolean))).sort();
+    const semesters = Array.from(new Set(eventsData.map(e => e.semester).filter(Boolean))).sort().reverse();
     const academicYears = Array.from(new Set(eventsData.map(e => e.academicYear).filter(Boolean))).sort().reverse();
     setSemesterOptions(semesters);
     setAcademicYearOptions(academicYears);
+    // Set first semester as default (latest semester)
+    if (semesters.length > 0 && !selectedSemester) {
+      setSelectedSemester(semesters[0]);
+    }
   };
 
   const groupEventsBySemester = (eventsData) => {
@@ -82,7 +86,8 @@ const EventDashboard = () => {
             const s = searchTerm.trim().toLowerCase();
             result = result.filter(e => 
                 e.eventName?.toLowerCase().includes(s) || 
-                e.clubName?.toLowerCase().includes(s)
+                e.clubName?.toLowerCase().includes(s) ||
+                e.referenceNumber?.toLowerCase().includes(s)
             );
         }
 
@@ -90,6 +95,8 @@ const EventDashboard = () => {
             case "oldest": result.sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt)); break;
             case "name-az": result.sort((a,b) => a.eventName.localeCompare(b.eventName)); break;
             case "name-za": result.sort((a,b) => b.eventName.localeCompare(a.eventName)); break;
+            case "reference-az": result.sort((a,b) => (a.referenceNumber || "").localeCompare(b.referenceNumber || "")); break;
+            case "reference-za": result.sort((a,b) => (b.referenceNumber || "").localeCompare(a.referenceNumber || "")); break;
             default: result.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)); // newest
         }
 
@@ -110,6 +117,22 @@ const EventDashboard = () => {
     setSortOrder("newest");
     setSearchTerm("");
   };
+
+  const handlePreviousSemester = () => {
+    const currentIndex = semesterOptions.indexOf(selectedSemester);
+    if (currentIndex > 0) {
+      setSelectedSemester(semesterOptions[currentIndex - 1]);
+    }
+  };
+
+  const handleNextSemester = () => {
+    const currentIndex = semesterOptions.indexOf(selectedSemester);
+    if (currentIndex < semesterOptions.length - 1) {
+      setSelectedSemester(semesterOptions[currentIndex + 1]);
+    }
+  };
+
+  const currentSemesterIndex = semesterOptions.indexOf(selectedSemester);
 
   const handleViewDetails = (eventId) => navigate(`/event-details/${eventId}`);
 
@@ -200,7 +223,7 @@ const EventDashboard = () => {
                 <Form.Label>Search</Form.Label>
                 <InputGroup>
                   <Form.Control
-                    placeholder="Search name or club..."
+                    placeholder="Search name, club or reference..."
                     value={searchTerm}
                     onChange={(e)=>setSearchTerm(e.target.value)}
                   />
@@ -215,6 +238,8 @@ const EventDashboard = () => {
                   <option value="oldest">Oldest First</option>
                   <option value="name-az">Name A-Z</option>
                   <option value="name-za">Name Z-A</option>
+                  <option value="reference-az">Reference # A-Z</option>
+                  <option value="reference-za">Reference # Z-A</option>
                 </Form.Select>
               </Form.Group>
             </Col>
@@ -235,30 +260,44 @@ const EventDashboard = () => {
       {loading ? <p>Loading events...</p> : (
         <>
           {Object.keys(groupedEvents).length > 0 ? (
-            <Accordion defaultActiveKey="0" alwaysOpen>
-              {Object.entries(groupedEvents).map(([semester, semesterEvents], index) => (
-                <Accordion.Item eventKey={index.toString()} key={semester}>
-                  <Accordion.Header>
-                    {semester} <Badge bg="light" text="dark" className="ms-2">{semesterEvents.length}</Badge>
-                  </Accordion.Header>
-                  <Accordion.Body>
-                    <table className="events-table">
-                      <thead>
-                        <tr>
-                          <th>Event Name</th>
-                          <th>Date</th>
-                          <th>Status</th>
-                          <th>Reference No</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {semesterEvents.map(renderEventCard)}
-                      </tbody>
-                    </table>
-                  </Accordion.Body>
-                </Accordion.Item>
-              ))}
-            </Accordion>
+            <>
+              {selectedSemester && groupedEvents[selectedSemester] ? (
+                <>
+                  <h3 className="mb-3">{selectedSemester}</h3>
+                  <table className="events-table mb-4">
+                    <thead>
+                      <tr>
+                        <th>Event Name</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Reference No</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groupedEvents[selectedSemester].map(renderEventCard)}
+                    </tbody>
+                  </table>
+                </>
+              ) : <p>No events found for the selected semester.</p>}
+              <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
+                </Button>
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handlePreviousSemester}
+                  disabled={currentSemesterIndex >= semesterOptions.length - 1}
+                  title="Previous semester (older)"
+                >
+                  ← Previous Semester
+                </Button>
+              </div>
+            </>
           ) : <p>No events found for the selected criteria.</p>}
         </>
       )}

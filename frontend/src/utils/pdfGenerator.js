@@ -485,7 +485,7 @@ ${descArea}
   <!-- Blank writing space above sig-row 1 -->
   <div class="sig-space"></div>
 
-  <!-- Sig row 1: Club Sec | Gen Sec | Treasurer | Vice President -->
+  <!-- Sig row 1: Club Sec | Gen Sec | Treasurer (3 signatures) -->
   <div class="sig-row">
     <div class="sig-box">
       ${signed('club-secretary')}
@@ -499,30 +499,20 @@ ${descArea}
       ${signed('treasurer')}
       <div class="sig-line"><span class="hi">कोषाध्यक्ष</span>/<br>Treasurer</div>
     </div>
-    <div class="sig-box">
-      ${signed('president')}
-      <div class="sig-line"><span class="hi">उपाध्यक्ष</span>/<br>Vice President</div>
-    </div>
   </div>
 
   <!-- Gap between sig rows -->
   <div class="sig-gap"></div>
 
-  <!-- Sig row 2: Faculty in Charge | Associate Dean -->
-  <div class="sig-row" style="justify-content:space-between; padding:0 10px;">
-    <div class="sig-box" style="flex:0 0 auto; text-align:left; max-width:200px;">
-      ${signed('faculty-in-charge')}
-      <div class="sig-line" style="text-align:left;">
-        <span class="hi">प्रभारी संकाय</span>&nbsp;/Faculty in Charge
-      </div>
+  <!-- Sig row 2: VP Sports | Associate Dean (2 signatures) -->
+  <div class="sig-row" style="justify-content: space-around; padding: 0 40px;">
+    <div class="sig-box">
+      ${signed('ARSW')}
+      <div class="sig-line"><span class="hi">उपाध्यक्ष </span>/<br>Vice President</div>
     </div>
-    <div class="sig-box" style="flex:0 0 auto; text-align:right; max-width:240px;">
+    <div class="sig-box">
       ${signed('associate-dean') || signed('associate-dean-socio-cultural')}
-      <div class="sig-line" style="text-align:right;">
-        <span class="hi">एसोसिएट डीन (जीमखाना/&nbsp;एच एंड एम)</span>&nbsp;/<br>
-        <span class="hi">सामाजिक सांस्कृतिक</span><br>
-        Associate Dean (Gymkhana/H&amp;M/Socio-Cult)
-      </div>
+      <div class="sig-line"><span class="hi">एसोसिएट डीन</span>/<br>Associate Dean</div>
     </div>
   </div>
 
