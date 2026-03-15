@@ -200,7 +200,6 @@ body {
   font-size       : 11pt;
   font-weight     : 700;
   text-align      : center;
-  text-decoration : underline;
   margin          : 10px 0 10px;
 }
 
@@ -512,7 +511,7 @@ ${descArea}
     </div>
     <div class="sig-box">
       ${signed('associate-dean') || signed('associate-dean-socio-cultural')}
-      <div class="sig-line"><span class="hi">एसोसिएट डीन</span>/<br>Associate Dean</div>
+      <div class="sig-line"><span class="hi">एसोसिएट डीन (जीमखाना/ एच एंड एम / सामाजिक सांस्कृतिक)</span>/<br>Associate Dean (Gymkhana/H&M/Socio-Cult)</div>
     </div>
   </div>
 
@@ -536,8 +535,8 @@ ${descArea}
 <div class="dean-space"></div>
 
 <div class="dean-lbl">
+${signed('dean')}
 <div class="sig-line" style="text-align:center; width:30%; margin:0 auto 6px;">
-  ${signed('dean')}
   <span class="hi">डीन</span>&nbsp;/Dean<br>
   <span class="hi">छात्र कल्याण</span>&nbsp;/Student Welfare
 </div>
