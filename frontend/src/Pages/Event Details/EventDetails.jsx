@@ -15,53 +15,44 @@ const BudgetHistoryEntry = ({ entry, entryNum, roleLabel, isLatest, revision }) 
   const [expanded, setExpanded] = React.useState(false);
   return (
     <div
-      className={`border rounded mb-2 ${isLatest ? "border-warning" : "border-light"}`}
-      style={{ overflow: "hidden" }}
+      className={`budget-entry ${isLatest ? "budget-entry-latest" : ""}`}
     >
-      {/* Summary row – always visible */}
-      <div
-        className={`d-flex justify-content-between align-items-start px-3 py-2 ${isLatest ? "bg-warning bg-opacity-10" : "bg-light"}`}
-        style={{ cursor: "pointer" }}
-        onClick={() => setExpanded(prev => !prev)}
-      >
+      {/* Header with toggle on right */}
+      <div className="budget-entry-header-row">
         <div>
-          <span className="fw-semibold" style={{ fontSize: "0.9rem" }}>
-            #{entryNum} · {roleLabel}
-          </span>
-          {isLatest && (
-            <span className="badge bg-warning text-dark ms-2" style={{ fontSize: "0.7rem" }}>Latest</span>
-          )}
-          <div className="text-muted" style={{ fontSize: "0.8rem" }}>
-            {new Date(entry.editedAt).toLocaleString()} · ₹{entry.totalBudget.toLocaleString()}
+          <div className="budget-entry-header">
+            <span className="budget-entry-title">
+              #{entryNum} · {roleLabel}
+            </span>
+            {isLatest && (
+              <span className="budget-latest-badge">Latest</span>
+            )}
           </div>
-          {entry.justification && (
-            <div style={{ fontSize: "0.85rem", marginTop: "2px" }}>
-              <em>"{entry.justification}"</em>
-            </div>
-          )}
+          <div className="budget-entry-meta">
+            ₹{entry.totalBudget.toLocaleString()}
+          </div>
+          <div className="budget-entry-date">
+            {new Date(entry.editedAt).toLocaleString()}
+          </div>
         </div>
-        <span className="text-muted ms-2" style={{ whiteSpace: "nowrap", fontSize: "0.8rem" }}>
+        <button
+          className="budget-toggle-btn"
+          onClick={() => setExpanded(prev => !prev)}
+        >
           {expanded ? "▲ Hide" : "▼ Breakdown"}
-        </span>
+        </button>
       </div>
 
-      {/* Club Secretary response – shown inline without expanding */}
-      {revision?.clubSecretaryResponse && (
-        <div
-          className={`px-3 py-2 border-top ${revision.clubSecretaryApprovalStatus === "Approved" ? "bg-success bg-opacity-10" : "bg-info bg-opacity-10"}`}
-          style={{ fontSize: "0.82rem" }}
-        >
-          <strong>
-            {revision.clubSecretaryApprovalStatus === "Approved" ? "Secretary Approved" : "Secretary Query"}
-            {revision.respondedAt ? ` · ${new Date(revision.respondedAt).toLocaleString()}` : ""}:
-          </strong>{" "}
-          {revision.clubSecretaryResponse}
+      {/* Justification */}
+      {entry.justification && (
+        <div className="budget-entry-justification">
+          "{entry.justification}"
         </div>
       )}
 
-      {/* Budget breakdown – shown on expand */}
+      {/* Budget breakdown – shown on expand, full width */}
       {expanded && (
-        <div className="px-3 py-2">
+        <div className="budget-breakdown">
           <table className="table table-sm table-bordered mb-0" style={{ fontSize: "0.85rem" }}>
             <thead className="table-light">
               <tr>
@@ -84,6 +75,21 @@ const BudgetHistoryEntry = ({ entry, entryNum, roleLabel, isLatest, revision }) 
               </tr>
             </tfoot>
           </table>
+
+          {/* Club Secretary response as justification – below table */}
+          {revision?.clubSecretaryResponse && (
+            <div className="budget-entry-query-justification">
+              <strong>
+                {revision.clubSecretaryApprovalStatus === "Approved" ? "Approved" : "Query"}:
+              </strong>{" "}
+              {revision.clubSecretaryResponse}
+              {revision.respondedAt && (
+                <div style={{ fontSize: "0.75rem", marginTop: "4px", color: "#6c757d" }}>
+                  {new Date(revision.respondedAt).toLocaleString()}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -121,6 +127,8 @@ const EventDetails = () => {
   const [proposedBudgetBreakup, setProposedBudgetBreakup] = useState([]);
   const [budgetJustification, setBudgetJustification] = useState("");
   const [showBudgetHistory, setShowBudgetHistory] = useState(true);
+  const [showAllBudgetHistory, setShowAllBudgetHistory] = useState(false);
+  const [showQueries, setShowQueries] = useState(true);
   // Add state for editing additional amenities
   const [editAdditionalAmenities, setEditAdditionalAmenities] = useState([]);
 
@@ -966,12 +974,21 @@ const EventDetails = () => {
       {/* Top Header */}
       <div className="ed-top-header">
         <div className="ed-top-left">
-          <h1 className="ed-event-name">
-            {eventDetails.eventName}
-            {eventDetails.status === 'Closed' && (
-              <span className="badge bg-dark ms-2" style={{ fontSize: '0.5em', verticalAlign: 'middle' }}>Closed</span>
-            )}
-          </h1>
+          <div className="ed-title-row">
+            <button
+              className="ed-back-btn"
+              onClick={() => navigate(-1)}
+              title="Go back"
+            >
+              ← Back
+            </button>
+            <h1 className="ed-event-name">
+              {eventDetails.eventName}
+              {eventDetails.status === 'Closed' && (
+                <span className="badge bg-dark ms-2" style={{ fontSize: '0.5em', verticalAlign: 'middle' }}>Closed</span>
+              )}
+            </h1>
+          </div>
         </div>
         <div className="ed-top-right">
           <div className="ed-ref-number-box">
@@ -1152,49 +1169,56 @@ const EventDetails = () => {
           {/* Budget Modification History */}
           {eventDetails.budgetHistory && eventDetails.budgetHistory.length > 0 && (
             <div className="ed-card">
-              <div
-                className="d-flex justify-content-between align-items-center"
-                style={{ cursor: "pointer" }}
-                onClick={() => setShowBudgetHistory(prev => !prev)}
-              >
                 <h5 className="ed-card-title mb-0">
                   Budget Modification History
                   <span className="badge bg-secondary ms-2" style={{ fontSize: "0.75rem" }}>
                     {eventDetails.budgetHistory.length}
                   </span>
                 </h5>
-                <span className="text-muted small">
-                  {showBudgetHistory ? "▲ Hide" : "▼ Show"}
-                </span>
-              </div>
 
               {showBudgetHistory && (
                 <div className="mt-3">
                   {(() => {
-                    return [...eventDetails.budgetHistory].reverse().map((entry, idx) => {
-                      const entryNum = eventDetails.budgetHistory.length - idx;
-                      const roleLabel = entry.editedBy
-                        .replace(/-/g, " ")
-                        .replace(/\b\w/g, c => c.toUpperCase());
-                      let revision = null;
-                      if (entry.editedBy === "ARSW") {
-                        // Find position of this entry among all ARSW entries (oldest-first)
-                        const arswIdx = eventDetails.budgetHistory
-                          .slice(0, eventDetails.budgetHistory.length - idx)
-                          .filter(e => e.editedBy === "ARSW").length - 1;
-                        revision = eventDetails.arsw_budget_revisions?.[arswIdx] || null;
-                      }
-                      return (
-                        <BudgetHistoryEntry
-                          key={idx}
-                          entry={entry}
-                          entryNum={entryNum}
-                          roleLabel={roleLabel}
-                          isLatest={idx === 0}
-                          revision={revision}
-                        />
-                      );
-                    });
+                    const history = [...eventDetails.budgetHistory].reverse();
+                    const visibleHistory = showAllBudgetHistory ? history : history.slice(0, 1);
+                    
+                    return (
+                      <>
+                        {visibleHistory.map((entry, idx) => {
+                          const entryNum = eventDetails.budgetHistory.length - idx;
+                          const roleLabel = entry.editedBy
+                            .replace(/-/g, " ")
+                            .replace(/\b\w/g, c => c.toUpperCase());
+                          let revision = null;
+                          if (entry.editedBy === "ARSW") {
+                            const arswIdx = eventDetails.budgetHistory
+                              .slice(0, eventDetails.budgetHistory.length - idx)
+                              .filter(e => e.editedBy === "ARSW").length - 1;
+                            revision = eventDetails.arsw_budget_revisions?.[arswIdx] || null;
+                          }
+                          return (
+                            <BudgetHistoryEntry
+                              key={idx}
+                              entry={entry}
+                              entryNum={entryNum}
+                              roleLabel={roleLabel}
+                              isLatest={idx === 0}
+                              revision={revision}
+                            />
+                          );
+                        })}
+                        {eventDetails.budgetHistory.length > 1 && (
+                          <div className="text-center mt-2">
+                            <button
+                              className="btn btn-sm btn-outline-secondary"
+                              onClick={() => setShowAllBudgetHistory(!showAllBudgetHistory)}
+                            >
+                              {showAllBudgetHistory ? "Hide Old Changes" : "Show All Changes"}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
                   })()}
                 </div>
               )}
@@ -1242,6 +1266,96 @@ const EventDetails = () => {
               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(eventDetails.eventDescription || '') }}
             />
           </div>
+
+          {/* Edit History Section - All Changes in One Table */}
+          {(() => {
+            const formatValue = (value) => {
+              if (value === null || value === undefined) return 'N/A';
+              if (Array.isArray(value)) return value.join(', ');
+              if (typeof value === 'object' && !(value instanceof Date)) return JSON.stringify(value);
+              if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value))) {
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+              }
+              return String(value);
+            };
+
+            const getVisibleChanges = (changes) =>
+              Object.entries(changes || {}).filter(([field, change]) =>
+                field !== 'budgetBreakup' &&
+                formatValue(change.oldValue) !== formatValue(change.newValue)
+              );
+
+            const validEdits = editHistory.filter(edit =>
+              edit.changes && getVisibleChanges(edit.changes).length > 0
+            );
+
+            if (validEdits.length === 0) return null;
+            
+            // Collect all changes across all edits
+            const allChanges = [];
+            validEdits.forEach((edit, index) => {
+              getVisibleChanges(edit.changes).forEach(([field, change]) => {
+                allChanges.push({
+                  editNum: validEdits.length - index,
+                  editorName: edit.editorName,
+                  editorEmail: edit.editorEmail,
+                  editedAt: new Date(edit.editedAt),
+                  field,
+                  oldValue: change.oldValue,
+                  newValue: change.newValue
+                });
+              });
+            });
+
+            return (
+              <div className="ed-card ed-card-history">
+                <div className="ed-collapsible-header">
+                  <h5 className="ed-card-title mb-0">Edit History <span className="badge bg-secondary ms-2" style={{ fontSize: "0.75rem" }}>{validEdits.length}</span></h5>
+                  <button
+                    className="ed-toggle-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowEditHistory(!showEditHistory);
+                    }}
+                  >
+                    {showEditHistory ? "Hide" : "Show"}
+                  </button>
+                </div>
+                {showEditHistory && (
+                  <div className="edit-history-table-wrapper">
+                    <table className="table table-sm table-bordered mb-0">
+                      <thead className="table-light">
+                        <tr>
+                          <th style={{ width: '10%' }}>Edit #</th>
+                          <th style={{ width: '15%' }}>By</th>
+                          <th style={{ width: '15%' }}>Date</th>
+                          <th style={{ width: '20%' }}>Field</th>
+                          <th style={{ width: '20%' }}>Old Value</th>
+                          <th style={{ width: '20%' }}>New Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allChanges.map((change, idx) => {
+                          const displayField = change.field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                          return (
+                            <tr key={idx}>
+                              <td><strong>#{change.editNum}</strong></td>
+                              <td><small>{change.editorName}</small></td>
+                              <td><small>{change.editedAt.toLocaleDateString()}</small></td>
+                              <td><strong>{displayField}</strong></td>
+                              <td style={{ color: '#dc3545', wordBreak: 'break-word', backgroundColor: '#fff5f5' }}><small>{formatValue(change.oldValue)}</small></td>
+                              <td style={{ color: '#28a745', wordBreak: 'break-word', backgroundColor: '#f0fff4' }}><small>{formatValue(change.newValue)}</small></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
         </div>
 
@@ -1358,105 +1472,52 @@ const EventDetails = () => {
             </div>
           </div>
 
+          {/* Queries Section - In Right Column Below Timeline */}
+          {queries.length > 0 && (
+            <div className="ed-card ed-card-query mt-3">
+              <div className="ed-collapsible-header">
+                <h5 className="ed-card-title mb-0">Queries <span className="badge bg-secondary ms-2" style={{ fontSize: "0.75rem" }}>{queries.length}</span></h5>
+                <button
+                  className="ed-toggle-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowQueries(!showQueries);
+                  }}
+                >
+                  {showQueries ? "Hide" : "Show"}
+                </button>
+              </div>
+              {showQueries && (
+                <div className="queries-section">
+                  {queries.map((query) => (
+                    <div key={query.queryId} className="query-justification-card">
+                      <div className="query-justification-header">
+                        <strong>Query from {query.askerRole}</strong>
+                        <span className={`badge ms-2 ${query.status === 'Pending' ? 'bg-warning' : 'bg-success'}`}>{query.status}</span>
+                        <span className="text-muted ms-auto" style={{ fontSize: '0.8rem' }}>{new Date(query.raisedAt).toLocaleDateString()}</span>
+                      </div>
+                      <div className="query-justification-text">
+                        {query.queryText}
+                      </div>
+                      {query.response && (
+                        <div className="query-response-section">
+                          <strong style={{ color: '#28a745' }}>✓ Response Received</strong>
+                          <p className="mt-2 mb-2">{query.response}</p>
+                          <small className="text-muted">Responded on: {new Date(query.answeredAt).toLocaleDateString()}</small>
+                        </div>
+                      )}
+                      {query.status === 'Pending' && eventDetails && eventDetails.userID?.toString() === userID?.toString() && (
+                        <button className="btn btn-sm btn-primary mt-3" onClick={() => handleQueryReply(query)}>Reply to Query</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       </div>
-
-      {/* Edit History Section */}
-      {(() => {
-        const formatValue = (value) => {
-          if (value === null || value === undefined) return 'N/A';
-          if (Array.isArray(value)) return value.join(', ');
-          if (typeof value === 'object' && !(value instanceof Date)) return JSON.stringify(value);
-          if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value))) {
-            const date = new Date(value);
-            if (!isNaN(date.getTime())) return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-          }
-          return String(value);
-        };
-
-        const getVisibleChanges = (changes) =>
-          Object.entries(changes || {}).filter(([field, change]) =>
-            field !== 'budgetBreakup' &&
-            formatValue(change.oldValue) !== formatValue(change.newValue)
-          );
-
-        const validEdits = editHistory.filter(edit =>
-          edit.changes && getVisibleChanges(edit.changes).length > 0
-        );
-
-        if (validEdits.length === 0) return null;
-        return (
-          <div className="ed-card mt-3">
-            <div className="d-flex justify-content-between align-items-center">
-              <h5 className="ed-card-title mb-0">Edit History</h5>
-              <button className="btn btn-sm btn-outline-secondary" onClick={() => setShowEditHistory(!showEditHistory)}>
-                {showEditHistory ? 'Hide' : 'Show'}
-              </button>
-            </div>
-            {showEditHistory && validEdits.map((edit, index) => (
-              <div key={index} className="edit-history-card mb-3 p-3 mt-2" style={{ border: '1px solid #ddd', borderRadius: '5px', backgroundColor: '#f8f9fa' }}>
-                <div className="edit-header">
-                  <strong>Edit #{validEdits.length - index}</strong>
-                  <span className="text-muted ms-2">by {edit.editorName} ({edit.editorEmail})</span>
-                  <span className="text-muted ms-2">on {new Date(edit.editedAt).toLocaleString()}</span>
-                </div>
-                <div className="edit-changes mt-2">
-                  <strong>Changes Made:</strong>
-                  <table className="table table-sm table-bordered mt-2">
-                    <thead className="table-light">
-                      <tr>
-                        <th style={{ width: '25%' }}>Field</th>
-                        <th style={{ width: '37.5%' }}>Old Value</th>
-                        <th style={{ width: '37.5%' }}>New Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {getVisibleChanges(edit.changes).map(([field, change]) => {
-                        const displayField = field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                        return (
-                          <tr key={field}>
-                            <td><strong>{displayField}</strong></td>
-                            <td style={{ color: '#dc3545', wordBreak: 'break-word', backgroundColor: '#fff5f5' }}>{formatValue(change.oldValue)}</td>
-                            <td style={{ color: '#28a745', wordBreak: 'break-word', backgroundColor: '#f0fff4' }}>{formatValue(change.newValue)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
-
-      {/* Queries Section */}
-      {queries.length > 0 && (
-        <div className="ed-card mt-3">
-          <h5 className="ed-card-title">Queries</h5>
-          <div className="queries-section">
-            {queries.map((query) => (
-              <div key={query.queryId} className="query-card mb-3 p-3" style={{ border: '1px solid #ddd', borderRadius: '5px' }}>
-                <div className="query-header">
-                  <strong>Query from {query.askerRole}:</strong>
-                  <span className="text-muted ms-2">{new Date(query.raisedAt).toLocaleDateString()}</span>
-                  <span className={`badge ms-2 ${query.status === 'Pending' ? 'bg-warning' : 'bg-success'}`}>{query.status}</span>
-                </div>
-                <div className="query-text mt-2"><p><strong>Query:</strong> {query.queryText}</p></div>
-                {query.response && (
-                  <div className="query-response mt-2">
-                    <p><strong>Response:</strong> {query.response}</p>
-                    <small className="text-muted">Responded on: {new Date(query.answeredAt).toLocaleDateString()}</small>
-                  </div>
-                )}
-                {query.status === 'Pending' && eventDetails && eventDetails.userID?.toString() === userID?.toString() && (
-                  <button className="btn btn-sm btn-primary mt-2" onClick={() => handleQueryReply(query)}>Reply to Query</button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Action Buttons */}
       <div className="ed-actions">
