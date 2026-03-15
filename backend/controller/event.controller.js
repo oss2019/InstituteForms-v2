@@ -246,6 +246,17 @@ export const applyForEventApproval = async (req, res) => {
     // Save the new approval
     const savedApproval = await newEventApproval.save();
 
+    // Record the initial budget in budget history
+    savedApproval.budgetHistory = [{
+      editedBy: "club-secretary",
+      editedAt: new Date(),
+      justification: "Initial budget proposed",
+      budgetBreakup: budgetBreakup,
+      totalBudget: estimatedBudget
+    }];
+
+    await savedApproval.save();
+
     // Update the user's `eventApproval` field with the new approval ID
     user.eventApproval = savedApproval._id;
     await user.save();
@@ -1770,6 +1781,65 @@ Event Approval System`;
   }
 };
 
+export const revertBudgetToOriginal = async (req, res) => {
+  const { eventId, role } = req.body;
+
+  try {
+    // Validate input
+    if (!eventId || !role) {
+      return res.status(400).json({ message: "Event ID and role are required." });
+    }
+
+    // Find the event
+    const event = await EventApproval.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // Check if user has permission to revert (only those who can edit budgets)
+    if (!["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(role)) {
+      return res.status(403).json({ message: "You don't have permission to revert the budget." });
+    }
+
+    // Check if there's a budget to revert (i.e., proposed budget exists)
+    if (!event.proposedBudgetBreakup || event.proposedBudgetBreakup.length === 0) {
+      return res.status(400).json({ message: "No budget changes to revert." });
+    }
+
+    // Store the original budget info before reverting
+    const revertedData = {
+      proposedBudgetBreakup: event.proposedBudgetBreakup,
+      proposedEstimatedBudget: event.proposedEstimatedBudget
+    };
+
+    // Clear the proposed budget fields
+    event.proposedBudgetBreakup = undefined;
+    event.proposedEstimatedBudget = undefined;
+    event.budgetEditedBy = undefined;
+    event.budgetEditedAt = undefined;
+
+    // Clear ARSW budget revisions
+    event.arsw_budget_revisions = undefined;
+
+    // Reset ARSW approval status back to Pending if it was "Edited"
+    const arsw_approval = event.approvals.find(app => app.role === "ARSW");
+    if (arsw_approval && arsw_approval.status === "Edited") {
+      arsw_approval.status = "Pending";
+    }
+
+    await event.save();
+
+    res.status(200).json({
+      message: "Budget reverted to original successfully.",
+      revertedData,
+      event
+    });
+  } catch (error) {
+    console.error("Error reverting budget:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
 export const respondToBudgetRevision = async (req, res) => {
   const { eventId, revisionNumber, status, response } = req.body;
 
@@ -1811,15 +1881,37 @@ export const respondToBudgetRevision = async (req, res) => {
     const arsw_approval = event.approvals.find(app => app.role === "ARSW");
     if (arsw_approval) {
       if (status === "Approved") {
-        // Club secretary approved - ARSW can now approve
-        arsw_approval.status = "Pending";
-        arsw_approval.comment = `Club secretary approved the budget revision #${revisionNumber}.`;
+        // Club secretary approved the ARSW budget revision
+        // 1. Auto-approve ARSW
+        arsw_approval.status = "Approved";
+        arsw_approval.comment = `Budget revision #${revisionNumber} approved by club secretary. (Auto-approved)`;
+        arsw_approval.timestamp = new Date();
+        
+        // 2. Apply the proposed budget as the actual budget
+        event.budgetBreakup = revision.proposedBudgetBreakup;
+        event.estimatedBudget = revision.proposedEstimatedBudget;
+        event.budgetEditedBy = "ARSW";
+        event.budgetEditedAt = revision.editedAt;
+        
+        // 3. Record this approval in budget history as an ARSW revision approval
+        if (!event.budgetHistory) event.budgetHistory = [];
+        event.budgetHistory.push({
+          editedBy: "ARSW",
+          editedAt: revision.editedAt,
+          justification: `Budget revision #${revisionNumber} approved and applied by club secretary`,
+          budgetBreakup: revision.proposedBudgetBreakup,
+          totalBudget: revision.proposedEstimatedBudget
+        });
+        
+        // 4. Clear proposed budget fields since they're now applied
+        event.proposedBudgetBreakup = undefined;
+        event.proposedEstimatedBudget = undefined;
       } else if (status === "QueryRaised") {
         // Club secretary raised a query - ARSW needs to edit again
         arsw_approval.status = "Query";
         arsw_approval.comment = `Club secretary raised query on budget revision #${revisionNumber}: ${response || "No query text provided"}`;
+        arsw_approval.timestamp = new Date();
       }
-      arsw_approval.timestamp = new Date();
     }
 
     await event.save();
@@ -1840,7 +1932,7 @@ Event Details:
 - Reference Number: ${event.referenceNumber}
 - Revised Budget: ₹${revision.proposedEstimatedBudget}
 
-You can now proceed with approving this event in the system.
+Your approval has been auto-completed. The event is now moving to the next level of approval in the hierarchy.
 
 Best regards,
 Event Approval System`;
