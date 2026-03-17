@@ -8,39 +8,89 @@ const blobToDataURL = (blob) =>
     r.readAsDataURL(blob);
   });
 
+/**
+ * Recursively sanitize all string values in an object/array
+ * Removes &nbsp; and other HTML entities, replacing with regular spaces
+ */
+const sanitizeFormData = (data) => {
+  if (data === null || data === undefined) return data;
+
+  if (typeof data === "string") {
+    // Replace &nbsp; with space, and decode other HTML entities
+    return data
+      .replace(/&nbsp;/g, " ")
+      .replace(/&#160;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+  }
+
+  if (Array.isArray(data)) {
+    return data.map((item) => sanitizeFormData(item));
+  }
+
+  if (typeof data === "object") {
+    const sanitized = {};
+    for (const [key, value] of Object.entries(data)) {
+      sanitized[key] = sanitizeFormData(value);
+    }
+    return sanitized;
+  }
+
+  return data;
+};
+
 export const generatePDF = async (formData = {}, headerImageURL = "") => {
   try {
-    formData.requirements          = Array.isArray(formData.requirements)          ? formData.requirements          : [];
-    formData.budgetBreakup         = Array.isArray(formData.budgetBreakup)         ? formData.budgetBreakup         : [];
-    formData.proposedBudgetBreakup = Array.isArray(formData.proposedBudgetBreakup) ? formData.proposedBudgetBreakup : [];
+    // Sanitize all form data to remove &nbsp; and other HTML entities
+    formData = sanitizeFormData(formData);
 
-    let headerDataUrl  = null;
+    formData.requirements = Array.isArray(formData.requirements)
+      ? formData.requirements
+      : [];
+    formData.budgetBreakup = Array.isArray(formData.budgetBreakup)
+      ? formData.budgetBreakup
+      : [];
+    formData.proposedBudgetBreakup = Array.isArray(
+      formData.proposedBudgetBreakup,
+    )
+      ? formData.proposedBudgetBreakup
+      : [];
+
+    let headerDataUrl = null;
     let headerHeightMM = 0;
 
     if (headerImageURL) {
       try {
-        const res  = await fetch(headerImageURL, { mode: "cors" });
+        const res = await fetch(headerImageURL, { mode: "cors" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         headerDataUrl = await blobToDataURL(blob);
         await new Promise((resolve) => {
-          const img  = new Image();
-          img.onload = () => { headerHeightMM = 210 * (img.naturalHeight / img.naturalWidth); resolve(); };
+          const img = new Image();
+          img.onload = () => {
+            headerHeightMM = 210 * (img.naturalHeight / img.naturalWidth);
+            resolve();
+          };
           img.onerror = resolve;
           img.src = headerDataUrl;
         });
-      } catch (err) { console.warn("Header image fetch failed:", err); }
+      } catch (err) {
+        console.warn("Header image fetch failed:", err);
+      }
     }
 
     const TOP_MM = headerHeightMM > 0 ? headerHeightMM + 4 : 14;
 
     const opt = {
-      margin      : [TOP_MM, 14, 14, 14],
-      filename    : "gymkhana_event_form.pdf",
-      image       : { type: "jpeg", quality: 0.98 },
-      html2canvas : { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF       : { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak   : { mode: ["css", "legacy"] },
+      margin: [TOP_MM, 14, 14, 14],
+      filename: "gymkhana_event_form.pdf",
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
     };
 
     const pdfInstance = await html2pdf()
@@ -50,17 +100,26 @@ export const generatePDF = async (formData = {}, headerImageURL = "") => {
       .get("pdf");
 
     const totalPages = pdfInstance.internal.getNumberOfPages();
-    const pageW      = pdfInstance.internal.pageSize.getWidth();
-    const pageH      = pdfInstance.internal.pageSize.getHeight();
+    const pageW = pdfInstance.internal.pageSize.getWidth();
+    const pageH = pdfInstance.internal.pageSize.getHeight();
 
     for (let i = 1; i <= totalPages; i++) {
       pdfInstance.setPage(i);
       if (headerDataUrl && headerHeightMM > 0) {
-        pdfInstance.addImage(headerDataUrl, "JPEG", 0, 0, pageW, headerHeightMM);
+        pdfInstance.addImage(
+          headerDataUrl,
+          "JPEG",
+          0,
+          0,
+          pageW,
+          headerHeightMM,
+        );
       }
       pdfInstance.setFontSize(9);
       pdfInstance.setFont("helvetica", "bold");
-      pdfInstance.text(`${i} | Page`, pageW - 14, pageH - 5, { align: "right" });
+      pdfInstance.text(`${i} | Page`, pageW - 14, pageH - 5, {
+        align: "right",
+      });
     }
 
     const pdfBlob = pdfInstance.output("blob");
@@ -74,43 +133,116 @@ export const generatePDF = async (formData = {}, headerImageURL = "") => {
 };
 
 const createHTMLContent = (formData) => {
-
-  const SOURCES    = ["Sports Budget", "Cultural Budget", "Technical Budget", "Others"];
-  const FACILITIES = ["Security", "Transport", "IPS Related", "Housekeeping", "Refreshment", "Ambulance", "Networking"];
+  const SOURCES = [
+    "Sports Budget",
+    "Cultural Budget",
+    "Technical Budget",
+    "Others",
+  ];
+  const FACILITIES = [
+    "Security",
+    "Transport",
+    "IPS Related",
+    "Housekeeping",
+    "Refreshment",
+    "Ambulance",
+    "Networking",
+  ];
 
   const INSTRS = [
-    { b: true,  t: "For reserving classrooms in CLT please contact the Academics Office with approval form." },
-    { b: false, t: "For any Audio/Visual assistance please contact the Academic Office/Classroom maintenance staff." },
-    { b: false, t: "For reserving rooms for external participants in Hostel blocks please contact SW Office." },
-    { b: false, t: "For Network Issues/requirements please contact the CCS Office with this prior approval." },
-    { b: false, t: "Event organizer team is requested to provide the Visitors ID to the all-external participants." },
-    { b: false, t: "All the events to end by 11PM as notified in Hostels Rules and Regulations." },
-    { b: true,  t: "All the Accounts need to settle within 2 weeks of the event conclusion, which will be responsibility of concerned GS, Treasurer and President." },
-    { b: false, t: "A report is to be submitted to SW Office by the organizer after the conclusion of the event within 2 weeks." },
-    { b: false, t: "If the external experts/dignitaries are invited, please mention the details." },
-    { b: true,  t: "Please ensure all invoices submitted to the SW office are GST-compliant. Invoices must include GSTIN, invoice number and date, supplier and recipient details, description of goods/services, tax breakdown, total amount (in figures and words), place of supply, seal and signature, and vendor account details." },
-    { b: true,  t: "To avoid delays, ensure invoices are accurate and meet all GST requirements. Additionally, anyone receiving advances must submit a settlement bill with any unspent balance within 15 days of withdrawal." },
+    {
+      b: true,
+      t: "For reserving classrooms in CLT please contact the Academics Office with approval form.",
+    },
+    {
+      b: false,
+      t: "For any Audio/Visual assistance please contact the Academic Office/Classroom maintenance staff.",
+    },
+    {
+      b: false,
+      t: "For reserving rooms for external participants in Hostel blocks please contact SW Office.",
+    },
+    {
+      b: false,
+      t: "For Network Issues/requirements please contact the CCS Office with this prior approval.",
+    },
+    {
+      b: false,
+      t: "Event organizer team is requested to provide the Visitors ID to the all-external participants.",
+    },
+    {
+      b: false,
+      t: "All the events to end by 11PM as notified in Hostels Rules and Regulations.",
+    },
+    {
+      b: true,
+      t: "All the Accounts need to settle within 2 weeks of the event conclusion, which will be responsibility of concerned GS, Treasurer and President.",
+    },
+    {
+      b: false,
+      t: "A report is to be submitted to SW Office by the organizer after the conclusion of the event within 2 weeks.",
+    },
+    {
+      b: false,
+      t: "If the external experts/dignitaries are invited, please mention the details.",
+    },
+    {
+      b: true,
+      t: "Please ensure all invoices submitted to the SW office are GST-compliant. Invoices must include GSTIN, invoice number and date, supplier and recipient details, description of goods/services, tax breakdown, total amount (in figures and words), place of supply, seal and signature, and vendor account details.",
+    },
+    {
+      b: true,
+      t: "To avoid delays, ensure invoices are accurate and meet all GST requirements. Additionally, anyone receiving advances must submit a settlement bill with any unspent balance within 15 days of withdrawal.",
+    },
   ];
 
   const NOTES = [
-    { t: "Ensure all relevant permissions from security, transport, and other logistics are coordinated well in advance." },
-    { t: "If media coverage is expected, inform the Public Relations/Media Cell of appropriate details through the SW office." },
-    { t: "Obtain all necessary approval if any cash awards, gifts, or mementos are to be distributed." },
-    { t: "Submit soft copies of event posters/flyers for brand review before circulation to SW office." },
-    { html: `If the event involves competitions, clearly outline the rules and evaluation criteria in advance. <strong>The result sheet must also be submitted to the office.</strong> Additionally, students must ensure <strong>that all bills/invoices are accurate and submit them along with their bank details for reimbursement processing.</strong>` },
-    { t: "Coordinate with the Institute Wellness Center if an ambulance or medical support is required." },
-    { t: "Maintain proper documentation of expenses, including bills, receipts, and vendor invoices." },
-    { t: "Clearly demarcate and manage entry/exit points if external attendees are expected." },
-    { t: "If the event spans multiple days, ensure a daily schedule is submitted for review." },
-    { t: "Use sustainable practices where possible (e.g., avoid plastic, use digital communication)." },
-    { t: "Any loss or damage to institute property occurring during the event will be the sole responsibility of the General Secretary and the Event Organizer." },
-    { html: `<strong>For stage play activities such as dramas, skits, or scripts, prior approval must be obtained from the concerned authorities</strong>, including club representatives and the Associate Dean. All requests should be submitted well in advance for approval by the competent authority.` },
+    {
+      t: "Ensure all relevant permissions from security, transport, and other logistics are coordinated well in advance.",
+    },
+    {
+      t: "If media coverage is expected, inform the Public Relations/Media Cell of appropriate details through the SW office.",
+    },
+    {
+      t: "Obtain all necessary approval if any cash awards, gifts, or mementos are to be distributed.",
+    },
+    {
+      t: "Submit soft copies of event posters/flyers for brand review before circulation to SW office.",
+    },
+    {
+      html: `If the event involves competitions, clearly outline the rules and evaluation criteria in advance. <strong>The result sheet must also be submitted to the office.</strong> Additionally, students must ensure <strong>that all bills/invoices are accurate and submit them along with their bank details for reimbursement processing.</strong>`,
+    },
+    {
+      t: "Coordinate with the Institute Wellness Center if an ambulance or medical support is required.",
+    },
+    {
+      t: "Maintain proper documentation of expenses, including bills, receipts, and vendor invoices.",
+    },
+    {
+      t: "Clearly demarcate and manage entry/exit points if external attendees are expected.",
+    },
+    {
+      t: "If the event spans multiple days, ensure a daily schedule is submitted for review.",
+    },
+    {
+      t: "Use sustainable practices where possible (e.g., avoid plastic, use digital communication).",
+    },
+    {
+      t: "Any loss or damage to institute property occurring during the event will be the sole responsibility of the General Secretary and the Event Organizer.",
+    },
+    {
+      html: `<strong>For stage play activities such as dramas, skits, or scripts, prior approval must be obtained from the concerned authorities</strong>, including club representatives and the Associate Dean. All requests should be submitted well in advance for approval by the competent authority.`,
+    },
   ];
 
   const srcSelected = (src) => {
     if (!formData.sourceOfBudget) return false;
     const first = src.split(" ")[0];
-    return formData.sourceOfBudget === src || formData.sourceOfBudget === first || formData.sourceOfBudget.startsWith(first);
+    return (
+      formData.sourceOfBudget === src ||
+      formData.sourceOfBudget === first ||
+      formData.sourceOfBudget.startsWith(first)
+    );
   };
 
   const checkbox = (checked, label) => `
@@ -120,8 +252,9 @@ const createHTMLContent = (formData) => {
     </span>`;
 
   const signed = (role) =>
-    formData.approvals?.find(a => a.role === role)?.status === "Approved"
-      ? `<div class="dsigned">Digitally Signed</div>` : "";
+    formData.approvals?.find((a) => a.role === role)?.status === "Approved"
+      ? `<div class="dsigned">Digitally Signed</div>`
+      : "";
 
   const bRows = formData.budgetBreakup;
 
@@ -129,6 +262,8 @@ const createHTMLContent = (formData) => {
 
   // ── Description: Quill outputs HTML; render it directly, no blank lines
   const rawDesc = (formData.eventDescription || "")
+    .replace(/&nbsp;/g, " ") // Replace &nbsp; with regular space
+    .replace(/&#160;/g, " ") // Replace numeric entity with space
     .replace(/<script[^>]*>.*?<\/script>/gi, "")
     .replace(/<style[^>]*>.*?<\/style>/gi, "");
   const hasDesc = rawDesc.replace(/<[^>]*>/g, "").trim().length > 0;
@@ -140,21 +275,36 @@ const createHTMLContent = (formData) => {
 
   // ── Requirement description table rows
   // Include normal requirements that have descriptions
-  const reqFilled = formData.requirements.filter(r => r.name && r.description?.trim());
+  const reqFilled = formData.requirements.filter(
+    (r) => r.name && r.description?.trim(),
+  );
 
   // Also append additional amenities if they exist
-  if (Array.isArray(formData.additionalAmenities) && formData.additionalAmenities.length > 0) {
-    const amenities = formData.additionalAmenities.filter(a => a.amenityName?.trim() && a.description?.trim());
-    reqFilled.push(...amenities.map(a => ({ name: a.amenityName, description: a.description })));
+  if (
+    Array.isArray(formData.additionalAmenities) &&
+    formData.additionalAmenities.length > 0
+  ) {
+    const amenities = formData.additionalAmenities.filter(
+      (a) => a.amenityName?.trim() && a.description?.trim(),
+    );
+    reqFilled.push(
+      ...amenities.map((a) => ({
+        name: a.amenityName,
+        description: a.description,
+      })),
+    );
   }
 
   const reqRows = Math.max(reqFilled.length, 10);
 
   // ── Additional amenities cell for facilities table (page 1): "Yes: count" or "No"
-  const additionalAmenitiesCount = Array.isArray(formData.additionalAmenities) 
-    ? formData.additionalAmenities.filter(a => a.amenityName?.trim()).length 
+  const additionalAmenitiesCount = Array.isArray(formData.additionalAmenities)
+    ? formData.additionalAmenities.filter((a) => a.amenityName?.trim()).length
     : 0;
-  const amenityCell = additionalAmenitiesCount > 0 ? `Yes: ${additionalAmenitiesCount} Amenity(ies)` : "No";
+  const amenityCell =
+    additionalAmenitiesCount > 0
+      ? `Yes: ${additionalAmenitiesCount} Amenity(ies)`
+      : "No";
 
   return `<!DOCTYPE html>
 <html lang="hi">
@@ -183,8 +333,7 @@ body {
 .pb { page-break-before: always; break-before: page; height: 0; display: block; }
 
 /* ── Keep block together — never split across pages ─────────────── */
-/* Used for the signatures block on page 2 so all 4 sig labels +      */
-/* both sig rows + the "Page 1&2" note always land on the same page.   */
+/* Signatures + declaration + participants always stay together */
 .keep {
   page-break-inside : avoid;
   break-inside      : avoid;
@@ -200,15 +349,15 @@ body {
   font-size       : 11pt;
   font-weight     : 700;
   text-align      : center;
-  margin          : 10px 0 10px;
+  margin          : 8px 0 8px;
 }
 
 /* ── Section headings ─────────────────────────────────────────────── */
-.sh  { font-size: 14pt; font-weight: 700; margin: 10px 0 5px; }
-.ssh { font-size: 11pt; font-weight: 700; margin: 8px 0 4px; }
+.sh  { font-size: 14pt; font-weight: 700; margin: 8px 0 4px; }
+.ssh { font-size: 11pt; font-weight: 700; margin: 6px 0 3px; }
 
 /* ── Body field ───────────────────────────────────────────────────── */
-.f { font-size: 11pt; margin: 3px 0; }
+.f { font-size: 11pt; margin: 2px 0; }
 
 /* ── Underline span ───────────────────────────────────────────────── */
 .ul { display: inline-block; border-bottom: 1px solid #000; min-width: 100px; vertical-align: bottom; }
@@ -222,75 +371,87 @@ body {
 .cbon::after { content: '✓'; }
 
 /* ── Tables ───────────────────────────────────────────────────────── */
-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+table { width: 100%; border-collapse: collapse; margin: 4px 0; page-break-inside: auto; }
 .tbl-b th, .tbl-b td { border: 1px solid #000; padding: 4px 6px; font-size: 11pt; }
 .tbl-b th { background: #f0f0f0; font-weight: 700; }
+/* Prevent budget table rows from breaking across pages */
+.tbl-b tbody tr { page-break-inside: avoid; break-inside: avoid; }
+
 .tbl-f th, .tbl-f td { border: 1px solid #000; padding: 3px 6px; font-size: 10pt; }
 .tbl-f th { background: #f0f0f0; font-weight: 700; }
+.tbl-f tbody tr { page-break-inside: avoid; break-inside: avoid; }
+
 .tbl-r th, .tbl-r td { border: 1px solid #000; padding: 4px 6px; font-size: 11pt; }
 .tbl-r th { background: #f0f0f0; font-weight: 700; }
+.tbl-r tbody tr { page-break-inside: avoid; break-inside: avoid; }
+
 .tr { text-align: right; } .tc { text-align: center; } .tot { font-weight: 700; }
 
 /* ── Description ──────────────────────────────────────────────────── */
 /* Quill HTML renders as-is; ensure it wraps and is never clipped     */
 .desc-filled {
   font-size   : 11pt;
-  margin      : 4px 0 6px;
+  margin      : 4px 0 10px;
   text-align  : justify;
   line-height : 1.55;
-  /* no max-height / overflow — let it grow naturally */
+  page-break-inside : auto;
+  break-inside : auto;
+  overflow    : visible;
+  /* Allow natural flow across pages */
 }
 /* Quill wraps content in <p> tags — give them proper spacing */
-.desc-filled p   { margin: 2px 0; }
-.desc-filled ul, .desc-filled ol { padding-left: 18px; margin: 2px 0; }
+.desc-filled p   { margin: 3px 0; page-break-inside: avoid; }
+.desc-filled ul, .desc-filled ol { padding-left: 18px; margin: 4px 0; page-break-inside: avoid; }
 
 /* desc-blank / bline removed — blank lines are no longer shown */
 
 /* ── Signatures ───────────────────────────────────────────────────── */
 /* Blank writing space above row-1 labels */
-.sig-space { min-height: 52mm; }
+.sig-space { min-height: 40mm; page-break-inside: avoid; }
 
 .sig-row {
   display         : flex;
   justify-content : space-around;
   align-items     : flex-end;
   gap             : 8px;
+  page-break-inside : avoid;
 }
-.sig-box  { flex: 1; text-align: center; font-size: 9pt; min-width: 55px; }
+.sig-box  { flex: 1; text-align: center; font-size: 9pt; min-width: 55px; page-break-inside: avoid; }
 .sig-line { border-top: 1px solid #000; padding-top: 3px; margin-top: 18px; }
 .dsigned  { font-size: 7.5pt; color: #555; font-style: italic; margin-bottom: 2px; }
 
 /* Gap between sig rows 1 and 2 */
-.sig-gap { min-height: 20mm; }
+.sig-gap { min-height: 15mm; page-break-inside: avoid; }
 
 /* ── Page 1&2 note ────────────────────────────────────────────────── */
-.pg12 { font-size: 11pt; font-weight: 700; text-align: center; margin-top: 14px; }
+.pg12 { font-size: 11pt; font-weight: 700; text-align: center; margin-top: 10px; page-break-inside: avoid; }
 
 /* ── Office-use section ───────────────────────────────────────────── */
-.ofc-title { font-size: 14pt; font-weight: 700; text-align: center; margin: 10px 0 6px; }
-.dean-space { min-height: 90mm; }
+.ofc-title { font-size: 14pt; font-weight: 700; text-align: center; margin: 8px 0 5px; }
+.dean-space { min-height: 70mm; page-break-inside: avoid; }
 .dean-lbl   { font-size: 11pt; font-weight: 700; text-align: center; margin: 0; }
 
 /* ── Stars / dividers ─────────────────────────────────────────────── */
-.stars { font-size: 8pt; text-align: center; margin: 8px 0 4px; letter-spacing: 0.5px; }
-hr { border: none; border-top: 1px solid #000; margin: 8px 0; }
+.stars { font-size: 8pt; text-align: center; margin: 6px 0 3px; letter-spacing: 0.5px; page-break-inside: avoid; }
+hr { border: none; border-top: 1px solid #000; margin: 6px 0; }
 
 /* ── Instructions ─────────────────────────────────────────────────── */
-.instr-ttl  { font-size: 11pt; font-weight: 700; text-align: center; margin: 5px 0 7px; }
-.instr-list { list-style: none; padding: 0; margin: 4px 0; }
-.instr-list li { font-size: 11pt; text-align: justify; margin: 4px 0; line-height: 1.45; }
+.instr-ttl  { font-size: 11pt; font-weight: 700; text-align: center; margin: 4px 0 6px; }
+.instr-list { list-style: none; padding: 0; margin: 2px 0; page-break-inside: auto; }
+.instr-list li { font-size: 11pt; text-align: justify; margin: 3px 0; line-height: 1.45; page-break-inside: avoid; }
 
 /* ── Additional notes ─────────────────────────────────────────────── */
-.notes-hi   { font-family: var(--mg); font-size: 14pt; font-weight: 700; text-align: center; display: block; margin-top: 12px; }
-.notes-en   { font-size: 11pt; font-weight: 700; text-align: center; display: block; margin-bottom: 6px; }
-.notes-list { list-style: none; padding: 0; margin: 4px 0; }
-.notes-list li { font-size: 12pt; text-align: justify; margin: 4px 0; line-height: 1.45; }
+.notes-hi   { font-family: var(--mg); font-size: 14pt; font-weight: 700; text-align: center; display: block; margin-top: 10px; }
+.notes-en   { font-size: 11pt; font-weight: 700; text-align: center; display: block; margin-bottom: 5px; }
+.notes-list { list-style: none; padding: 0; margin: 2px 0; page-break-inside: auto; }
+.notes-list li { font-size: 12pt; text-align: justify; margin: 3px 0; line-height: 1.45; page-break-inside: avoid; }
 
 /* ── Requirement description table ───────────────────────────────── */
-.req-ttl { font-family: var(--tn); font-size: 14pt; font-weight: 700; text-align: center; margin: 10px 0 10px; }
+.req-ttl { font-family: var(--tn); font-size: 14pt; font-weight: 700; text-align: center; margin: 8px 0 8px; }
+.req-table-wrapper { page-break-inside: auto; break-inside: auto; }
 
 /* ── Note block ───────────────────────────────────────────────────── */
-.note { font-size: 10pt; margin: 3px 0 5px; }
+.note { font-size: 10pt; margin: 2px 0 4px; page-break-inside: avoid; }
 
 </style>
 </head>
@@ -307,72 +468,76 @@ hr { border: none; border-top: 1px solid #000; margin: 8px 0; }
 <div class="sh"><span class="hi">आयोजन विवरण</span>/Event Details</div>
 
 <div class="f">
-  1. Event Name:&nbsp;<span class="ul" style="min-width:180px;">${formData.eventName || ''}</span>
-  &nbsp;&nbsp;(Is it part of Gymkhana Calendar:&nbsp;${formData.partOfGymkhanaCalendar || 'YES / NO'})
+  1. Event Name: <span class="ul" style="min-width:180px;">${formData.eventName || ""}</span>
+  (Is it part of Gymkhana Calendar: ${formData.partOfGymkhanaCalendar || "YES / NO"})
+
+<div class="f">
+  2. Club Name: <span class="ul" style="min-width:220px;">${formData.clubName || ""}</span>
 </div>
 
 <div class="f">
-  2. Club Name:&nbsp;<span class="ul" style="min-width:220px;">${formData.clubName || ''}</span>
-</div>
-
-<div class="f">
-  3. Date and Timings <strong>(in days)</strong> of the Event Proposed:&nbsp;
+  3. Date and Timings <strong>(in days)</strong> of the Event Proposed: 
   <span class="ul">
-    ${new Date(formData.startDate).toLocaleString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
+    ${new Date(formData.startDate).toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
     })}
   </span>
-  &nbsp;to&nbsp;
+  to 
   <span class="ul">
-    ${new Date(formData.endDate).toLocaleString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
+    ${new Date(formData.endDate).toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
     })}
   </span>
 </div>
 
 <div class="f" style="margin-left:16px;">
-  Venue(s):&nbsp;<span class="ul" style="min-width:160px;">${formData.eventVenue || ''}</span>
-  &nbsp;<em>(Mention all venues if multiple)</em>
+  Venue(s): <span class="ul" style="min-width:160px;">${formData.eventVenue || ""}</span>
+  <em>(Mention all venues if multiple)</em>
 </div>
 
 <div class="f" style="display:flex; align-items:baseline; flex-wrap:wrap; gap:3px;">
   4. Source of Budget/Fund:&nbsp;
   <div class="cb-row">
-    ${SOURCES.map(src => {
+    ${SOURCES.map((src) => {
       const isOth = src === "Others";
-      const chk   = srcSelected(src);
-      const label = isOth && chk ? `Others: ${formData.othersSourceOfBudget || ''}` : src;
+      const chk = srcSelected(src);
+      const label =
+        isOth && chk ? `Others: ${formData.othersSourceOfBudget || ""}` : src;
       return checkbox(chk, label);
     }).join("")}
   </div>
 </div>
 
-${formData.fundType ? `<div class="f" style="display:flex; align-items:baseline; flex-wrap:wrap; gap:3px;">
+${
+  formData.fundType
+    ? `<div class="f" style="display:flex; align-items:baseline; flex-wrap:wrap; gap:3px;">
   &nbsp;&nbsp;Fund Type:&nbsp;
   <div class="cb-row">
     ${checkbox(formData.fundType === "SAF", "SAF")}
     ${checkbox(formData.fundType === "HEF", "HEF")}
   </div>
-</div>` : ''}
+</div>`
+    : ""
+}
 
 <div class="f">
-  5. Estimated Budget: ₹&nbsp;<span class="ul" style="min-width:140px;">${totalBudget}&nbsp;&nbsp;(${formData.budgetAnnexureNumber})</span>
-  &nbsp;(Mention Annexure No. as per the approved budget. Please provide a detailed breakup below.)
+  5. Estimated Budget: ₹  <span class="ul" style="min-width:140px;">${totalBudget}  (${formData.budgetAnnexureNumber})</span>
+  (Mention Annexure No. as per the approved budget. Please provide a detailed breakup below.)
 </div>
 
-<div class="f" style="margin-top:5px;">Budget Breakup:&nbsp;<em>(As per the Budget Copy)</em></div>
+<div class="f" style="margin-top:3px; margin-bottom:2px;">Budget Breakup: <em>(As per the Budget Copy)</em></div>
 
-<table class="tbl-b">
+<table class="tbl-b" style="margin-top:2px; margin-bottom:6px;">
   <thead>
     <tr>
       <th class="tc" style="width:10%;">Sl. No</th>
@@ -381,43 +546,47 @@ ${formData.fundType ? `<div class="f" style="display:flex; align-items:baseline;
     </tr>
   </thead>
   <tbody>
-    ${bRows.map((row, i) => `
+    ${bRows
+      .map(
+        (row, i) => `
     <tr>
       <td class="tc">${i + 1}</td>
-      <td>${row.expenseHead || ''}</td>
+      <td>${row.expenseHead || ""}</td>
       <td class="tr">${Number(row.estimatedAmount || 0).toFixed(2)}</td>
-    </tr>`).join("")}
+    </tr>`,
+      )
+      .join("")}
     <tr class="tot">
       <td colspan="2" class="tr">TOTAL(₹)</td>
-      <td class="tr">₹&nbsp;${totalBudget}</td>
+      <td class="tr">₹  ${totalBudget}</td>
     </tr>
   </tbody>
 </table>
 
-<div class="ssh" style="margin-top:6px;"><span class="hi">आयोजक विवरण</span>/Organizer Details:</div>
+<div class="ssh" style="margin-top:4px; margin-bottom:3px;"><span class="hi">आयोजक विवरण</span>/Organizer Details:</div>
 
-<div class="f">1) Name of the Organizer and Roll no:&nbsp;
-  <span class="ul" style="min-width:350px;">${formData.nameOfTheOrganizer || ''}  ,&nbsp;&nbsp;&nbsp;&nbsp;  ${formData.organizerRollNumber || ''}</span>
+<div class="f">1) Name of the Organizer and Roll no: 
+  <span class="ul" style="min-width:350px;">${formData.nameOfTheOrganizer || ""}  ,    ${formData.organizerRollNumber || ""}</span>
 </div>
-<div class="f">2) Designation:&nbsp;
-  <span class="ul" style="min-width:260px;">${formData.designation || ''}</span>
+<div class="f">2) Designation: 
+  <span class="ul" style="min-width:260px;">${formData.designation || ""}</span>
 </div>
-<div class="f">3) Email:&nbsp;
-  <span class="ul" style="min-width:270px;">${formData.email || ''}</span>
+<div class="f">3) Email: 
+  <span class="ul" style="min-width:270px;">${formData.email || ""}</span>
 </div>
-<div class="f">4) Phone No.:&nbsp;
-  <span class="ul" style="min-width:220px;">${formData.phoneNumber || ''}</span>
+<div class="f">4) Phone No.: 
+  <span class="ul" style="min-width:220px;">${formData.phoneNumber || ""}</span>
 </div>
 
-<div class="ssh" style="margin-top:6px;"><span class="hi">आवश्यकताएं</span>/Requirements:</div>
+<div class="ssh" style="margin-top:4px; margin-bottom:2px;"><span class="hi">आवश्यकताएं</span>/Requirements:</div>
 
-<div class="note">
+<div class="note" style="margin-bottom:2px;">
   <strong>Note:</strong><br>
   If <em>"Yes"</em> is selected for any facility, please provide a brief description of the
   requirement on a <strong>separate sheet.</strong>
 </div>
 
-<table class="tbl-f">
+<table class="tbl-f" style="margin-top:2px; margin-bottom:6px;">
   <thead>
     <tr>
       <th style="width:55%;">Facility</th>
@@ -425,8 +594,10 @@ ${formData.fundType ? `<div class="f" style="display:flex; align-items:baseline;
     </tr>
   </thead>
   <tbody>
-    ${FACILITIES.map(fac => {
-      const yes = formData.requirements.some(r => typeof r === "string" ? r === fac : r.name === fac);
+    ${FACILITIES.map((fac) => {
+      const yes = formData.requirements.some((r) =>
+        typeof r === "string" ? r === fac : r.name === fac,
+      );
       /* Default is "No" — only show "Yes" when the facility is ticked */
       return `<tr><td>${fac}</td><td>${yes ? "Yes" : "No"}</td></tr>`;
     }).join("")}
@@ -441,12 +612,12 @@ ${formData.fundType ? `<div class="f" style="display:flex; align-items:baseline;
 
 <!-- ════════════════════════════════════════════════════════════════
      PAGE 2  –  Brief Description → [keep-together block]
-     FORCED PAGE BREAK before this section
+     FORCE PAGE BREAK to ensure description always starts on page 2
 ════════════════════════════════════════════════════════════════ -->
 <div class="pb"></div>
 
-<!-- Brief description: flows freely — can push keep-together to next page -->
-<div class="f"><strong>Brief Description of the Event:</strong></div>
+<!-- Brief description: flows freely across pages naturally -->
+<div class="f" style="margin-top:4px; margin-bottom:2px;"><strong>Brief Description of the Event:</strong></div>
 ${descArea}
 
 <!--
@@ -461,24 +632,24 @@ ${descArea}
 <div class="keep">
 
   <!-- Expected participants -->
-  <div class="f" style="text-align:justify; margin-top:6px;">
-    <strong>Expected Number of Participants:&nbsp;&nbsp;External:&nbsp;</strong>
+  <div class="f" style="text-align:justify; margin-top:4px;">
+    <strong>Expected Number of Participants:  External: </strong>
     <span class="ul" style="min-width:90px;">${formData.externalParticipants || 0}</span>
-    &nbsp;&nbsp;&nbsp;<strong>Internal:&nbsp;</strong>
+    <strong>Internal: </strong>
     <span class="ul" style="min-width:80px;">${formData.internalParticipants || 0}</span>
   </div>
 
   <!-- Declaration -->
-  <div class="f" style="text-align:justify; margin-top:8px;">
-    I,&nbsp;<span class="ul" style="min-width:170px;">${formData.nameOfTheOrganizer || ''}</span>,
-    &nbsp;(Designation:&nbsp;<span class="ul" style="min-width:130px;">${formData.designation || ''}</span>),
-    &nbsp;Will take responsibility to organize and conduct the event to the best of my ability and as per the institute rules.
+  <div class="f" style="text-align:justify; margin-top:6px;">
+    I, <span class="ul" style="min-width:170px;">${formData.nameOfTheOrganizer || ""}</span>,
+    (Designation: <span class="ul" style="min-width:130px;">${formData.designation || ""}</span>),
+    Will take responsibility to organize and conduct the event to the best of my ability and as per the institute rules.
   </div>
 
   <!-- Bold italic note -->
-  <div class="f" style="text-align:justify; font-style:italic; font-weight:700; margin-top:6px;">
+  <div class="f" style="text-align:justify; font-style:italic; font-weight:700; margin-top:4px;">
     (Please read the instructions overleaf. Please submit this form to the student welfare Office
-    at least 2&nbsp;weeks prior to the proposed event date. Seeking the approval from the competent authority.)
+    at least 2 weeks prior to the proposed event date. Seeking the approval from the competent authority.)
   </div>
 
   <!-- Blank writing space above sig-row 1 -->
@@ -487,19 +658,19 @@ ${descArea}
   <!-- Sig row 1: Club Sec | Gen Sec | Treasurer | Vice President -->
   <div class="sig-row">
     <div class="sig-box">
-      ${signed('club-secretary')}
+      ${signed("club-secretary")}
       <div class="sig-line"><span class="hi">क्लब सचिव</span>/<br>Club Secretary</div>
     </div>
     <div class="sig-box">
-      ${signed('general-secretary')}
+      ${signed("general-secretary")}
       <div class="sig-line"><span class="hi">महासचिव</span>/<br>General Secretary</div>
     </div>
     <div class="sig-box">
-      ${signed('treasurer')}
+      ${signed("treasurer")}
       <div class="sig-line"><span class="hi">कोषाध्यक्ष</span>/<br>Treasurer</div>
     </div>
     <div class="sig-box">
-      ${signed('president')}
+      ${signed("president")}
       <div class="sig-line"><span class="hi">उपाध्यक्ष</span>/<br>Vice President</div>
     </div>
   </div>
@@ -510,15 +681,15 @@ ${descArea}
   <!-- Sig row 2: Faculty in Charge | Associate Dean -->
   <div class="sig-row" style="justify-content:space-between; padding:0 10px;">
     <div class="sig-box" style="flex:0 0 auto; text-align:left; max-width:200px;">
-      ${signed('ARSW')}
+      ${signed("ARSW")}
       <div class="sig-line" style="text-align:left;">
-        <span class="hi">सहायक कुलसचिव छात्र कल्याण</span>&nbsp;/ARSW
+        <span class="hi">सहायक कुलसचिव छात्र कल्याण</span> /ARSW
       </div>
     </div>
     <div class="sig-box" style="flex:0 0 auto; text-align:right; max-width:240px;">
-      ${signed('associate-dean') || signed('associate-dean-socio-cultural')}
+      ${signed("associate-dean") || signed("associate-dean-socio-cultural")}
        <div class="sig-line" style="text-align:right;">
-        <span class="hi">एसोसिएट डीन (जीमखाना/&nbsp;एच एंड एम/ सामाजिक सांस्कृतिक)</span><br>
+        <span class="hi">एसोसिएट डीन (जीमखाना/ एच एंड एम/ सामाजिक सांस्कृतिक)</span><br>
         Associate Dean (Gymkhana/H&amp;M/Socio-Cult)
       </div>
     </div>
@@ -532,38 +703,40 @@ ${descArea}
 
 <!-- ════════════════════════════════════════════════════════════════
      PAGE 3  –  For Office Use / Dean → Instructions (flows to pg 4)
-     FORCED PAGE BREAK
+     FORCED PAGE BREAK to clean page separation
 ════════════════════════════════════════════════════════════════ -->
 <div class="pb"></div>
 
 <div class="ofc-title">
-  <span class="hi">कार्यालय उपयोग के लिए</span>&nbsp;/For Office Use:<br>
-  <span class="hi">प्रशासनिक अनुमोदन</span>/Administrative&nbsp;approval/<span class="hi">बजट&nbsp;अनुमोदन</span>/Budget&nbsp;Approval
+  <span class="hi">कार्यालय उपयोग के लिए</span> /For Office Use:<br>
+  <span class="hi">प्रशासनिक अनुमोदन</span>/Administrative approval/<span class="hi">बजट अनुमोदन</span>/Budget Approval
 </div>
 
 <div class="dean-space"></div>
 
 <div class="dean-lbl">
-${signed('dean')}
+${signed("dean")}
 <div class="sig-line" style="text-align:center; width:30%; margin:0 auto 6px;">
-  <span class="hi">डीन</span>&nbsp;/Dean<br>
-  <span class="hi">छात्र कल्याण</span>&nbsp;/Student Welfare
+  <span class="hi">डीन</span> /Dean<br>
+  <span class="hi">छात्र कल्याण</span> /Student Welfare
 </div>
 </div>
 <div class="stars">************************************************************************************</div>
 
 <div class="instr-ttl">
-  <span class="mg">छात्रों को निर्देश</span>&nbsp;/&nbsp;Instructions to the Students:
+  <span class="mg">छात्रों को निर्देश</span>  /  Instructions to the Students:
 </div>
 
 <ol class="instr-list">
-  ${INSTRS.map((ins, i) => `
-    <li style="${ins.b ? 'font-weight:700;' : ''}">${i + 1}.&nbsp;${ins.t}</li>`).join("")}
+  ${INSTRS.map(
+    (ins, i) => `
+    <li style="${ins.b ? "font-weight:700;" : ""}">${i + 1}.&nbsp;${ins.t}</li>`,
+  ).join("")}
 </ol>
 
 <!-- Additional Notes flows naturally after instructions (page 4 area) -->
 <span class="notes-hi"><span class="mg">अतिरिक्त नोट्स और विशेष निर्देश</span>/</span>
-<span class="notes-en">Additional Notes &amp; Special Instructions:</span>
+<span class="notes-en">Additional Notes  Special Instructions:</span>
 
 <ol class="notes-list">
   ${NOTES.map((n, i) => {
@@ -581,7 +754,7 @@ ${signed('dean')}
 
 <div class="req-ttl">A brief description of a requirement that has been ticked off in a form</div>
 
-<table class="tbl-r" style="margin-top:10px;">
+<table class="tbl-r" style="margin-top:6px; margin-bottom:4px;">
   <thead>
     <tr>
       <th class="tc" style="width:10%;">Sl<br>No</th>
@@ -594,8 +767,8 @@ ${signed('dean')}
       const req = reqFilled[idx];
       return `<tr style="height:28px;">
         <td class="tc">${idx + 1}</td>
-        <td>${req ? req.name        : ''}</td>
-        <td>${req ? req.description : ''}</td>
+        <td>${req ? req.name : ""}</td>
+        <td>${req ? req.description : ""}</td>
       </tr>`;
     }).join("")}
   </tbody>
