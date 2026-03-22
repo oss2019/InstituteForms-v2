@@ -262,6 +262,9 @@
   line-height: 1.7;
   font-size: 0.95rem;
   color: #333;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .ed-description-content a {
