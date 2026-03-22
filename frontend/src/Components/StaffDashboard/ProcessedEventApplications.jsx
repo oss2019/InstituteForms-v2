@@ -135,29 +135,27 @@ const StaffDashboard = () => {
       }, {});
       setGroupedRejected(groupedRejected);
 
-      // Fetch closed applications (only for authorized roles)
-      if (['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW'].includes(storedUserRole)) {
-        try {
-          const closedResponse = await axios.post(`${apiUrl}/event/closed`, {
-            role: storedUserRole,
-            category: storedUserRole === 'general-secretary' ? userCategory : null,
-          });
-          setClosedApplications(closedResponse.data);
-          setDisplayClosed(closedResponse.data);
-          
-          // Group closed applications by semester
-          const groupedClosed = closedResponse.data.reduce((groups, app) => {
-            const semesterKey = app.semester || `${app.academicYear} Academic Year`;
-            if (!groups[semesterKey]) {
-              groups[semesterKey] = [];
-            }
-            groups[semesterKey].push(app);
-            return groups;
-          }, {});
-          setGroupedClosed(groupedClosed);
-        } catch (error) {
-          console.error('Error fetching closed applications:', error);
-        }
+      // Fetch closed applications - ALL roles can now view closed events
+      try {
+        const closedResponse = await axios.post(`${apiUrl}/event/closed`, {
+          role: storedUserRole,
+          category: storedUserRole === 'general-secretary' ? userCategory : null,
+        });
+        setClosedApplications(closedResponse.data);
+        setDisplayClosed(closedResponse.data);
+
+        // Group closed applications by semester
+        const groupedClosed = closedResponse.data.reduce((groups, app) => {
+          const semesterKey = app.semester || `${app.academicYear} Academic Year`;
+          if (!groups[semesterKey]) {
+            groups[semesterKey] = [];
+          }
+          groups[semesterKey].push(app);
+          return groups;
+        }, {});
+        setGroupedClosed(groupedClosed);
+      } catch (error) {
+        console.error('Error fetching closed applications:', error);
       }
 
       // Event type options
@@ -390,14 +388,14 @@ const StaffDashboard = () => {
             className={`btn ${activeTab === 'approved' ? 'btn-primary' : 'btn-outline-primary'}`}
             onClick={() => setActiveTab('approved')}
           >
-            Approved ({displayApproved.length})
+            Approved ({approvedApplications.length})
           </button>
           <button
             type="button"
             className={`btn ${activeTab === 'rejected' ? 'btn-danger' : 'btn-outline-danger'}`}
             onClick={() => setActiveTab('rejected')}
           >
-            Rejected ({displayRejected.length})
+            Rejected ({rejectedApplications.length})
           </button>
           {canViewClosedEvents() && (
             <button
@@ -405,7 +403,7 @@ const StaffDashboard = () => {
               className={`btn ${activeTab === 'closed' ? 'btn-secondary' : 'btn-outline-secondary'}`}
               onClick={() => setActiveTab('closed')}
             >
-              Closed ({displayClosed.length})
+              Closed ({closedApplications.length})
             </button>
           )}
         </div>
@@ -509,9 +507,9 @@ const StaffDashboard = () => {
             <Button variant="outline-danger" className="w-100" onClick={clearFilters}>Reset</Button>
           </Col>
           <Col md={12} className="mt-2 d-flex flex-wrap gap-2">
-            <Badge bg="secondary">Approved: {displayApproved.length}</Badge>
-            <Badge bg="danger">Rejected: {displayRejected.length}</Badge>
-            {canViewClosedEvents() && <Badge bg="dark">Closed: {displayClosed.length}</Badge>}
+            <Badge bg="secondary">Approved: {approvedApplications.length}</Badge>
+            <Badge bg="danger">Rejected: {rejectedApplications.length}</Badge>
+            {canViewClosedEvents() && <Badge bg="dark">Closed: {closedApplications.length}</Badge>}
             <Badge bg="warning" text="dark">Pending: {approvedApplications.filter(a=> getOverallStatus(a.approvals)==='Pending').length}</Badge>
             <Badge bg="info" text="dark">Query: {approvedApplications.filter(a=> getOverallStatus(a.approvals)==='Query').length}</Badge>
           </Col>
