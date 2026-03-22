@@ -296,21 +296,21 @@ const EventDashboard = () => {
                 </>
               ) : <p>No events found for the selected semester.</p>}
               <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
-                <Button 
-                  variant="outline-primary" 
-                  onClick={handleNextSemester}
-                  disabled={currentSemesterIndex <= 0}
-                  title="Next semester (newer)"
-                >
-                  Next Semester →
-                </Button>
-                <Button 
-                  variant="outline-primary" 
+                <Button
+                  variant="outline-primary"
                   onClick={handlePreviousSemester}
                   disabled={currentSemesterIndex >= semesterOptions.length - 1}
                   title="Previous semester (older)"
                 >
                   ← Previous Semester
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
                 </Button>
               </div>
             </>
