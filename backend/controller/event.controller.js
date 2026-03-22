@@ -706,13 +706,13 @@ export const getRejectedApplications = async (req, res) => {
       return res.status(400).json({ message: "Role is required." });
     }
 
-    // Fetch only events with matching role and rejected status (exclude closed events)
+    // Fetch only events with rejected status (exclude closed events)
+    // Don't filter by specific role's rejection - show all events with any rejection
     let rejectedApplications = await EventApproval.find({
       approvals: {
         $elemMatch: {
-          role: role,
-          status: "Rejected",
-        },
+          status: "Rejected"
+        }
       },
       status: { $ne: "Closed" },
     });
@@ -1328,13 +1328,16 @@ export const getApprovedApplicationsWithFilters = async (req, res) => {
       return res.status(400).json({ message: "Role is required." });
     }
 
-    // Base query for approved applications
+    // Base query for approved applications - check if ALL approvals along the chain are Approved
+    // Don't filter by specific role's approval status - show all fully approved events
     let query = {
+      // Find events where all approvals in the chain are "Approved" (fully approved)
       approvals: {
-        $elemMatch: {
-          role: role,
-          status: "Approved",
-        },
+        $not: {
+          $elemMatch: {
+            status: { $ne: "Approved" }
+          }
+        }
       },
       // Exclude closed events
       status: { $ne: "Closed" },
