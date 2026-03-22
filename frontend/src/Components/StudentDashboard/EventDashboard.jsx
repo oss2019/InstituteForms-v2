@@ -40,13 +40,29 @@ const EventDashboard = () => {
   }, []);
 
   const prepareFilterOptions = (eventsData) => {
-    const semesters = Array.from(new Set(eventsData.map(e => e.semester).filter(Boolean))).sort().reverse();
+    // Semester sorting helper - sorts chronologically (newest first)
+    const sortSemestersChronologically = (semesters) => {
+      return [...semesters].sort((a, b) => {
+        const [aSeason, aYear] = a.split(' ');
+        const [bSeason, bYear] = b.split(' ');
+        const aYearNum = parseInt(aYear);
+        const bYearNum = parseInt(bYear);
+
+        if (aYearNum !== bYearNum) return bYearNum - aYearNum; // Descending by year
+        // In same year: Autumn first (newer), then Spring (older)
+        // Autumn 2025 > Spring 2025 chronologically
+        return aSeason === 'Autumn' ? -1 : 1;
+      });
+    };
+
+    const semesters = Array.from(new Set(eventsData.map(e => e.semester).filter(Boolean)));
+    const sortedSemesters = sortSemestersChronologically(semesters);
     const academicYears = Array.from(new Set(eventsData.map(e => e.academicYear).filter(Boolean))).sort().reverse();
-    setSemesterOptions(semesters);
+    setSemesterOptions(sortedSemesters);
     setAcademicYearOptions(academicYears);
     // Set first semester as default (latest semester)
-    if (semesters.length > 0 && !selectedSemester) {
-      setSelectedSemester(semesters[0]);
+    if (sortedSemesters.length > 0 && !selectedSemester) {
+      setSelectedSemester(sortedSemesters[0]);
     }
   };
 
@@ -145,7 +161,7 @@ const EventDashboard = () => {
           {getDisplayStatus(event)}
         </span>
       </td>
-      <td className="event-ref">{event.referenceNumber || "809898808ex"}</td>
+      <td className="event-ref">{event.referenceNumber || "Not Applicable"}</td>
     </tr>
   );
 

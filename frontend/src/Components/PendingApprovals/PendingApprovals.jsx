@@ -67,6 +67,21 @@ const PendingApprovals = () => {
   const searchDebounceRef = useRef(null);
   const navigate = useNavigate();
 
+  // Semester sorting helper - sorts chronologically (newest first)
+  const sortSemestersChronologically = (semesters) => {
+    return [...semesters].sort((a, b) => {
+      const [aSeason, aYear] = a.semester.split(' ');
+      const [bSeason, bYear] = b.semester.split(' ');
+      const aYearNum = parseInt(aYear);
+      const bYearNum = parseInt(bYear);
+
+      if (aYearNum !== bYearNum) return bYearNum - aYearNum; // Descending by year
+      // In same year: Autumn first (newer), then Spring (older)
+      // Autumn 2025 > Spring 2025 chronologically
+      return aSeason === 'Autumn' ? -1 : 1;
+    });
+  };
+
   // Set user role on mount
   useEffect(() => {
     const storedUserRole = localStorage.getItem("role");
@@ -92,8 +107,8 @@ const PendingApprovals = () => {
             category: storedUserRole === 'general-secretary' ? userCategory : undefined,
           }
         });
-        // Sort semesters in reverse order (latest first)
-        const sortedSemesters = (response.data || []).sort((a, b) => b.semester.localeCompare(a.semester));
+        // Sort semesters chronologically (latest first)
+        const sortedSemesters = sortSemestersChronologically(response.data || []);
         setSemesterOptions(sortedSemesters);
         // Set first semester as default (latest semester)
         if (sortedSemesters.length > 0 && !selectedSemester) {
@@ -480,7 +495,7 @@ const PendingApprovals = () => {
             <span style={{fontWeight: 'bold', color: getStatusColor(displayStatus)}}>{displayStatus}</span>
           )}
         </td>
-        <td className="event-ref">{approval.referenceNumber || "N/A"}</td>
+        <td className="event-ref">{approval.referenceNumber || "Not Applicable"}</td>
       </tr>
     );
   };

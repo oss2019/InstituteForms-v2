@@ -48,8 +48,9 @@ const StaffDashboard = () => {
       const bYearNum = parseInt(bYear);
 
       if (aYearNum !== bYearNum) return bYearNum - aYearNum; // Descending by year
-      // In same year: Spring first, then Autumn
-      return aSeason === 'Spring' ? -1 : 1;
+      // In same year: Autumn first (newer), then Spring (older)
+      // Autumn 2025 > Spring 2025 chronologically
+      return aSeason === 'Autumn' ? -1 : 1;
     });
   };
 

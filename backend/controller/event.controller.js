@@ -11,56 +11,62 @@ const getSemesterInfo = (date) => {
   const eventDate = new Date(date);
   const month = eventDate.getMonth(); // 0-11
   const year = eventDate.getFullYear();
-  
+
   let semester, academicYear;
-  
+
   // Assuming academic year starts in August and ends in July next year
   // Fall semester: August - December
   // Spring semester: January - July
-  
-  if (month >= 7) { // August (7) to December (11)
+
+  if (month >= 7) {
+    // August (7) to December (11)
     semester = "Autumn";
     academicYear = `${year}-${year + 1}`;
-  } else { // January (0) to July (6)
+  } else {
+    // January (0) to July (6)
     semester = "Spring";
     academicYear = `${year - 1}-${year}`;
   }
-  
+
   return {
-    semester: `${semester} ${academicYear.split('-')[semester === 'Autumn' ? 0 : 1]}`,
-    academicYear
+    semester: `${semester} ${academicYear.split("-")[semester === "Autumn" ? 0 : 1]}`,
+    academicYear,
   };
 };
 
 // Configure nodemailer
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
+    pass: process.env.EMAIL_PASS,
+  },
 });
-
 
 const sendEmail = async (to, subject, text, retries = 3) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to,
     subject,
-    text
+    text,
   };
 
-  console.log('Attempting to send email to:', to, 'with', retries, 'retries remaining');
+  console.log(
+    "Attempting to send email to:",
+    to,
+    "with",
+    retries,
+    "retries remaining",
+  );
 
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
-      console.error('Error sending email:', error);
+      console.error("Error sending email:", error);
     } else {
-      console.log('Email sent:', info.response);
+      console.log("Email sent:", info.response);
     }
   });
 };
-
 
 //emails of all members
 const roleEmails = [
@@ -73,7 +79,10 @@ const roleEmails = [
   { role: "associate-dean", email: "adean.sw.gymkhana@iitdh.ac.in" },
   { role: "associate-dean-socio-cultural", email: "adean.sw.sca@iitdh.ac.in" },
   { role: "dean", email: "dean.sw@iitdh.ac.in" },
-  { role: "students-welfare-office", email: "studentswelfare.office@iitdh.ac.in"}
+  {
+    role: "students-welfare-office",
+    email: "studentswelfare.office@iitdh.ac.in",
+  },
 ];
 
 const getEmailForRole = (role) => {
@@ -90,19 +99,19 @@ const getEmailForCategory = (category) => {
 const generateReferenceNumber = async (academicYear) => {
   try {
     // Extract year for short format (e.g., "2025-2026" -> "25-26")
-    const years = academicYear.split('-');
+    const years = academicYear.split("-");
     const shortYear = `${years[0].slice(-2)}-${years[1].slice(-2)}`;
-    
+
     // Find and increment counter for this academic year
     const counter = await Counter.findOneAndUpdate(
       { academicYear },
       { $inc: { sequenceValue: 1 } },
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      { new: true, upsert: true, setDefaultsOnInsert: true },
     );
-    
+
     // Format sequence number with leading zeros (001, 002, etc.)
-    const sequenceNumber = String(counter.sequenceValue).padStart(3, '0');
-    
+    const sequenceNumber = String(counter.sequenceValue).padStart(3, "0");
+
     // Return formatted reference number
     return `IITDH/SWO/${shortYear}/${sequenceNumber}`;
   } catch (error) {
@@ -140,7 +149,8 @@ export const applyForEventApproval = async (req, res) => {
     } = req.body;
 
     // Support both spellings: old cached frontends may send "organizerRoleNumber"
-    const organizerRollNumber = req.body.organizerRollNumber || req.body.organizerRoleNumber;
+    const organizerRollNumber =
+      req.body.organizerRollNumber || req.body.organizerRoleNumber;
 
     console.log("Incoming Payload:", req.body);
 
@@ -149,7 +159,9 @@ export const applyForEventApproval = async (req, res) => {
     // Fetch user details to ensure they exist
     const user = await User.findById(userID_);
     if (!user) {
-      return res.status(404).json({ message: "User not found. Please log in again." });
+      return res
+        .status(404)
+        .json({ message: "User not found. Please log in again." });
     }
 
     const clubName = req.body.clubName || user.name;
@@ -172,38 +184,63 @@ export const applyForEventApproval = async (req, res) => {
     });
 
     if (existingEvent) {
-      return res.status(400).json({ message: "You already have a pending event approval request." });
+      return res
+        .status(400)
+        .json({
+          message: "You already have a pending event approval request.",
+        });
     }
 
     // Determine semester and academic year based on start date
     const semesterInfo = getSemesterInfo(startDate);
 
     // Generate reference number
-    const referenceNumber = await generateReferenceNumber(semesterInfo.academicYear);
+    const referenceNumber = await generateReferenceNumber(
+      semesterInfo.academicYear,
+    );
 
-    const associateDeanRole = eventType && eventType.toLowerCase() === "cultural" ? "associate-dean-socio-cultural" : "associate-dean";
+    const associateDeanRole =
+      eventType && eventType.toLowerCase() === "cultural"
+        ? "associate-dean-socio-cultural"
+        : "associate-dean";
 
     // Create the initial approvals array
     // If submitter is general-secretary, auto-approve both club-secretary and general-secretary
-    const approvals = user.role === "general-secretary" 
-      ? [
-          { role: "club-secretary", status: "Approved", comment: "Auto-approved (GS-submitted event)", timestamp: new Date() },
-          { role: "general-secretary", status: "Approved", comment: "Auto-approved (GS-submitted event)", timestamp: new Date() },
-          { role: "treasurer", status: "Pending", comment: "" },
-          { role: "president", status: "Pending", comment: "" },
-          { role: "ARSW", status: "Pending", comment: "" },
-          { role: associateDeanRole, status: "Pending", comment: "" },
-          { role: "dean", status: "Pending", comment: "" },
-        ]
-      : [
-          { role: "club-secretary", status: "Approved", comment: "", timestamp: new Date() },
-          { role: "general-secretary", status: "Pending", comment: "" },
-          { role: "treasurer", status: "Pending", comment: "" },
-          { role: "president", status: "Pending", comment: "" },
-          { role: "ARSW", status: "Pending", comment: "" },
-          { role: associateDeanRole, status: "Pending", comment: "" },
-          { role: "dean", status: "Pending", comment: "" },
-        ];
+    const approvals =
+      user.role === "general-secretary"
+        ? [
+            {
+              role: "club-secretary",
+              status: "Approved",
+              comment: "Auto-approved (GS-submitted event)",
+              timestamp: new Date(),
+            },
+            {
+              role: "general-secretary",
+              status: "Approved",
+              comment: "Auto-approved (GS-submitted event)",
+              timestamp: new Date(),
+            },
+            { role: "treasurer", status: "Pending", comment: "" },
+            { role: "president", status: "Pending", comment: "" },
+            { role: "ARSW", status: "Pending", comment: "" },
+            { role: associateDeanRole, status: "Pending", comment: "" },
+            { role: "dean", status: "Pending", comment: "" },
+          ]
+        : [
+            {
+              role: "club-secretary",
+              status: "Approved",
+              comment: "",
+              timestamp: new Date(),
+            },
+            { role: "general-secretary", status: "Pending", comment: "" },
+            { role: "treasurer", status: "Pending", comment: "" },
+            { role: "president", status: "Pending", comment: "" },
+            { role: "ARSW", status: "Pending", comment: "" },
+            { role: associateDeanRole, status: "Pending", comment: "" },
+            { role: "dean", status: "Pending", comment: "" },
+          ];
 
     // Create a new event approval request
     const eventApprovalData = {
@@ -247,13 +284,15 @@ export const applyForEventApproval = async (req, res) => {
     const savedApproval = await newEventApproval.save();
 
     // Record the initial budget in budget history
-    savedApproval.budgetHistory = [{
-      editedBy: "club-secretary",
-      editedAt: new Date(),
-      justification: "Initial budget proposed",
-      budgetBreakup: budgetBreakup,
-      totalBudget: estimatedBudget
-    }];
+    savedApproval.budgetHistory = [
+      {
+        editedBy: "club-secretary",
+        editedAt: new Date(),
+        justification: "Initial budget proposed",
+        budgetBreakup: budgetBreakup,
+        totalBudget: estimatedBudget,
+      },
+    ];
 
     await savedApproval.save();
 
@@ -278,7 +317,6 @@ export const applyForEventApproval = async (req, res) => {
     //   console.error(`No email found for category: ${category}`);
     // }
 
-
     res.status(201).json({
       message: "Event approval request submitted successfully.",
       eventApproval: newEventApproval,
@@ -286,7 +324,9 @@ export const applyForEventApproval = async (req, res) => {
   } catch (error) {
     if (error.name === "ValidationError") {
       console.error("Validation Error:", error.errors);
-      return res.status(400).json({ message: "Validation error.", errors: error.errors });
+      return res
+        .status(400)
+        .json({ message: "Validation error.", errors: error.errors });
     }
     console.error("Error submitting event approval request:", error.message);
     res.status(500).json({ message: "Internal server error" });
@@ -300,7 +340,9 @@ export const getUserEvents = async (req, res) => {
     // Find events associated with the user's ID
     const events = await EventApproval.find({ userID });
     if (!events || events.length === 0) {
-      return res.status(404).json({ message: "No events found for this user." });
+      return res
+        .status(404)
+        .json({ message: "No events found for this user." });
     }
 
     res.status(200).json({ events });
@@ -313,43 +355,67 @@ export const getUserEvents = async (req, res) => {
 //get pending approvals list
 //put in staff dashboard Pending section
 
-const roleHierarchy = ["club-secretary", "general-secretary", "treasurer", "president", "ARSW", "associate-dean", "dean"];
+const roleHierarchy = [
+  "club-secretary",
+  "general-secretary",
+  "treasurer",
+  "president",
+  "ARSW",
+  "associate-dean",
+  "dean",
+];
 
 const getRoleHierarchyForEvent = (eventType) => {
   const isCultural = eventType?.toLowerCase() === "cultural";
-  return ["club-secretary", "general-secretary", "treasurer", "president", "ARSW", isCultural ? "associate-dean-socio-cultural":"associate-dean", "dean"];
-}
-export const getInitiatedApplications = async (req,res) => {
-  const { role, category, semester, academicYear, search, page = 1, limit = 10 } = req.body;
+  return [
+    "club-secretary",
+    "general-secretary",
+    "treasurer",
+    "president",
+    "ARSW",
+    isCultural ? "associate-dean-socio-cultural" : "associate-dean",
+    "dean",
+  ];
+};
+export const getInitiatedApplications = async (req, res) => {
+  const {
+    role,
+    category,
+    semester,
+    academicYear,
+    search,
+    page = 1,
+    limit = 10,
+  } = req.body;
   try {
-    if(!role){
+    if (!role) {
       return res.status(400).json({ message: "Role is required." });
     }
     let query = {
-      "approvals.role":role,
-      status: {$ne: "Closed"}
+      "approvals.role": role,
+      status: { $ne: "Closed" },
     };
-    if (semester){
+    if (semester) {
       query.semester = semester;
     }
-    if (academicYear){
+    if (academicYear) {
       query.academicYear = academicYear;
     }
-    if(role === "general-secretary" && category){
+    if (role === "general-secretary" && category) {
       query.eventType = category;
     }
-    if(search && search.trim()){
-      const searchRegex = new RegExp(search.trim(),'i');
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
       query.$or = [
-        {eventName: searchRegex},
-        {clubName: searchRegex},
-        {nameOfTheOrganizer: searchRegex},
-        {eventVenue: searchRegex},
-        {eventDescription: searchRegex}
+        { eventName: searchRegex },
+        { clubName: searchRegex },
+        { nameOfTheOrganizer: searchRegex },
+        { eventVenue: searchRegex },
+        { eventDescription: searchRegex },
       ];
     }
     let initiatedApplications = await EventApproval.find(query);
-    if(initiatedApplications.length === 0){
+    if (initiatedApplications.length === 0) {
       return res.status(200).json({
         applications: [],
         groupedBySemester: {},
@@ -358,48 +424,50 @@ export const getInitiatedApplications = async (req,res) => {
           totalPages: 0,
           totalCount: 0,
           hasNext: false,
-          hasPrev: false
-        }
+          hasPrev: false,
+        },
       });
     }
-    if(role==="associate-dean-socio-cultural"){
+    if (role === "associate-dean-socio-cultural") {
       initiatedApplications = initiatedApplications.filter(
-        (approval) => approval.eventType?.toLowerCase() === "cultural"
+        (approval) => approval.eventType?.toLowerCase() === "cultural",
       );
-    } else if (role==="associate-dean"){
+    } else if (role === "associate-dean") {
       initiatedApplications = initiatedApplications.filter(
-        (approval) => approval.eventType?.toLowerCase() !== "cultural"
+        (approval) => approval.eventType?.toLowerCase() !== "cultural",
       );
     }
     initiatedApplications = initiatedApplications.filter((approval) => {
       const allApproved = approval.approvals.every(
-        (app) => app.status === "Approved"
+        (app) => app.status === "Approved",
       );
-      return !allApproved
-    })
+      return !allApproved;
+    });
     const totalCount = initiatedApplications.length;
-    const skip = (page-1)*limit;
-    const paginatedApplications = initiatedApplications.sort((a,b)=>new Date(b.startDate) - new Date(a.startDate)).slice(skip,skip+parseInt(limit));
-    const groupedBySemester = paginatedApplications.reduce((groups,app)=>{
+    const skip = (page - 1) * limit;
+    const paginatedApplications = initiatedApplications
+      .sort((a, b) => new Date(b.startDate) - new Date(a.startDate))
+      .slice(skip, skip + parseInt(limit));
+    const groupedBySemester = paginatedApplications.reduce((groups, app) => {
       const semesterKey = app.semester || `${app.academicYear} Academic Year`;
-      if(!groups[semesterKey]){
-        groups[semesterKey]=[];
+      if (!groups[semesterKey]) {
+        groups[semesterKey] = [];
       }
       groups[semesterKey].push(app);
       return groups;
-    },{});
+    }, {});
     res.status(200).json({
       applications: paginatedApplications,
       groupedBySemester,
       pagination: {
         currentPage: parseInt(page),
-        totalPages: Math.ceil(totalCount/limit),
+        totalPages: Math.ceil(totalCount / limit),
         totalCount,
-        hasNext: skip+paginatedApplications.length<totalCount,
-        hasPrev: page>1
-      }
+        hasNext: skip + paginatedApplications.length < totalCount,
+        hasPrev: page > 1,
+      },
     });
-  } catch(error){
+  } catch (error) {
     console.error("Error fetching initiated applications:", error);
     res.status(500).json({ message: "Internal server error." });
   }
@@ -407,40 +475,46 @@ export const getInitiatedApplications = async (req,res) => {
 
 export const getAllInitiatedEvents = async (req, res) => {
   const { semester, academicYear, search, page = 1, limit = 10 } = req.body;
-  try{
+  try {
     let query = {
-      status: { $ne: "Closed" }
+      status: { $ne: "Closed" },
     };
     if (semester) query.semester = semester;
     if (academicYear) query.academicYear = academicYear;
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(search.trim(), "i");
       query.$or = [
         { eventName: searchRegex },
         { clubName: searchRegex },
         { nameOfTheOrganizer: searchRegex },
         { eventVenue: searchRegex },
-        { eventDescription: searchRegex }
+        { eventDescription: searchRegex },
       ];
     }
     let events = await EventApproval.find(query);
-    events = events.filter(event => {
-      const hasRejection = event.approvals.some(approval => approval.status === "Rejected");
-      const isFullyApproved = event.approvals.every(approval => approval.status === "Approved");
+    events = events.filter((event) => {
+      const hasRejection = event.approvals.some(
+        (approval) => approval.status === "Rejected",
+      );
+      const isFullyApproved = event.approvals.every(
+        (approval) => approval.status === "Approved",
+      );
       return !hasRejection && !isFullyApproved;
     });
     const totalCount = events.length;
     const skip = (page - 1) * limit;
-    const paginated = events.sort((a, b) => new Date(b.startDate) - new Date(a.startDate)).slice(skip, skip + parseInt(limit));
+    const paginated = events
+      .sort((a, b) => new Date(b.startDate) - new Date(a.startDate))
+      .slice(skip, skip + parseInt(limit));
     res.status(200).json({
       applications: paginated,
       pagination: {
         currentPage: parseInt(page),
-        totalPages: Math.ceil(totalCount/limit),
+        totalPages: Math.ceil(totalCount / limit),
         totalCount,
         hasNext: skip + paginated.length < totalCount,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching initiated events for SWO:", error);
@@ -450,36 +524,40 @@ export const getAllInitiatedEvents = async (req, res) => {
 
 export const getFullyApprovedEvents = async (req, res) => {
   const { semester, academicYear, search, page = 1, limit = 10 } = req.body;
-  try{
+  try {
     let query = {
-      status: {$ne: "Closed"}
+      status: { $ne: "Closed" },
     };
     if (semester) query.semester = semester;
     if (academicYear) query.academicYear = academicYear;
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(search.trim(), "i");
       query.$or = [
         { eventName: searchRegex },
         { clubName: searchRegex },
         { nameOfTheOrganizer: searchRegex },
         { eventVenue: searchRegex },
-        { eventDescription: searchRegex }
+        { eventDescription: searchRegex },
       ];
     }
     let events = await EventApproval.find(query);
-    events = events.filter(event => event.approvals.every(approval => approval.status === "Approved"));
+    events = events.filter((event) =>
+      event.approvals.every((approval) => approval.status === "Approved"),
+    );
     const totalCount = events.length;
     const skip = (page - 1) * limit;
-    const paginated = events.sort((a, b) => new Date(b.startDate) - new Date(a.startDate)).slice(skip, skip + parseInt(limit));
+    const paginated = events
+      .sort((a, b) => new Date(b.startDate) - new Date(a.startDate))
+      .slice(skip, skip + parseInt(limit));
     res.status(200).json({
       applications: paginated,
       pagination: {
         currentPage: parseInt(page),
-        totalPages: Math.ceil(totalCount/limit),
+        totalPages: Math.ceil(totalCount / limit),
         totalCount,
         hasNext: skip + paginated.length < totalCount,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching fully approved events:", error);
@@ -508,20 +586,26 @@ export const getPendingApprovals = async (req, res) => {
     // Filter out those with a status of 'Pending' or 'Query'
     pendingApprovals = pendingApprovals.filter((approval) => {
       const approvalStatus = approval.approvals.find(
-        (app) => app.role === role
+        (app) => app.role === role,
       );
-      return approvalStatus && (approvalStatus.status === "Pending" || approvalStatus.status === "Query");
+      return (
+        approvalStatus &&
+        (approvalStatus.status === "Pending" ||
+          approvalStatus.status === "Query")
+      );
     });
 
     // Ensure previous roles in the hierarchy are approved
     pendingApprovals = pendingApprovals.filter((approval) => {
       const eventHierarchy = getRoleHierarchyForEvent(approval.eventType);
       const roleIndex = eventHierarchy.indexOf(role);
-      if (roleIndex === -1){
+      if (roleIndex === -1) {
         return false;
       }
       return eventHierarchy.slice(0, roleIndex).every((prevRole) => {
-        const prevApproval = approval.approvals.find((app) => app.role === prevRole);
+        const prevApproval = approval.approvals.find(
+          (app) => app.role === prevRole,
+        );
         return prevApproval && prevApproval.status === "Approved";
       });
     });
@@ -529,7 +613,7 @@ export const getPendingApprovals = async (req, res) => {
     // If 'general-secretary', filter by event category
     if (role === "general-secretary" && category) {
       pendingApprovals = pendingApprovals.filter(
-        (approval) => approval.eventType === category
+        (approval) => approval.eventType === category,
       );
     }
 
@@ -560,9 +644,8 @@ export const getEventById = async (req, res) => {
   }
 };
 
-
 export const getApprovedApplications = async (req, res) => {
-  const { role, category, status} = req.body;
+  const { role, category, status } = req.body;
 
   console.log("Received role:", role);
   console.log("Received category:", category);
@@ -574,13 +657,13 @@ export const getApprovedApplications = async (req, res) => {
 
     // Fetch only events with matching role and approved status (exclude closed events)
     let approvedApplications = await EventApproval.find({
-      "approvals": {
+      approvals: {
         $elemMatch: {
           role: role,
-          status: "Approved"
-        }
+          status: "Approved",
+        },
       },
-      status: { $ne: "Closed" }
+      status: { $ne: "Closed" },
     });
 
     console.log("Initial approved applications:", approvedApplications);
@@ -592,7 +675,7 @@ export const getApprovedApplications = async (req, res) => {
     // Filter by category if role is 'general-secretary'
     if (role === "general-secretary" && category) {
       approvedApplications = approvedApplications.filter(
-        (approval) => approval.eventType === category
+        (approval) => approval.eventType === category,
       );
     }
 
@@ -625,13 +708,13 @@ export const getRejectedApplications = async (req, res) => {
 
     // Fetch only events with matching role and rejected status (exclude closed events)
     let rejectedApplications = await EventApproval.find({
-      "approvals": {
+      approvals: {
         $elemMatch: {
           role: role,
-          status: "Rejected"
-        }
+          status: "Rejected",
+        },
       },
-      status: { $ne: "Closed" }
+      status: { $ne: "Closed" },
     });
 
     console.log("Initial rejected applications:", rejectedApplications);
@@ -643,7 +726,7 @@ export const getRejectedApplications = async (req, res) => {
     // Filter by category if role is 'general-secretary'
     if (role === "general-secretary" && category) {
       rejectedApplications = rejectedApplications.filter(
-        (approval) => approval.eventType === category
+        (approval) => approval.eventType === category,
       );
     }
 
@@ -676,7 +759,7 @@ export const getClosedApplications = async (req, res) => {
 
     // Fetch only events with status "Closed"
     let closedApplications = await EventApproval.find({
-      status: "Closed"
+      status: "Closed",
     });
 
     console.log("Initial closed applications:", closedApplications);
@@ -686,20 +769,19 @@ export const getClosedApplications = async (req, res) => {
     }
 
     // Apply role-based filtering for event types/categories
-    if (role === "associate-dean-socio-cultural")
-    {
+    if (role === "associate-dean-socio-cultural") {
       closedApplications = closedApplications.filter(
-        (approval) => approval.eventType?.toLowerCase() === "cultural"
+        (approval) => approval.eventType?.toLowerCase() === "cultural",
       );
     } else if (role === "associate-dean") {
       closedApplications = closedApplications.filter(
-        (approval) => approval.eventType?.toLowerCase() !== "cultural"
+        (approval) => approval.eventType?.toLowerCase() !== "cultural",
       );
     }
     // Filter by category if role is 'general-secretary'
     if (role === "general-secretary" && category) {
       closedApplications = closedApplications.filter(
-        (approval) => approval.eventType === category
+        (approval) => approval.eventType === category,
       );
     }
 
@@ -730,11 +812,13 @@ export const approveApplication = async (req, res) => {
     }
     // Find the index of the approval object corresponding to the given role
     const approvalIndex = eventApproval.approvals.findIndex(
-      (approval) => approval.role === role && approval.status === "Pending"
+      (approval) => approval.role === role && approval.status === "Pending",
     );
     console.log("Approval Index:", approvalIndex);
     if (approvalIndex === -1) {
-      return res.status(400).json({ message: "No pending approval found for this role." });
+      return res
+        .status(400)
+        .json({ message: "No pending approval found for this role." });
     }
 
     // Update the status of the approval to "Approved"
@@ -750,13 +834,15 @@ export const approveApplication = async (req, res) => {
       //   `Event Approval Needed: ${eventApproval.eventName}`,
       //   `The event "${eventApproval.eventName}" has been recommended by ${role}. It is now pending your review and approval.
       //   Please visit https://swevents.iitdh.ac.in to review the event.`
-      // ); 
+      // );
     }
-    
+
     await eventApproval.save();
 
     // Optionally, you can also send a notification email or take further actions here
-    res.status(200).json({ message: `${role} approved the application successfully.` });
+    res
+      .status(200)
+      .json({ message: `${role} approved the application successfully.` });
   } catch (error) {
     console.error("Error approving application:", error);
     res.status(500).json({ message: "Internal server error." });
@@ -771,7 +857,7 @@ export const handleApprovalStatus = async (req, res) => {
   try {
     console.log("Received request:", { applicationId, role, status, comment }); // Debug log
 
-    if (!role || !['Approved', 'Rejected', 'Query'].includes(status)) {
+    if (!role || !["Approved", "Rejected", "Query"].includes(status)) {
       console.log("Invalid role or status"); // Debug log
       return res.status(400).json({ message: "Invalid role or status." });
     }
@@ -786,23 +872,26 @@ export const handleApprovalStatus = async (req, res) => {
     // Check if ARSW is trying to approve with pending budget revisions
     if (role === "ARSW" && status === "Approved") {
       const pendingRevisions = eventApproval.arsw_budget_revisions?.filter(
-        r => r.clubSecretaryApprovalStatus === "Pending"
+        (r) => r.clubSecretaryApprovalStatus === "Pending",
       );
 
       if (pendingRevisions && pendingRevisions.length > 0) {
-        return res.status(400).json({ 
-          message: "Cannot approve event. Club secretary must review the budget revision first. Awaiting club secretary response." 
+        return res.status(400).json({
+          message:
+            "Cannot approve event. Club secretary must review the budget revision first. Awaiting club secretary response.",
         });
       }
 
       // Also check if there are any "QueryRaised" revisions that haven't been addressed
       const queryRaisedRevisions = eventApproval.arsw_budget_revisions?.filter(
-        r => r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized
+        (r) =>
+          r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized,
       );
 
       if (queryRaisedRevisions && queryRaisedRevisions.length > 0) {
-        return res.status(400).json({ 
-          message: "Cannot approve event. Club secretary raised a query on the budget revision. Please address the query and submit a revised budget." 
+        return res.status(400).json({
+          message:
+            "Cannot approve event. Club secretary raised a query on the budget revision. Please address the query and submit a revised budget.",
         });
       }
     }
@@ -812,32 +901,39 @@ export const handleApprovalStatus = async (req, res) => {
     let approvalIndex;
     if (status === "Approved") {
       approvalIndex = eventApproval.approvals.findIndex(
-        (app) => app.role === role && app.status === "Pending"
+        (app) => app.role === role && app.status === "Pending",
       );
     } else {
       // For Reject or Query: allow if status is Pending, Edited, or Query
       approvalIndex = eventApproval.approvals.findIndex(
-        (app) => app.role === role && ["Pending", "Edited", "Query"].includes(app.status)
+        (app) =>
+          app.role === role &&
+          ["Pending", "Edited", "Query"].includes(app.status),
       );
     }
 
     if (approvalIndex === -1) {
       console.log("No approval found for this role with appropriate status"); // Debug log
-      return res.status(400).json({ message: "No approval found for this role. You may not be authorized to take this action." });
+      return res
+        .status(400)
+        .json({
+          message:
+            "No approval found for this role. You may not be authorized to take this action.",
+        });
     }
 
     eventApproval.approvals[approvalIndex].status = status;
-    
+
     // For ARSW approval, auto-add "Edited budget" comment if applicable
     let finalComment = comment || "";
     if (role === "ARSW" && status === "Approved") {
       finalComment = `Edited budget${comment ? ` - ${comment}` : ""}`;
     }
-    
+
     eventApproval.approvals[approvalIndex].comment = finalComment;
     eventApproval.approvals[approvalIndex].timestamp = new Date();
-    
-    if(status === "Rejected"){
+
+    if (status === "Rejected") {
       // TESTING: Email sending disabled
       // try {
       //   await sendEmail(
@@ -849,108 +945,107 @@ export const handleApprovalStatus = async (req, res) => {
       // } catch (emailError) {
       //   console.error(`Failed to send rejection email to organizer:`, emailError.message);
       // }
+    } else if (status === "Approved") {
+      const eventHierarchy = getRoleHierarchyForEvent(eventApproval.eventType);
+      const nextRoleIndex = eventHierarchy.indexOf(role) + 1;
+      // TESTING: Email sending disabled
+      // if (nextRoleIndex < eventHierarchy.length) {
+      //   const nextRole = eventHierarchy[nextRoleIndex];
+      //   const nextRoleEmail = getEmailForRole(nextRole);
+      //
+      //   if (nextRoleEmail) {
+      //     try {
+      //       await sendEmail(
+      //         nextRoleEmail,
+      //         `Event Approval Needed: ${eventApproval.eventName}`,
+      //         `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.
+      //         Please visit https://swevents.iitdh.ac.in to review the event.`
+      //       );
+      //       console.log(`Notification email sent to ${nextRole} at ${nextRoleEmail}`);
+      //     } catch (emailError) {
+      //       console.error(`Failed to send notification email to ${nextRole}:`, emailError.message);
+      //     }
+      //   } else {
+      //     console.error(`No email found for next role: ${nextRole}`);
+      //   }
+      // } else if (nextRoleIndex === eventHierarchy.length) {
+      //   try {
+      //     await sendEmail(
+      //       eventApproval.email,
+      //       `Event Fully Approved: ${eventApproval.eventName}`,
+      //       `Congratulations! Your event "${eventApproval.eventName}" has been fully approved by all authorities.
+      //       Event Details:
+      //     - Event Name: ${eventApproval.eventName}
+      //     - Event Type: ${eventApproval.eventType}
+      //     - Date: ${new Date(eventApproval.startDate).toLocaleDateString()} to ${new Date(eventApproval.endDate).toLocaleDateString()}
+      //     - Venue: ${eventApproval.eventVenue}
+      //     - Organizer: ${eventApproval.nameOfTheOrganizer}
+
+      //     Your event is now ready to proceed. Please ensure all arrangements are made as per the approved proposal.
+
+      //     Best regards,
+      //     Event Approval Committee`
+      //     );
+      //     console.log(`Final approval notification sent to organizer: ${eventApproval.email}`);
+      //     try {
+      //       await sendEmail(
+      //         'studentswelfare.office@iitdh.ac.in',
+      //         `Event Approved - ${eventApproval.eventName}`,
+      //         `Dear Student Welfare Office Team,
+
+      // The following event has been fully approved by all authorities:
+
+      // Event Details:
+      // - Event Name: ${eventApproval.eventName}
+      // - Event Type: ${eventApproval.eventType}
+      // - Club Name: ${eventApproval.clubName || 'N/A'}
+      // - Start Date: ${new Date(eventApproval.startDate).toLocaleDateString()}
+      // - End Date: ${new Date(eventApproval.endDate).toLocaleDateString()}
+      // - Venue: ${eventApproval.eventVenue}
+      // - Semester: ${eventApproval.semester}
+      // - Academic Year: ${eventApproval.academicYear}
+
+      // Organizer Details:
+      // - Name: ${eventApproval.nameOfTheOrganizer}
+      // - Designation: ${eventApproval.designation}
+      // - Email: ${eventApproval.email}
+      // - Phone: ${eventApproval.phoneNumber}
+
+      // Event Description:
+      // ${eventApproval.eventDescription || 'N/A'}
+
+      // Participants:
+      // - Internal Participants: ${eventApproval.internalParticipants || 0}
+      // - External Participants: ${eventApproval.externalParticipants || 0}
+
+      // Budget Details:
+      // - Approved Budget: ₹${ eventApproval.proposedEstimatedBudget ? eventApproval.proposedEstimatedBudget: (eventApproval.estimatedBudget || 0)}
+      // - Source of Budget: ${eventApproval.sourceOfBudget || 'N/A'}
+      // ${eventApproval.requirements && eventApproval.requirements.length > 0 ? `Requirements: ${eventApproval.requirements.join(', ')}` : ''}
+
+      // ${eventApproval.anyAdditionalAmenities ? `Additional Amenities: ${eventApproval.anyAdditionalAmenities}` : ''}
+
+      // ${eventApproval.listOfCollaboratingOrganizations ? `Collaborating Organizations: ${eventApproval.listOfCollaboratingOrganizations}` : ''}
+
+      // Approval Chain:
+      // ${eventApproval.approvals.map((approval, index) =>
+      //   `${index + 1}. ${approval.role.toUpperCase()}: ${approval.status}${approval.comment ? ` (Comment: ${approval.comment})` : ''}`
+      // ).join('\n')}
+
+      // Please proceed with necessary arrangements for this event.
+
+      // Best regards,
+      // Event Approval System`
+      //     );
+      //     console.log('Email sent successfully to student welfare office');
+      //     } catch (welfareEmailError) {
+      //       console.error('Failed to send email to student welfare office:', welfareEmailError.message);
+      //   }
+      // } catch (emailError) {
+      //   console.error(`Failed to send final approval email to organizer:`, emailError.message);
+      // }
+      // }
     }
-    else if(status === "Approved"){
-    const eventHierarchy = getRoleHierarchyForEvent(eventApproval.eventType);
-    const nextRoleIndex = eventHierarchy.indexOf(role) + 1;
-    // TESTING: Email sending disabled
-    // if (nextRoleIndex < eventHierarchy.length) {
-    //   const nextRole = eventHierarchy[nextRoleIndex];
-    //   const nextRoleEmail = getEmailForRole(nextRole);
-    //   
-    //   if (nextRoleEmail) {
-    //     try {
-    //       await sendEmail(
-    //         nextRoleEmail,
-    //         `Event Approval Needed: ${eventApproval.eventName}`,
-    //         `The event "${eventApproval.eventName}" has been approved by ${role}. It is now pending your review and approval.
-    //         Please visit https://swevents.iitdh.ac.in to review the event.`
-    //       );
-    //       console.log(`Notification email sent to ${nextRole} at ${nextRoleEmail}`);
-    //     } catch (emailError) {
-    //       console.error(`Failed to send notification email to ${nextRole}:`, emailError.message);
-    //     }
-    //   } else {
-    //     console.error(`No email found for next role: ${nextRole}`);
-    //   }
-    // } else if (nextRoleIndex === eventHierarchy.length) {
-    //   try {
-    //     await sendEmail(
-    //       eventApproval.email,
-    //       `Event Fully Approved: ${eventApproval.eventName}`,
-    //       `Congratulations! Your event "${eventApproval.eventName}" has been fully approved by all authorities.
-    //       Event Details:
-    //     - Event Name: ${eventApproval.eventName}
-    //     - Event Type: ${eventApproval.eventType}
-    //     - Date: ${new Date(eventApproval.startDate).toLocaleDateString()} to ${new Date(eventApproval.endDate).toLocaleDateString()}
-    //     - Venue: ${eventApproval.eventVenue}
-    //     - Organizer: ${eventApproval.nameOfTheOrganizer}
-
-    //     Your event is now ready to proceed. Please ensure all arrangements are made as per the approved proposal.
-
-    //     Best regards,
-    //     Event Approval Committee`
-    //     );
-    //     console.log(`Final approval notification sent to organizer: ${eventApproval.email}`);
-    //     try {
-    //       await sendEmail(
-    //         'studentswelfare.office@iitdh.ac.in',
-    //         `Event Approved - ${eventApproval.eventName}`,
-    //         `Dear Student Welfare Office Team,
-
-    // The following event has been fully approved by all authorities:
-
-    // Event Details:
-    // - Event Name: ${eventApproval.eventName}
-    // - Event Type: ${eventApproval.eventType}
-    // - Club Name: ${eventApproval.clubName || 'N/A'}
-    // - Start Date: ${new Date(eventApproval.startDate).toLocaleDateString()}
-    // - End Date: ${new Date(eventApproval.endDate).toLocaleDateString()}
-    // - Venue: ${eventApproval.eventVenue}
-    // - Semester: ${eventApproval.semester}
-    // - Academic Year: ${eventApproval.academicYear}
-
-    // Organizer Details:
-    // - Name: ${eventApproval.nameOfTheOrganizer}
-    // - Designation: ${eventApproval.designation}
-    // - Email: ${eventApproval.email}
-    // - Phone: ${eventApproval.phoneNumber}
-
-    // Event Description:
-    // ${eventApproval.eventDescription || 'N/A'}
-
-    // Participants:
-    // - Internal Participants: ${eventApproval.internalParticipants || 0}
-    // - External Participants: ${eventApproval.externalParticipants || 0}
-
-    // Budget Details:
-    // - Approved Budget: ₹${ eventApproval.proposedEstimatedBudget ? eventApproval.proposedEstimatedBudget: (eventApproval.estimatedBudget || 0)}
-    // - Source of Budget: ${eventApproval.sourceOfBudget || 'N/A'}
-    // ${eventApproval.requirements && eventApproval.requirements.length > 0 ? `Requirements: ${eventApproval.requirements.join(', ')}` : ''}
-
-    // ${eventApproval.anyAdditionalAmenities ? `Additional Amenities: ${eventApproval.anyAdditionalAmenities}` : ''}
-
-    // ${eventApproval.listOfCollaboratingOrganizations ? `Collaborating Organizations: ${eventApproval.listOfCollaboratingOrganizations}` : ''}
-
-    // Approval Chain:
-    // ${eventApproval.approvals.map((approval, index) => 
-    //   `${index + 1}. ${approval.role.toUpperCase()}: ${approval.status}${approval.comment ? ` (Comment: ${approval.comment})` : ''}`
-    // ).join('\n')}
-
-    // Please proceed with necessary arrangements for this event.
-
-    // Best regards,
-    // Event Approval System`
-    //     );
-    //     console.log('Email sent successfully to student welfare office');
-    //     } catch (welfareEmailError) {
-    //       console.error('Failed to send email to student welfare office:', welfareEmailError.message);
-    //   }
-    // } catch (emailError) {
-    //   console.error(`Failed to send final approval email to organizer:`, emailError.message);
-    // }
-    // }
-}
     await eventApproval.save();
 
     console.log("Application updated successfully:", { applicationId, status }); // Debug log
@@ -967,7 +1062,11 @@ export const raiseQuery = async (req, res) => {
 
   try {
     if (!applicationId || !role || !queryText) {
-      return res.status(400).json({ message: "Application ID, role, and query text are required." });
+      return res
+        .status(400)
+        .json({
+          message: "Application ID, role, and query text are required.",
+        });
     }
 
     const eventApproval = await EventApproval.findById(applicationId);
@@ -977,21 +1076,26 @@ export const raiseQuery = async (req, res) => {
 
     // Check if the role can raise queries (not club-secretary)
     if (role === "club-secretary") {
-      return res.status(403).json({ message: "Club secretary cannot raise queries." });
+      return res
+        .status(403)
+        .json({ message: "Club secretary cannot raise queries." });
     }
 
     // Check if there's a pending approval for this role
     const approvalIndex = eventApproval.approvals.findIndex(
-      (app) => app.role === role && app.status === "Pending"
+      (app) => app.role === role && app.status === "Pending",
     );
 
     if (approvalIndex === -1) {
-      return res.status(400).json({ message: "No pending approval found for this role." });
+      return res
+        .status(400)
+        .json({ message: "No pending approval found for this role." });
     }
 
     // Update the approval status to "Query"
     eventApproval.approvals[approvalIndex].status = "Query";
-    eventApproval.approvals[approvalIndex].comment = `Query raised: ${queryText}`;
+    eventApproval.approvals[approvalIndex].comment =
+      `Query raised: ${queryText}`;
     eventApproval.approvals[approvalIndex].timestamp = new Date();
 
     // Add the query to the queries array
@@ -1033,7 +1137,9 @@ export const raiseQuery = async (req, res) => {
     //   console.error(`Failed to send query notification email to organizer:`, emailError.message);
     // }
 
-    res.status(200).json({ message: "Query raised successfully.", query: newQuery });
+    res
+      .status(200)
+      .json({ message: "Query raised successfully.", query: newQuery });
   } catch (error) {
     console.error("Error raising query:", error);
     res.status(500).json({ message: "Internal server error." });
@@ -1045,7 +1151,7 @@ export const getEventQueries = async (req, res) => {
   const { eventId } = req.params;
 
   try {
-    const eventApproval = await EventApproval.findById(eventId, 'queries');
+    const eventApproval = await EventApproval.findById(eventId, "queries");
     if (!eventApproval) {
       return res.status(404).json({ message: "Event not found." });
     }
@@ -1063,7 +1169,11 @@ export const replyToQuery = async (req, res) => {
 
   try {
     if (!eventId || !queryId || !response || !userID) {
-      return res.status(400).json({ message: "Event ID, query ID, response, and userID are required." });
+      return res
+        .status(400)
+        .json({
+          message: "Event ID, query ID, response, and userID are required.",
+        });
     }
 
     const eventApproval = await EventApproval.findById(eventId);
@@ -1073,23 +1183,33 @@ export const replyToQuery = async (req, res) => {
 
     // Check if the user is the event creator
     if (eventApproval.userID.toString() !== userID.toString()) {
-      return res.status(403).json({ message: "Only the event creator can reply to queries." });
+      return res
+        .status(403)
+        .json({ message: "Only the event creator can reply to queries." });
     }
 
     // Find the query
     const queryIndex = eventApproval.queries.findIndex(
-      (query) => query.queryId.toString() === queryId && query.status === "Pending"
+      (query) =>
+        query.queryId.toString() === queryId && query.status === "Pending",
     );
 
     if (queryIndex === -1) {
-      return res.status(404).json({ message: "Query not found or already answered." });
+      return res
+        .status(404)
+        .json({ message: "Query not found or already answered." });
     }
 
     const query = eventApproval.queries[queryIndex];
 
     // Check if the user role is valid (club-secretary or general-secretary)
     if (!["club-secretary", "general-secretary"].includes(userRole)) {
-      return res.status(403).json({ message: "Only club-secretary or general-secretary can reply to queries." });
+      return res
+        .status(403)
+        .json({
+          message:
+            "Only club-secretary or general-secretary can reply to queries.",
+        });
     }
 
     // Update the query with response
@@ -1102,7 +1222,7 @@ export const replyToQuery = async (req, res) => {
     // Post-approval queries should not change the approval status
     if (!query.isPostApprovalQuery) {
       const approvalIndex = eventApproval.approvals.findIndex(
-        (approval) => approval.role === query.askerRole
+        (approval) => approval.role === query.askerRole,
       );
 
       if (approvalIndex !== -1) {
@@ -1124,12 +1244,9 @@ export const replyToQuery = async (req, res) => {
       //     roleEmail,
       //     `Query Response Received: ${eventApproval.eventName}`,
       //     `Your query for event "${eventApproval.eventName}" has been responded to.
-
       // Original Query: ${query.queryText}
       // Response: ${response}
-
       // Please visit https://swevents.iitdh.ac.in review the event application again and take appropriate action.
-
       // Best regards,
       // Event Approval Committee`
       //   );
@@ -1154,14 +1271,14 @@ export const getSemesterOptions = async (req, res) => {
     const { role, category } = req.query;
 
     let matchQuery = {};
-    
+
     // Add role-based filtering if needed
-    if (role && role !== 'club-secretary') {
+    if (role && role !== "club-secretary") {
       matchQuery[`approvals.role`] = role;
     }
 
     // Add category filtering for general-secretary
-    if (role === 'general-secretary' && category) {
+    if (role === "general-secretary" && category) {
       matchQuery.eventType = category;
     }
 
@@ -1171,19 +1288,20 @@ export const getSemesterOptions = async (req, res) => {
         $group: {
           _id: {
             semester: "$semester",
-            academicYear: "$academicYear"
-          }
-        }
+            academicYear: "$academicYear",
+          },
+        },
       },
       {
-        $sort: { "_id.academicYear": -1, "_id.semester": 1 }
-      }
+        $sort: { "_id.academicYear": -1, "_id.semester": 1 },
+      },
     ]);
 
-    const formattedOptions = semesterOptions.map(option => ({
+    const formattedOptions = semesterOptions.map((option) => ({
       semester: option._id.semester,
       academicYear: option._id.academicYear,
-      display: option._id.semester || `${option._id.academicYear} Academic Year`
+      display:
+        option._id.semester || `${option._id.academicYear} Academic Year`,
     }));
 
     res.status(200).json(formattedOptions);
@@ -1195,7 +1313,15 @@ export const getSemesterOptions = async (req, res) => {
 
 // Enhanced function to get approved applications with semester filtering and search
 export const getApprovedApplicationsWithFilters = async (req, res) => {
-  const { role, category, semester, academicYear, search, page = 1, limit = 10 } = req.body;
+  const {
+    role,
+    category,
+    semester,
+    academicYear,
+    search,
+    page = 1,
+    limit = 10,
+  } = req.body;
 
   try {
     if (!role) {
@@ -1204,14 +1330,14 @@ export const getApprovedApplicationsWithFilters = async (req, res) => {
 
     // Base query for approved applications
     let query = {
-      "approvals": {
+      approvals: {
         $elemMatch: {
           role: role,
-          status: "Approved"
-        }
+          status: "Approved",
+        },
       },
       // Exclude closed events
-      status: { $ne: "Closed" }
+      status: { $ne: "Closed" },
     };
 
     // Add semester filtering
@@ -1231,13 +1357,13 @@ export const getApprovedApplicationsWithFilters = async (req, res) => {
 
     // Add search functionality
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(search.trim(), "i");
       query.$or = [
         { eventName: searchRegex },
         { clubName: searchRegex },
         { nameOfTheOrganizer: searchRegex },
         { eventVenue: searchRegex },
-        { eventDescription: searchRegex }
+        { eventDescription: searchRegex },
       ];
     }
 
@@ -1276,8 +1402,8 @@ export const getApprovedApplicationsWithFilters = async (req, res) => {
         totalPages: Math.ceil(totalCount / limit),
         totalCount,
         hasNext: skip + approvedApplications.length < totalCount,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching approved applications with filters:", error);
@@ -1287,7 +1413,15 @@ export const getApprovedApplicationsWithFilters = async (req, res) => {
 
 // Enhanced function to get pending applications with semester filtering and search
 export const getPendingApprovalsWithFilters = async (req, res) => {
-  const { role, category, semester, academicYear, search, page = 1, limit = 10 } = req.body;
+  const {
+    role,
+    category,
+    semester,
+    academicYear,
+    search,
+    page = 1,
+    limit = 10,
+  } = req.body;
 
   try {
     if (!role) {
@@ -1316,13 +1450,13 @@ export const getPendingApprovalsWithFilters = async (req, res) => {
 
     // Add search functionality
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(search.trim(), "i");
       query.$or = [
         { eventName: searchRegex },
         { clubName: searchRegex },
         { nameOfTheOrganizer: searchRegex },
         { eventVenue: searchRegex },
-        { eventDescription: searchRegex }
+        { eventDescription: searchRegex },
       ];
     }
 
@@ -1338,28 +1472,34 @@ export const getPendingApprovalsWithFilters = async (req, res) => {
           totalPages: 0,
           totalCount: 0,
           hasNext: false,
-          hasPrev: false
-        }
+          hasPrev: false,
+        },
       });
     }
 
     // Filter for pending or query status
     pendingApprovals = pendingApprovals.filter((approval) => {
       const approvalStatus = approval.approvals.find(
-        (app) => app.role === role
+        (app) => app.role === role,
       );
-      return approvalStatus && (approvalStatus.status === "Pending" || approvalStatus.status === "Query");
+      return (
+        approvalStatus &&
+        (approvalStatus.status === "Pending" ||
+          approvalStatus.status === "Query")
+      );
     });
 
     // Ensure previous roles in the hierarchy are approved
     pendingApprovals = pendingApprovals.filter((approval) => {
       const eventHierarchy = getRoleHierarchyForEvent(approval.eventType);
       const roleIndex = eventHierarchy.indexOf(role);
-      if (roleIndex === -1){
+      if (roleIndex === -1) {
         return false;
       }
       return eventHierarchy.slice(0, roleIndex).every((prevRole) => {
-        const prevApproval = approval.approvals.find((app) => app.role === prevRole);
+        const prevApproval = approval.approvals.find(
+          (app) => app.role === prevRole,
+        );
         return prevApproval && prevApproval.status === "Approved";
       });
     });
@@ -1389,16 +1529,14 @@ export const getPendingApprovalsWithFilters = async (req, res) => {
         totalPages: Math.ceil(totalCount / limit),
         totalCount,
         hasNext: skip + paginatedApprovals.length < totalCount,
-        hasPrev: page > 1
-      }
+        hasPrev: page > 1,
+      },
     });
   } catch (error) {
     console.error("Error fetching pending approvals with filters:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };
-
-
 
 // Edit all event details (only allowed by club-secretary and only if approvals are still pending at general-secretary)
 export const editEventDetails = async (req, res) => {
@@ -1413,54 +1551,79 @@ export const editEventDetails = async (req, res) => {
 
     const user = await User.findById(userID);
     if (!user || user.role !== "club-secretary") {
-      return res.status(403).json({ message: "Only club-secretary can edit event details." });
+      return res
+        .status(403)
+        .json({ message: "Only club-secretary can edit event details." });
     }
 
     if (event.userID.toString() !== userID.toString()) {
-      return res.status(403).json({ message: "You are not authorized to edit this event." });
+      return res
+        .status(403)
+        .json({ message: "You are not authorized to edit this event." });
     }
-    
 
     // List of fields that can be updated
     const editableFields = [
-      "eventName", "partOfGymkhanaCalendar", "eventType", "clubName", "startDate", "endDate",
-      "eventVenue", "sourceOfBudget", "budgetAnnexureNumber", "estimatedBudget", "nameOfTheOrganizer", "organizerRollNumber", "designation",
-      "email", "phoneNumber", "requirements", "anyAdditionalAmenities", "eventDescription",
-      "internalParticipants", "externalParticipants", "listOfCollaboratingOrganizations", "budgetBreakup"
+      "eventName",
+      "partOfGymkhanaCalendar",
+      "eventType",
+      "clubName",
+      "startDate",
+      "endDate",
+      "eventVenue",
+      "sourceOfBudget",
+      "budgetAnnexureNumber",
+      "estimatedBudget",
+      "nameOfTheOrganizer",
+      "organizerRollNumber",
+      "designation",
+      "email",
+      "phoneNumber",
+      "requirements",
+      "anyAdditionalAmenities",
+      "eventDescription",
+      "internalParticipants",
+      "externalParticipants",
+      "listOfCollaboratingOrganizations",
+      "budgetBreakup",
     ];
 
     // Track changes for version history BEFORE updating
     const changes = {};
-    const dateFields = ['startDate', 'endDate'];
-    
-    editableFields.forEach(field => {
+    const dateFields = ["startDate", "endDate"];
+
+    editableFields.forEach((field) => {
       if (updates[field] !== undefined) {
         const oldValue = event[field];
         const newValue = updates[field];
-        
+
         let hasChanged = false;
-        
+
         // Special handling for date fields - compare only the date part (before 'T')
         if (dateFields.includes(field)) {
-          const oldDatePart = oldValue ? new Date(oldValue).toISOString().split('T')[0] : null;
-          const newDatePart = newValue ? new Date(newValue).toISOString().split('T')[0] : null;
+          const oldDatePart = oldValue
+            ? new Date(oldValue).toISOString().split("T")[0]
+            : null;
+          const newDatePart = newValue
+            ? new Date(newValue).toISOString().split("T")[0]
+            : null;
           hasChanged = oldDatePart !== newDatePart;
         } else {
           // For non-date fields, use deep comparison
           hasChanged = JSON.stringify(oldValue) !== JSON.stringify(newValue);
         }
-        
+
         if (hasChanged) {
           changes[field] = {
             oldValue: oldValue,
-            newValue: newValue
+            newValue: newValue,
           };
         }
       }
     });
 
     // Now update the fields
-    editableFields.forEach(field => {
+    editableFields.forEach((field) => {
       if (updates[field] !== undefined) {
         event[field] = updates[field];
       }
@@ -1473,9 +1636,9 @@ export const editEventDetails = async (req, res) => {
       event.academicYear = semesterInfo.academicYear;
     }
 
-     // Update budgetBreakup if provided
+    // Update budgetBreakup if provided
     if (updates.budgetBreakup) {
-      event.budgetBreakup = updates.budgetBreakup;  // Replace the existing budgetBreakup with the new one
+      event.budgetBreakup = updates.budgetBreakup; // Replace the existing budgetBreakup with the new one
     }
 
     // Add to edit history if there are changes
@@ -1487,12 +1650,12 @@ export const editEventDetails = async (req, res) => {
         editedAt: new Date(),
         editedBy: userID,
         changes: changes,
-        reason: "Event details updated by club-secretary"
+        reason: "Event details updated by club-secretary",
       });
     }
 
     // Keep "Query" status as "Query", reset only non-approved and non-query to "Pending"
-    event.approvals = event.approvals.map(a => {
+    event.approvals = event.approvals.map((a) => {
       if (
         a.role !== "club-secretary" &&
         a.status !== "Query" &&
@@ -1505,7 +1668,13 @@ export const editEventDetails = async (req, res) => {
 
     await event.save();
 
-    res.status(200).json({ message: "Event details updated. Query and Approved statuses preserved.", event });
+    res
+      .status(200)
+      .json({
+        message:
+          "Event details updated. Query and Approved statuses preserved.",
+        event,
+      });
   } catch (error) {
     console.error("Error editing event details:", error);
     res.status(500).json({ message: "Internal server error." });
@@ -1517,7 +1686,7 @@ export const getEditHistory = async (req, res) => {
   const { eventId } = req.params;
 
   try {
-    const event = await EventApproval.findById(eventId).select('editHistory');
+    const event = await EventApproval.findById(eventId).select("editHistory");
     if (!event) {
       return res.status(404).json({ message: "Event not found." });
     }
@@ -1525,9 +1694,9 @@ export const getEditHistory = async (req, res) => {
     // Populate editor details and convert Map to plain object
     const historyWithUserDetails = await Promise.all(
       (event.editHistory || []).map(async (edit) => {
-        const user = await User.findById(edit.editedBy).select('name email');
+        const user = await User.findById(edit.editedBy).select("name email");
         const editObj = edit.toObject();
-        
+
         // Convert Map to plain object for changes field
         const changesObj = {};
         if (editObj.changes instanceof Map) {
@@ -1538,14 +1707,14 @@ export const getEditHistory = async (req, res) => {
           // If it's already an object, use it directly
           Object.assign(changesObj, editObj.changes);
         }
-        
+
         return {
           ...editObj,
           changes: changesObj,
-          editorName: user?.name || 'Unknown User',
-          editorEmail: user?.email || 'N/A'
+          editorName: user?.name || "Unknown User",
+          editorEmail: user?.email || "N/A",
         };
-      })
+      }),
     );
 
     res.status(200).json({ editHistory: historyWithUserDetails });
@@ -1557,7 +1726,13 @@ export const getEditHistory = async (req, res) => {
 
 // Edit budget breakup by ARSW/Associate Dean/Dean
 export const editBudget = async (req, res) => {
-  const { eventId, role, proposedBudgetBreakup, proposedEstimatedBudget, justification } = req.body;
+  const {
+    eventId,
+    role,
+    proposedBudgetBreakup,
+    proposedEstimatedBudget,
+    justification,
+  } = req.body;
 
   try {
     // Find the event
@@ -1567,29 +1742,46 @@ export const editBudget = async (req, res) => {
     }
 
     // Check if the user has permission to edit budget
-    if (!["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(role)) {
-      return res.status(403).json({ 
-        message: "Only ARSW, Associate Dean, or Dean can edit the budget." 
+    if (
+      ![
+        "ARSW",
+        "associate-dean",
+        "associate-dean-socio-cultural",
+        "dean",
+      ].includes(role)
+    ) {
+      return res.status(403).json({
+        message: "Only ARSW, Associate Dean, or Dean can edit the budget.",
       });
     }
 
     // Special handling for ARSW budget edits
     if (role === "ARSW") {
       // Check if ARSW has already completed their budget edit cycle (finalized revision exists)
-      if (event.arsw_budget_revisions && event.arsw_budget_revisions.length > 0) {
-        const hasFinalized = event.arsw_budget_revisions.some(r => r.isFinalized);
+      if (
+        event.arsw_budget_revisions &&
+        event.arsw_budget_revisions.length > 0
+      ) {
+        const hasFinalized = event.arsw_budget_revisions.some(
+          (r) => r.isFinalized,
+        );
         if (hasFinalized) {
-          return res.status(403).json({ 
-            message: "ARSW has already completed their budget edit cycle. No further budget edits are allowed. You can now proceed with approval, rejection, or other actions." 
+          return res.status(403).json({
+            message:
+              "ARSW has already completed their budget edit cycle. No further budget edits are allowed. You can now proceed with approval, rejection, or other actions.",
           });
         }
       }
 
       // Check if there's a previous revision with query raised that needs to be finalized
       let previousQueryRevision = null;
-      if (event.arsw_budget_revisions && event.arsw_budget_revisions.length > 0) {
+      if (
+        event.arsw_budget_revisions &&
+        event.arsw_budget_revisions.length > 0
+      ) {
         previousQueryRevision = event.arsw_budget_revisions.find(
-          r => r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized
+          (r) =>
+            r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized,
         );
       }
 
@@ -1606,7 +1798,7 @@ export const editBudget = async (req, res) => {
           editedBy: role,
           editedAt: new Date(),
           clubSecretaryApprovalStatus: "Approved", // Auto-approve after query since it's finalized
-          isFinalized: true
+          isFinalized: true,
         };
 
         event.arsw_budget_revisions.push(newRevision);
@@ -1618,11 +1810,13 @@ export const editBudget = async (req, res) => {
           editedAt: new Date(),
           justification: justification.trim(),
           budgetBreakup: proposedBudgetBreakup,
-          totalBudget: proposedEstimatedBudget
+          totalBudget: proposedEstimatedBudget,
         });
 
         // Update the ARSW approval status to "Pending" so they can approve
-        const arsw_approval = event.approvals.find(app => app.role === "ARSW");
+        const arsw_approval = event.approvals.find(
+          (app) => app.role === "ARSW",
+        );
         if (arsw_approval) {
           arsw_approval.status = "Pending";
           arsw_approval.timestamp = new Date();
@@ -1661,12 +1855,16 @@ Event Approval System`;
           // await sendEmail(event.email, subject, message);
           // console.log(`Budget finalization notification sent to ${event.email}`);
         } catch (emailError) {
-          console.error("Error sending budget finalization email:", emailError.message);
+          console.error(
+            "Error sending budget finalization email:",
+            emailError.message,
+          );
         }
 
-        res.status(200).json({ 
-          message: "Budget finalized successfully. This revision concludes the query discussion.",
-          event
+        res.status(200).json({
+          message:
+            "Budget finalized successfully. This revision concludes the query discussion.",
+          event,
         });
       } else {
         // First-time budget revision - requires club secretary approval
@@ -1679,7 +1877,7 @@ Event Approval System`;
           editedBy: role,
           editedAt: new Date(),
           clubSecretaryApprovalStatus: "Pending",
-          isFinalized: false
+          isFinalized: false,
         };
 
         if (!event.arsw_budget_revisions) {
@@ -1695,11 +1893,13 @@ Event Approval System`;
           editedAt: new Date(),
           justification: justification.trim(),
           budgetBreakup: proposedBudgetBreakup,
-          totalBudget: proposedEstimatedBudget
+          totalBudget: proposedEstimatedBudget,
         });
 
         // Update the ARSW approval status to "Edited" to indicate budget has been edited
-        const arsw_approval = event.approvals.find(app => app.role === "ARSW");
+        const arsw_approval = event.approvals.find(
+          (app) => app.role === "ARSW",
+        );
         if (arsw_approval) {
           arsw_approval.status = "Edited";
           arsw_approval.timestamp = new Date();
@@ -1738,14 +1938,18 @@ Event Approval System`;
           // await sendEmail(event.email, subject, message);
           // console.log(`Budget revision notification sent to ${event.email}`);
         } catch (emailError) {
-          console.error("Error sending budget revision email:", emailError.message);
+          console.error(
+            "Error sending budget revision email:",
+            emailError.message,
+          );
           // Don't fail the request due to email issues
         }
 
-        res.status(200).json({ 
-          message: "Budget revision submitted successfully. Club secretary has been notified.", 
+        res.status(200).json({
+          message:
+            "Budget revision submitted successfully. Club secretary has been notified.",
           event,
-          revision: newRevision
+          revision: newRevision,
         });
       }
     } else {
@@ -1763,14 +1967,17 @@ Event Approval System`;
         editedAt: new Date(),
         justification: justification.trim(),
         budgetBreakup: proposedBudgetBreakup,
-        totalBudget: proposedEstimatedBudget
+        totalBudget: proposedEstimatedBudget,
       });
 
       await event.save();
 
-      res.status(200).json({ 
-        message: "Budget updated successfully by " + role + ". Changes are permanent and recorded in timeline.", 
-        event 
+      res.status(200).json({
+        message:
+          "Budget updated successfully by " +
+          role +
+          ". Changes are permanent and recorded in timeline.",
+        event,
       });
     }
   } catch (error) {
@@ -1785,7 +1992,9 @@ export const revertBudgetToOriginal = async (req, res) => {
   try {
     // Validate input
     if (!eventId || !role) {
-      return res.status(400).json({ message: "Event ID and role are required." });
+      return res
+        .status(400)
+        .json({ message: "Event ID and role are required." });
     }
 
     // Find the event
@@ -1795,19 +2004,31 @@ export const revertBudgetToOriginal = async (req, res) => {
     }
 
     // Check if user has permission to revert (only those who can edit budgets)
-    if (!["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(role)) {
-      return res.status(403).json({ message: "You don't have permission to revert the budget." });
+    if (
+      ![
+        "ARSW",
+        "associate-dean",
+        "associate-dean-socio-cultural",
+        "dean",
+      ].includes(role)
+    ) {
+      return res
+        .status(403)
+        .json({ message: "You don't have permission to revert the budget." });
     }
 
     // Check if there's a budget to revert (i.e., proposed budget exists)
-    if (!event.proposedBudgetBreakup || event.proposedBudgetBreakup.length === 0) {
+    if (
+      !event.proposedBudgetBreakup ||
+      event.proposedBudgetBreakup.length === 0
+    ) {
       return res.status(400).json({ message: "No budget changes to revert." });
     }
 
     // Store the original budget info before reverting
     const revertedData = {
       proposedBudgetBreakup: event.proposedBudgetBreakup,
-      proposedEstimatedBudget: event.proposedEstimatedBudget
+      proposedEstimatedBudget: event.proposedEstimatedBudget,
     };
 
     // Clear the proposed budget fields
@@ -1820,7 +2041,7 @@ export const revertBudgetToOriginal = async (req, res) => {
     event.arsw_budget_revisions = undefined;
 
     // Reset ARSW approval status back to Pending if it was "Edited"
-    const arsw_approval = event.approvals.find(app => app.role === "ARSW");
+    const arsw_approval = event.approvals.find((app) => app.role === "ARSW");
     if (arsw_approval && arsw_approval.status === "Edited") {
       arsw_approval.status = "Pending";
     }
@@ -1830,7 +2051,7 @@ export const revertBudgetToOriginal = async (req, res) => {
     res.status(200).json({
       message: "Budget reverted to original successfully.",
       revertedData,
-      event
+      event,
     });
   } catch (error) {
     console.error("Error reverting budget:", error);
@@ -1843,9 +2064,15 @@ export const respondToBudgetRevision = async (req, res) => {
 
   try {
     // Validate input
-    if (!eventId || !revisionNumber || !status || !["Approved", "QueryRaised"].includes(status)) {
-      return res.status(400).json({ 
-        message: "Event ID, revision number, and valid status (Approved/QueryRaised) are required." 
+    if (
+      !eventId ||
+      !revisionNumber ||
+      !status ||
+      !["Approved", "QueryRaised"].includes(status)
+    ) {
+      return res.status(400).json({
+        message:
+          "Event ID, revision number, and valid status (Approved/QueryRaised) are required.",
       });
     }
 
@@ -1856,7 +2083,7 @@ export const respondToBudgetRevision = async (req, res) => {
 
     // Find the revision
     const revision = event.arsw_budget_revisions?.find(
-      r => r.revisionNumber === revisionNumber
+      (r) => r.revisionNumber === revisionNumber,
     );
 
     if (!revision) {
@@ -1865,8 +2092,8 @@ export const respondToBudgetRevision = async (req, res) => {
 
     // Check if revision is still pending
     if (revision.clubSecretaryApprovalStatus !== "Pending") {
-      return res.status(400).json({ 
-        message: "This revision has already been reviewed." 
+      return res.status(400).json({
+        message: "This revision has already been reviewed.",
       });
     }
 
@@ -1876,7 +2103,7 @@ export const respondToBudgetRevision = async (req, res) => {
     revision.respondedAt = new Date();
 
     // Update ARSW approval status based on club secretary's response
-    const arsw_approval = event.approvals.find(app => app.role === "ARSW");
+    const arsw_approval = event.approvals.find((app) => app.role === "ARSW");
     if (arsw_approval) {
       if (status === "Approved") {
         // Club secretary approved the ARSW budget revision
@@ -1884,13 +2111,13 @@ export const respondToBudgetRevision = async (req, res) => {
         arsw_approval.status = "Approved";
         arsw_approval.comment = `Budget revision #${revisionNumber} approved by club secretary. (Auto-approved)`;
         arsw_approval.timestamp = new Date();
-        
+
         // 2. Apply the proposed budget as the actual budget
         event.budgetBreakup = revision.proposedBudgetBreakup;
         event.estimatedBudget = revision.proposedEstimatedBudget;
         event.budgetEditedBy = "ARSW";
         event.budgetEditedAt = revision.editedAt;
-        
+
         // 3. Record this approval in budget history as an ARSW revision approval
         if (!event.budgetHistory) event.budgetHistory = [];
         event.budgetHistory.push({
@@ -1898,9 +2125,9 @@ export const respondToBudgetRevision = async (req, res) => {
           editedAt: revision.editedAt,
           justification: `Budget revision #${revisionNumber} approved and applied by club secretary`,
           budgetBreakup: revision.proposedBudgetBreakup,
-          totalBudget: revision.proposedEstimatedBudget
+          totalBudget: revision.proposedEstimatedBudget,
         });
-        
+
         // 4. Clear proposed budget fields since they're now applied
         event.proposedBudgetBreakup = undefined;
         event.proposedEstimatedBudget = undefined;
@@ -1959,13 +2186,16 @@ Event Approval System`;
         // console.log(`ARSW notification email sent for event ${event.referenceNumber}`);
       }
     } catch (emailError) {
-      console.error("Error sending ARSW notification email:", emailError.message);
+      console.error(
+        "Error sending ARSW notification email:",
+        emailError.message,
+      );
       // Don't fail the request due to email issues
     }
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: `Budget revision ${status === "Approved" ? "approved" : "query raised"} successfully.`,
-      event
+      event,
     });
   } catch (error) {
     console.error("Error responding to budget revision:", error);
@@ -1979,8 +2209,21 @@ export const closeEvent = async (req, res) => {
   try {
     // Find the user and check role
     const user = await User.findById(userID);
-    if (!user || !["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean", "students-welfare-office"].includes(user.role)) {
-      return res.status(403).json({ message: "Only ARSW, associate-dean or dean can close events." });
+    if (
+      !user ||
+      ![
+        "ARSW",
+        "associate-dean",
+        "associate-dean-socio-cultural",
+        "dean",
+        "students-welfare-office",
+      ].includes(user.role)
+    ) {
+      return res
+        .status(403)
+        .json({
+          message: "Only ARSW, associate-dean or dean can close events.",
+        });
     }
 
     // Find the event
@@ -1991,11 +2234,13 @@ export const closeEvent = async (req, res) => {
 
     // Check if the event is fully approved
     const allApproved = event.approvals.every(
-      (approval) => approval.status === "Approved"
+      (approval) => approval.status === "Approved",
     );
 
     if (!allApproved) {
-      return res.status(400).json({ message: "Only fully approved events can be closed." });
+      return res
+        .status(400)
+        .json({ message: "Only fully approved events can be closed." });
     }
 
     // Check if event has ended
@@ -2005,8 +2250,10 @@ export const closeEvent = async (req, res) => {
     // hundredDaysBefore.setDate(endDate.getDate() - 100);
     // console.log(hundredDaysBefore);
     if (currentDate < endDate) {
-      return res.status(400).json({ 
-        message: "Cannot close an event that hasn't ended yet. Event end date is " + endDate.toLocaleDateString() 
+      return res.status(400).json({
+        message:
+          "Cannot close an event that hasn't ended yet. Event end date is " +
+          endDate.toLocaleDateString(),
       });
     }
 
@@ -2057,13 +2304,29 @@ export const raiseQueryForApprovedEvent = async (req, res) => {
   try {
     // Validate inputs
     if (!eventId || !userID || !queryText) {
-      return res.status(400).json({ message: "Event ID, user ID, and query text are required." });
+      return res
+        .status(400)
+        .json({ message: "Event ID, user ID, and query text are required." });
     }
 
     // Find the user and check role
     const user = await User.findById(userID);
-    if (!user || !["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean", "students-welfare-office"].includes(user.role)) {
-      return res.status(403).json({ message: "Only ARSW, associate-dean, or dean can raise queries for approved events." });
+    if (
+      !user ||
+      ![
+        "ARSW",
+        "associate-dean",
+        "associate-dean-socio-cultural",
+        "dean",
+        "students-welfare-office",
+      ].includes(user.role)
+    ) {
+      return res
+        .status(403)
+        .json({
+          message:
+            "Only ARSW, associate-dean, or dean can raise queries for approved events.",
+        });
     }
 
     // Find the event
@@ -2074,11 +2337,13 @@ export const raiseQueryForApprovedEvent = async (req, res) => {
 
     // Check if the event is fully approved
     const allApproved = event.approvals.every(
-      (approval) => approval.status === "Approved"
+      (approval) => approval.status === "Approved",
     );
 
     if (!allApproved) {
-      return res.status(400).json({ message: "Can only raise queries for fully approved events." });
+      return res
+        .status(400)
+        .json({ message: "Can only raise queries for fully approved events." });
     }
 
     // Add the query to the queries array
@@ -2122,7 +2387,9 @@ export const raiseQueryForApprovedEvent = async (req, res) => {
     //   console.error(`Failed to send post-approval query notification email to organizer:`, emailError.message);
     // }
 
-    res.status(200).json({ message: "Query raised successfully.", query: newQuery });
+    res
+      .status(200)
+      .json({ message: "Query raised successfully.", query: newQuery });
   } catch (error) {
     console.error("Error raising query for approved event:", error);
     res.status(500).json({ message: "Internal server error." });
