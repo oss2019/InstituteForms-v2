@@ -59,13 +59,27 @@ const SWOEvents = () => {
     ? JSON.parse(localStorage.getItem('user-info')).name
     : 'SW Office';
 
+  // Semester sorting helper - sorts chronologically (newest first)
+  const sortSemestersChronologically = (semesters) => {
+    return [...semesters].sort((a, b) => {
+      const [aSeason, aYear] = a.semester.split(' ');
+      const [bSeason, bYear] = b.semester.split(' ');
+      const aYearNum = parseInt(aYear);
+      const bYearNum = parseInt(bYear);
+
+      if (aYearNum !== bYearNum) return bYearNum - aYearNum; // Descending by year
+      // In same year: Spring first, then Autumn
+      return aSeason === 'Spring' ? -1 : 1;
+    });
+  };
+
   // ── Semester options ─────────────────────────────────────────
   useEffect(() => {
     const fetchSemesterOptions = async () => {
       try {
         const res = await axios.get(`${apiUrl}/event/semesters/options`);
-        // Sort semesters in reverse order (latest first)
-        const sortedSemesters = res.data.sort((a, b) => b.semester.localeCompare(a.semester));
+        // Sort semesters chronologically (latest first)
+        const sortedSemesters = sortSemestersChronologically(res.data);
         setSemesterOptions(sortedSemesters);
         // Set first semester as default (latest semester)
         if (sortedSemesters.length > 0 && !selectedSemester) {
@@ -309,7 +323,7 @@ const SWOEvents = () => {
       <td className="event-date">{new Date(app.startDate).toLocaleDateString()}</td>
       <td className="event-status">Approved</td>
       <td style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem' }} onClick={e => e.stopPropagation()}>
-        {app.referenceNumber || 'NA'}
+        {app.referenceNumber || 'Not Applicable'}
       </td>
     </tr>
   );
@@ -324,7 +338,7 @@ const SWOEvents = () => {
       <td className="event-date">{new Date(app.startDate).toLocaleDateString()}</td>
       <td className="event-status">{getOverallStatus(app.approvals)}</td>
       <td style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem' }} onClick={e => e.stopPropagation()}>
-        {app.referenceNumber || 'NA'}
+        {app.referenceNumber || 'Not Applicable'}
       </td>
     </tr>
   );
@@ -339,7 +353,7 @@ const SWOEvents = () => {
       <td className="event-date">{new Date(app.startDate).toLocaleDateString()}</td>
       <td className="event-status">Closed</td>
       <td style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem' }} onClick={e => e.stopPropagation()}>
-        {app.referenceNumber || 'NA'}
+        {app.referenceNumber || 'Not Applicable'}
       </td>
     </tr>
   );
@@ -530,21 +544,21 @@ const SWOEvents = () => {
                 </table>
               ) : <p className="text-muted">No approved events found for the selected semester.</p>}
               <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
-                <Button 
-                  variant="outline-primary" 
-                  onClick={handleNextSemester}
-                  disabled={currentSemesterIndex <= 0}
-                  title="Next semester (newer)"
-                >
-                  Next Semester →
-                </Button>
-                <Button 
-                  variant="outline-primary" 
+                <Button
+                  variant="outline-primary"
                   onClick={handlePreviousSemester}
                   disabled={currentSemesterIndex >= semesterOptions.length - 1}
                   title="Previous semester (older)"
                 >
                   ← Previous Semester
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
                 </Button>
               </div>
             </>
@@ -570,21 +584,21 @@ const SWOEvents = () => {
                 </table>
               ) : <p className="text-muted">No in-progress events found for the selected semester.</p>}
               <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
-                <Button 
-                  variant="outline-primary" 
-                  onClick={handleNextSemester}
-                  disabled={currentSemesterIndex <= 0}
-                  title="Next semester (newer)"
-                >
-                  Next Semester →
-                </Button>
-                <Button 
-                  variant="outline-primary" 
+                <Button
+                  variant="outline-primary"
                   onClick={handlePreviousSemester}
                   disabled={currentSemesterIndex >= semesterOptions.length - 1}
                   title="Previous semester (older)"
                 >
                   ← Previous Semester
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
                 </Button>
               </div>
             </>
@@ -610,21 +624,21 @@ const SWOEvents = () => {
                 </table>
               ) : <p className="text-muted">No closed events found for the selected semester.</p>}
               <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
-                <Button 
-                  variant="outline-primary" 
-                  onClick={handleNextSemester}
-                  disabled={currentSemesterIndex <= 0}
-                  title="Next semester (newer)"
-                >
-                  Next Semester →
-                </Button>
-                <Button 
-                  variant="outline-primary" 
+                <Button
+                  variant="outline-primary"
                   onClick={handlePreviousSemester}
                   disabled={currentSemesterIndex >= semesterOptions.length - 1}
                   title="Previous semester (older)"
                 >
                   ← Previous Semester
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
                 </Button>
               </div>
             </>

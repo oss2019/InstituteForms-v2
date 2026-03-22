@@ -647,12 +647,12 @@ export const getRejectedApplications = async (req, res) => {
       );
     }
 
-    // Filter out applications with `endDate` before the current date (optional)
-    const currentDate = new Date();
-    rejectedApplications = rejectedApplications.filter((approval) => {
-      const endDate = new Date(approval.endDate);
-      return currentDate <= endDate; // Only show future rejected events (optional logic)
-    });
+    // Removed: we want to show all rejected events, including past ones
+    // const currentDate = new Date();
+    // rejectedApplications = rejectedApplications.filter((approval) => {
+    //   const endDate = new Date(approval.endDate);
+    //   return currentDate <= endDate; // Only show future rejected events (optional logic)
+    // });
 
     console.log("Final rejected applications:", rejectedApplications);
     res.status(200).json(rejectedApplications);
@@ -674,11 +674,6 @@ export const getClosedApplications = async (req, res) => {
       return res.status(400).json({ message: "Role is required." });
     }
 
-    // Only allow specific roles to view closed events
-    if (!["associate-dean", "associate-dean-socio-cultural", "dean", "ARSW", "students-welfare-office"].includes(role)) {
-      return res.status(403).json({ message: "Only associate-dean, dean, and ARSW can view closed events." });
-    }
-
     // Fetch only events with status "Closed"
     let closedApplications = await EventApproval.find({
       status: "Closed"
@@ -689,6 +684,8 @@ export const getClosedApplications = async (req, res) => {
     if (closedApplications.length === 0) {
       return res.status(200).json([]);
     }
+
+    // Apply role-based filtering for event types/categories
     if (role === "associate-dean-socio-cultural")
     {
       closedApplications = closedApplications.filter(
@@ -699,7 +696,7 @@ export const getClosedApplications = async (req, res) => {
         (approval) => approval.eventType?.toLowerCase() !== "cultural"
       );
     }
-    // Filter by category if role is 'general-secretary' (though this won't apply for these roles)
+    // Filter by category if role is 'general-secretary'
     if (role === "general-secretary" && category) {
       closedApplications = closedApplications.filter(
         (approval) => approval.eventType === category
@@ -1244,9 +1241,10 @@ export const getApprovedApplicationsWithFilters = async (req, res) => {
       ];
     }
 
-    // Filter out past events
-    const currentDate = new Date();
-    query.endDate = { $gte: currentDate };
+    // Filter out applications with `endDate` before the current date (optional)
+    // Removed: we want to show all approved events, including past ones
+    // const currentDate = new Date();
+    // query.endDate = { $gte: currentDate };
 
     // Calculate pagination
     const skip = (page - 1) * limit;

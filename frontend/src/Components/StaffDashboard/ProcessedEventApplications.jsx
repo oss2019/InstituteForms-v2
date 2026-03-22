@@ -39,6 +39,20 @@ const StaffDashboard = () => {
   
   const navigate = useNavigate();
 
+  // Semester sorting helper - sorts chronologically (newest first)
+  const sortSemestersChronologically = (semesters) => {
+    return [...semesters].sort((a, b) => {
+      const [aSeason, aYear] = a.semester.split(' ');
+      const [bSeason, bYear] = b.semester.split(' ');
+      const aYearNum = parseInt(aYear);
+      const bYearNum = parseInt(bYear);
+
+      if (aYearNum !== bYearNum) return bYearNum - aYearNum; // Descending by year
+      // In same year: Spring first, then Autumn
+      return aSeason === 'Spring' ? -1 : 1;
+    });
+  };
+
   // Fetch semester options
   useEffect(() => {
     const fetchSemesterOptions = async () => {
@@ -54,8 +68,8 @@ const StaffDashboard = () => {
           }
         });
         
-        // Sort semesters in reverse order (latest first)
-        const sortedSemesters = response.data.sort((a, b) => b.semester.localeCompare(a.semester));
+        // Sort semesters chronologically (latest first)
+        const sortedSemesters = sortSemestersChronologically(response.data);
         setSemesterOptions(sortedSemesters);
         // Set first semester as default (latest semester)
         if (sortedSemesters.length > 0 && !selectedSemester) {
@@ -311,6 +325,9 @@ const StaffDashboard = () => {
           {getOverallStatus(application.approvals)}
         </span>
       </td>
+      <td style={{textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem'}}>
+        {application.referenceNumber || 'Not Applicable'}
+      </td>
     </tr>
   );
 
@@ -359,7 +376,7 @@ const StaffDashboard = () => {
   );
 
   const canViewClosedEvents = () => {
-    return ['associate-dean', 'dean', 'ARSW'].includes(userRole);
+    return true; // All users can view closed events
   };
 
   return (
@@ -526,21 +543,21 @@ const StaffDashboard = () => {
                 </table>
               ) : <p>No approved events found for the selected semester.</p>}
               <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
-                <Button 
-                  variant="outline-primary" 
-                  onClick={handleNextSemester}
-                  disabled={currentSemesterIndex <= 0}
-                  title="Next semester (newer)"
-                >
-                  Next Semester →
-                </Button>
-                <Button 
-                  variant="outline-primary" 
+                <Button
+                  variant="outline-primary"
                   onClick={handlePreviousSemester}
                   disabled={currentSemesterIndex >= semesterOptions.length - 1}
                   title="Previous semester (older)"
                 >
                   ← Previous Semester
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
                 </Button>
               </div>
             </>
@@ -565,21 +582,21 @@ const StaffDashboard = () => {
                 </table>
               ) : <p>No rejected events found for the selected semester.</p>}
               <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
-                <Button 
-                  variant="outline-primary" 
-                  onClick={handleNextSemester}
-                  disabled={currentSemesterIndex <= 0}
-                  title="Next semester (newer)"
-                >
-                  Next Semester →
-                </Button>
-                <Button 
-                  variant="outline-primary" 
+                <Button
+                  variant="outline-primary"
                   onClick={handlePreviousSemester}
                   disabled={currentSemesterIndex >= semesterOptions.length - 1}
                   title="Previous semester (older)"
                 >
                   ← Previous Semester
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
                 </Button>
               </div>
             </>
@@ -604,21 +621,21 @@ const StaffDashboard = () => {
                 </table>
               ) : <p>No closed events found for the selected semester.</p>}
               <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
-                <Button 
-                  variant="outline-primary" 
-                  onClick={handleNextSemester}
-                  disabled={currentSemesterIndex <= 0}
-                  title="Next semester (newer)"
-                >
-                  Next Semester →
-                </Button>
-                <Button 
-                  variant="outline-primary" 
+                <Button
+                  variant="outline-primary"
                   onClick={handlePreviousSemester}
                   disabled={currentSemesterIndex >= semesterOptions.length - 1}
                   title="Previous semester (older)"
                 >
                   ← Previous Semester
+                </Button>
+                <Button
+                  variant="outline-primary"
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
                 </Button>
               </div>
             </>
