@@ -129,6 +129,7 @@ const EventDetails = () => {
   const [showBudgetHistory, setShowBudgetHistory] = useState(true);
   const [showAllBudgetHistory, setShowAllBudgetHistory] = useState(false);
   const [showQueries, setShowQueries] = useState(false);
+  const [showQueries, setShowQueries] = useState(true);
   // Add state for editing additional amenities
   const [editAdditionalAmenities, setEditAdditionalAmenities] = useState([]);
 
@@ -245,8 +246,18 @@ const EventDetails = () => {
   };
 
   const canEditEvent = () => {
-    // Only club-secretary who created the event can edit
-    if (role !== "club-secretary") {
+    // Club-secretary and general-secretary who created the event can edit
+    if (!["club-secretary", "general-secretary"].includes(role)) {
+      return false;
+    }
+    
+    // Must be the event creator
+    if (!eventDetails || eventDetails.userID?.toString() !== userID?.toString()) {
+      return false;
+    }
+
+    // Cannot edit if you raised an active query
+    if (hasCurrentRoleActiveQuery()) {
       return false;
     }
     
@@ -360,7 +371,7 @@ const EventDetails = () => {
 
   // Auto-show budget revision modal if there's a pending revision and user is club secretary
   useEffect(() => {
-    if (eventDetails && role === "club-secretary" && !showBudgetRevisionModal) {
+    if (eventDetails && ["club-secretary", "general-secretary"].includes(role) && !showBudgetRevisionModal) {
       const pendingRevision = getPendingBudgetRevision();
       if (pendingRevision && !showBudgetRevisionModal) {
         // Only show automatically once - don't block the user from viewing other parts
@@ -948,6 +959,31 @@ const EventDetails = () => {
     return currentDate > hundredDaysBefore;
   };
 
+  // Check if there's any ACTIVE query (Pending status from any role)
+  const hasActiveQuery = () => {
+    if (!queries || queries.length === 0) return false;
+    return queries.some(q => q.status === 'Pending');
+  };
+
+  // Check if current user's role has an ACTIVE query (can raise another after this one is answered)
+  const hasCurrentRoleActiveQuery = () => {
+    if (!queries || queries.length === 0) return false;
+    return queries.some(q => q.askerRole === role && q.status === 'Pending');
+  };
+
+  // Check if current user can reply to a specific query (only event creator can reply)
+  const canReplyToQuery = (query) => {
+    if (!['club-secretary', 'general-secretary'].includes(role)) return false;
+    if (!eventDetails || !userID) return false;
+    // Only the event creator can reply
+    if (eventDetails.userID?.toString() !== userID?.toString()) return false;
+    // Cannot reply to your own query
+    if (query.askerRole === role) return false;
+    // Query must be pending
+    if (query.status !== 'Pending') return false;
+    return true;
+  };
+
   // Check if can raise query on approved event
   const canRaiseApprovedQuery = () => {
     if (!['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW', 'students-welfare-office'].includes(role)) return false;
@@ -1444,15 +1480,55 @@ const EventDetails = () => {
             </div>
           </div>
 
-          {/* Queries Section - In Right Column Below Timeline - HIDDEN */}
-          {false && queries.length > 0 && (
+          {/* Queries Section - In Right Column Below Timeline */}
+          {queries.length > 0 && (
             <div className="ed-card ed-card-query mt-3">
-              <div>
-                <h5 className="ed-card-title mb-3">Queries <span className="badge bg-secondary ms-2" style={{ fontSize: "0.75rem" }}>{queries.length}</span></h5>
+              <div className="ed-collapsible-header">
+                <h5 className="ed-card-title mb-0">Queries <span className="badge bg-secondary ms-2" style={{ fontSize: "0.75rem" }}>{queries.length}</span></h5>
+                <button
+                  className="ed-toggle-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowQueries(!showQueries);
+                  }}
+                >
+                  {showQueries ? "Hide" : "Show"}
+                </button>
               </div>
-              <div className="queries-section">
-                {/* Queries hidden */}
-              </div>
+              {showQueries && (
+                <div className="queries-section">
+                  {queries.map((query) => (
+                    <div key={query.queryId} className="query-justification-card" style={{ border: '1px solid #ddd', padding: '12px', marginBottom: '12px', borderRadius: '4px', backgroundColor: '#fff' }}>
+                      <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <strong>Query from {query.askerRole.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</strong>
+                          <span className={`badge ms-2 ${query.status === 'Pending' ? 'bg-warning' : 'bg-success'}`} style={{ fontSize: "0.75rem" }}>{query.status}</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: '#6c757d', whiteSpace: 'nowrap' }}>
+                          {new Date(query.raisedAt).toLocaleString('en-IN', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </span>
+                      </div>
+                      <div style={{ marginBottom: '10px', padding: '8px', backgroundColor: '#f9f9f9', borderRadius: '3px' }}>
+                        {query.queryText}
+                      </div>
+                      {query.response && (
+                        <div style={{ borderTop: '1px solid #ddd', paddingTop: '10px', marginTop: '10px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                            <strong>Response:</strong>
+                            <small style={{ color: '#6c757d', fontSize: '0.75rem' }}>
+                              {new Date(query.answeredAt).toLocaleString('en-IN', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </small>
+                          </div>
+                          <p style={{ marginBottom: '0' }}>{query.response}</p>
+                        </div>
+                      )}
+                      {canReplyToQuery(query) && (
+                        <button className="btn btn-sm btn-primary mt-3" onClick={() => handleQueryReply(query)}>Reply to Query</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -1483,7 +1559,9 @@ const EventDetails = () => {
               {role === 'dean' ? 'Approve' : 'Recommend'}
             </button>
             <button className="btn btn-danger" onClick={() => handleApprovalClick('Rejected')}>Reject</button>
-            <button className="btn btn-warning" onClick={() => handleApprovalClick('Query')}>Raise Query</button>
+            {!hasCurrentRoleActiveQuery() && !hasActiveQuery() && (
+              <button className="btn btn-warning" onClick={() => handleApprovalClick('Query')}>Raise Query</button>
+            )}
           </>
         )}
         {canCloseEvent() && (

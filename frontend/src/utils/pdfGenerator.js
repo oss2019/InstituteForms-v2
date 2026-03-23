@@ -655,12 +655,8 @@ ${descArea}
   <!-- Blank writing space above sig-row 1 -->
   <div class="sig-space"></div>
 
-  <!-- Sig row 1: Club Sec | Gen Sec | Treasurer | Vice President -->
+  <!-- Sig row 1: Gen Sec | Treasurer | Vice President | ARSW -->
   <div class="sig-row">
-    <div class="sig-box">
-      ${signed("club-secretary")}
-      <div class="sig-line"><span class="hi">क्लब सचिव</span>/<br>Club Secretary</div>
-    </div>
     <div class="sig-box">
       ${signed("general-secretary")}
       <div class="sig-line"><span class="hi">महासचिव</span>/<br>General Secretary</div>
@@ -673,24 +669,27 @@ ${descArea}
       ${signed("president")}
       <div class="sig-line"><span class="hi">उपाध्यक्ष</span>/<br>Vice President</div>
     </div>
+    <div class="sig-box">
+      ${signed("ARSW")}
+      <div class="sig-line"><span class="hi">सहायक कुलसचिव</span>/<br>ARSW</div>
+    </div>
   </div>
 
   <!-- Gap between sig rows -->
   <div class="sig-gap"></div>
 
-  <!-- Sig row 2: Faculty in Charge | Associate Dean -->
+  <!-- Sig row 2: Associate Dean | Dean -->
   <div class="sig-row" style="justify-content:space-between; padding:0 10px;">
-    <div class="sig-box" style="flex:0 0 auto; text-align:left; max-width:200px;">
-      ${signed("ARSW")}
+    <div class="sig-box" style="flex:0 0 auto; text-align:left; max-width:240px;">
+      ${signed("associate-dean") || signed("associate-dean-socio-cultural")}
       <div class="sig-line" style="text-align:left;">
-        <span class="hi">सहायक कुलसचिव छात्र कल्याण</span> /ARSW
+        <span class="hi">एसोसिएट डीन</span> / Associate Dean
       </div>
     </div>
-    <div class="sig-box" style="flex:0 0 auto; text-align:right; max-width:240px;">
-      ${signed("associate-dean") || signed("associate-dean-socio-cultural")}
-       <div class="sig-line" style="text-align:right;">
-        <span class="hi">एसोसिएट डीन (जीमखाना/ एच एंड एम/ सामाजिक सांस्कृतिक)</span><br>
-        Associate Dean (Gymkhana/H&amp;M/Socio-Cult)
+    <div class="sig-box" style="flex:0 0 auto; text-align:right; max-width:200px;">
+      ${signed("dean")}
+      <div class="sig-line" style="text-align:right;">
+        <span class="hi">डीन</span> /Dean
       </div>
     </div>
   </div>

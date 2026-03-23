@@ -64,6 +64,7 @@ const Home = () => {
         if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
           loginUser("staff");
         } else if (selectedRole === "club-secretary" && allowedRolesForClubSecretary.includes(role)) {
+          // General Secretary & Club Secretary can raise events from student portal
           loginUser("club-secretary");
         } else {
           toast.error("Not authorized for this role.");
