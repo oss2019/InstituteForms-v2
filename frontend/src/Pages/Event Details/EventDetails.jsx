@@ -129,7 +129,6 @@ const EventDetails = () => {
   const [showBudgetHistory, setShowBudgetHistory] = useState(true);
   const [showAllBudgetHistory, setShowAllBudgetHistory] = useState(false);
   const [showQueries, setShowQueries] = useState(false);
-  const [showQueries, setShowQueries] = useState(true);
   // Add state for editing additional amenities
   const [editAdditionalAmenities, setEditAdditionalAmenities] = useState([]);
 
