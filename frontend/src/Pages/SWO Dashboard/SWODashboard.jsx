@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from "react-hot-toast";
 
 import SWOEvents from '../../Components/SWODashboard/SWOEvents';
+import PendingApprovals from '../../Components/PendingApprovals/PendingApprovals';
 
-import { FiLogOut, FiX, FiMenu, FiGrid } from 'react-icons/fi';
+import { FiLogOut, FiX, FiMenu, FiGrid, FiMail } from 'react-icons/fi';
 
 import '../Staff Dashboard/StaffDashboard.css';
 
@@ -29,18 +30,24 @@ function SWODashboard() {
   };
 
   const handleSectionChange = (newSection) => {
+    if (newSection === 'pendingMyAction') {
+      localStorage.setItem('pendingApprovalsActiveTab', 'pending');
+    }
     setActiveSection(newSection);
     setSidebarOpen(false);
   };
 
   const navItems = [
     { id: 'swoEvents', label: 'Events', icon: <FiGrid />, action: () => handleSectionChange('swoEvents') },
+    { id: 'pendingMyAction', label: 'Pending My Action', icon: <FiMail />, action: () => handleSectionChange('pendingMyAction') },
   ];
 
   const renderContent = () => {
     switch (activeSection) {
       case 'swoEvents':
         return <SWOEvents />;
+      case 'pendingMyAction':
+        return <PendingApprovals />;
       default:
         return <SWOEvents />;
     }

@@ -113,6 +113,7 @@ const EventDetails = () => {
   const pdfObjectUrlRef = useRef(null);
   const navigate = useNavigate(); // Initialize navigate hook
   const role = localStorage.getItem("role"); // Fetch role from localStorage
+  const budgetAuthorityRoles = ["students-welfare-office", "ARSW"];
   const userID = localStorage.getItem("userID"); // Fetch current user's ID
   const userEmail =
     localStorage.getItem("email") || localStorage.getItem("userEmail"); // Get user email
@@ -197,6 +198,7 @@ const EventDetails = () => {
       "general-secretary",
       "treasurer",
       "president",
+      "students-welfare-office",
       "ARSW",
       "associate-dean",
       "dean"
@@ -223,6 +225,7 @@ const EventDetails = () => {
       "general-secretary",
       "treasurer",
       "president",
+      "students-welfare-office",
       "ARSW",
       "associate-dean",
       "dean"
@@ -288,27 +291,44 @@ const EventDetails = () => {
   // Helper function to check if there's a pending budget revision for club secretary
   const getPendingBudgetRevision = () => {
     if (!eventDetails?.arsw_budget_revisions) return null;
-    return eventDetails.arsw_budget_revisions.find(r => r.clubSecretaryApprovalStatus === "Pending");
+    return [...eventDetails.arsw_budget_revisions]
+      .reverse()
+      .find((r) => r.clubSecretaryApprovalStatus === "Pending");
   };
 
   // Helper function to check if club secretary needs to respond to a query on budget
   const getQueryOnBudgetRevision = () => {
     if (!eventDetails?.arsw_budget_revisions) return null;
-    return eventDetails.arsw_budget_revisions.find(r => r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized);
+    return [...eventDetails.arsw_budget_revisions]
+      .reverse()
+      .find(
+        (r) =>
+          r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized,
+      );
   };
 
   // Helper function to get ARSW budget revision with query for display
   const getARSWBudgetQueryRevision = () => {
     if (!eventDetails?.arsw_budget_revisions) return null;
-    return eventDetails.arsw_budget_revisions.find(r => r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized);
+    return [...eventDetails.arsw_budget_revisions]
+      .reverse()
+      .find(
+        (r) =>
+          r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized,
+      );
   };
 
   // Helper function to check if ARSW can edit budget after query
   const canARSWEditAfterQuery = () => {
-    if (role !== "ARSW") return false;
-    const arswApproval = eventDetails?.approvals?.find(a => a.role === "ARSW");
-    if (!arswApproval) return false;
-    return arswApproval.status === "Query" || arswApproval.status === "Edited";
+    if (!budgetAuthorityRoles.includes(role)) return false;
+    const budgetAuthorityApproval = eventDetails?.approvals?.find(
+      (a) => a.role === role,
+    );
+    if (!budgetAuthorityApproval) return false;
+    return (
+      budgetAuthorityApproval.status === "Query" ||
+      budgetAuthorityApproval.status === "Edited"
+    );
   };
 
   // Helper function to check if can take action (reject/query) despite being in edit mode
@@ -559,7 +579,7 @@ const EventDetails = () => {
 
   // Handlers for ARSW/Associate Dean/Dean budget editing
   const canEditBudget = () => {
-    if (!["ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(role)) {
+    if (!["students-welfare-office", "ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"].includes(role)) {
       return false;
     }
 
@@ -568,6 +588,11 @@ const EventDetails = () => {
     }
     // Check if it's this role's turn in the approval hierarchy
     if (canCurrentUserApprove(eventDetails.approvals)) {
+      return true;
+    }
+
+    // Budget-authority roles can re-edit after club secretary raises a query.
+    if (canARSWEditAfterQuery()) {
       return true;
     }
 
@@ -1173,7 +1198,7 @@ const EventDetails = () => {
                   </tr>
                 </tfoot>
               </table>
-              {canEditBudget() && (role !== "ARSW" || !isBudgetFinalized()) && (
+              {canEditBudget() && (!budgetAuthorityRoles.includes(role) || !isBudgetFinalized()) && (
                 <button className="btn btn-warning btn-sm mt-2" onClick={handleOpenBudgetEditModal}>✏️ Edit Budget</button>
               )}
             </div>
@@ -1203,11 +1228,31 @@ const EventDetails = () => {
                             .replace(/-/g, " ")
                             .replace(/\b\w/g, c => c.toUpperCase());
                           let revision = null;
-                          if (entry.editedBy === "ARSW") {
-                            const arswIdx = eventDetails.budgetHistory
-                              .slice(0, eventDetails.budgetHistory.length - idx)
-                              .filter(e => e.editedBy === "ARSW").length - 1;
-                            revision = eventDetails.arsw_budget_revisions?.[arswIdx] || null;
+                          if (budgetAuthorityRoles.includes(entry.editedBy)) {
+                            const entryTime = new Date(entry.editedAt).getTime();
+                            const roleRevisions = (eventDetails.arsw_budget_revisions || [])
+                              .filter((r) => r.editedBy === entry.editedBy)
+                              .sort(
+                                (a, b) =>
+                                  new Date(a.editedAt).getTime() -
+                                  new Date(b.editedAt).getTime(),
+                              );
+
+                            revision =
+                              [...roleRevisions]
+                                .reverse()
+                                .find(
+                                  (r) =>
+                                    Number(r.proposedEstimatedBudget) === Number(entry.totalBudget) &&
+                                    new Date(r.editedAt).getTime() <= entryTime + 1000,
+                                ) ||
+                              [...roleRevisions]
+                                .reverse()
+                                .find(
+                                  (r) => new Date(r.editedAt).getTime() <= entryTime + 1000,
+                                ) ||
+                              roleRevisions[roleRevisions.length - 1] ||
+                              null;
                           }
                           return (
                             <BudgetHistoryEntry
@@ -1539,7 +1584,7 @@ const EventDetails = () => {
         {/* Approval buttons for ARSW and other roles */}
         {(canCurrentUserApprove(eventDetails.approvals) || canTakeActionWhenEdited(eventDetails.approvals)) && (
           <>
-            {role === "ARSW" && getPendingBudgetRevision() ? (
+            {budgetAuthorityRoles.includes(role) && getPendingBudgetRevision() ? (
               <div className="alert alert-warning mb-3">
                 <strong>⏳ Awaiting Club Secretary Review:</strong> Your budget revision is pending club secretary approval. 
                 <br/>
@@ -1551,8 +1596,8 @@ const EventDetails = () => {
               className="btn btn-success" 
               onClick={() => handleApprovalClick('Approved')}
               disabled={
-                (role === "ARSW" && getPendingBudgetRevision()) ||
-                (role === "ARSW" && getQueryOnBudgetRevision())
+                (budgetAuthorityRoles.includes(role) && getPendingBudgetRevision()) ||
+                (budgetAuthorityRoles.includes(role) && getQueryOnBudgetRevision())
               }
             >
               {role === 'dean' ? 'Approve' : 'Recommend'}
@@ -2096,12 +2141,12 @@ const EventDetails = () => {
             >
               <h4>Review Budget Revision</h4>
               <p className="text-muted">
-                ARSW has submitted a revised budget for your event. Please review and respond.
+                {selectedRevision?.editedBy || "Budget authority"} has submitted a revised budget for your event. Please review and respond.
               </p>
 
               {/* Revised Budget Details */}
               <div className="alert alert-info mb-3">
-                <strong>ARSW Revision #{selectedRevision.revisionNumber}</strong>
+                <strong>{selectedRevision?.editedBy || "Budget authority"} Revision #{selectedRevision.revisionNumber}</strong>
                 <div className="mt-2">
                   <p className="mb-1">
                     <strong>Proposed Budget: </strong>
@@ -2118,11 +2163,13 @@ const EventDetails = () => {
                 </div>
               </div>
               {(() => {
-                const arswHistoryEntries = (eventDetails.budgetHistory || []).filter(e => e.editedBy === "ARSW");
+                const arswHistoryEntries = (eventDetails.budgetHistory || []).filter(
+                  (e) => e.editedBy === selectedRevision?.editedBy,
+                );
                 const matchingEntry = arswHistoryEntries[selectedRevision.revisionNumber - 1];
                 return matchingEntry?.justification ? (
                   <div className="alert alert-warning py-2 px-3 mb-3" style={{ fontSize: '0.875rem' }}>
-                    <strong>ARSW's Reason:</strong> {matchingEntry.justification}
+                    <strong>{selectedRevision?.editedBy || "Budget authority"}'s Reason:</strong> {matchingEntry.justification}
                   </div>
                 ) : null;
               })()}
@@ -2232,7 +2279,9 @@ const EventDetails = () => {
           <div className="alert alert-warning alert-dismissible fade show mt-3" role="alert">
             <strong>⚠️ Action Required: Budget Revision Awaiting Your Review</strong>
             <p className="mb-2">
-              ARSW has submitted a revised budget for your event. Please review and accept or raise a query.
+              {(getPendingBudgetRevision()?.editedBy === "students-welfare-office"
+                ? "SW Office"
+                : "ARSW")} has submitted a revised budget for your event. Please review and accept or raise a query.
             </p>
             <button
               className="btn btn-sm btn-warning"
@@ -2247,9 +2296,15 @@ const EventDetails = () => {
         {/* Display query on budget revision notification for club secretary */}
         {role === "club-secretary" && eventDetails && getQueryOnBudgetRevision() && (
           <div className="alert alert-info alert-dismissible fade show mt-3" role="alert">
-            <strong>⏳ Waiting for ARSW Response</strong>
+            <strong>
+              ⏳ Waiting for {(getQueryOnBudgetRevision()?.editedBy === "students-welfare-office"
+                ? "SW Office"
+                : "ARSW")} Response
+            </strong>
             <p className="mb-1 mt-1">
-              You raised the following query on the budget revision. Waiting for ARSW to address it.
+              You raised the following query on the budget revision. Waiting for {(getQueryOnBudgetRevision()?.editedBy === "students-welfare-office"
+                ? "SW Office"
+                : "ARSW")} to address it.
             </p>
             <div className="p-2 bg-white rounded border" style={{ fontSize: "0.875rem" }}>
               {getQueryOnBudgetRevision().clubSecretaryResponse || "—"}

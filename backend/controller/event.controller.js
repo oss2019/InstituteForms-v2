@@ -223,6 +223,7 @@ export const applyForEventApproval = async (req, res) => {
             },
             { role: "treasurer", status: "Pending", comment: "" },
             { role: "president", status: "Pending", comment: "" },
+            { role: "students-welfare-office", status: "Pending", comment: "" },
             { role: "ARSW", status: "Pending", comment: "" },
             { role: associateDeanRole, status: "Pending", comment: "" },
             { role: "dean", status: "Pending", comment: "" },
@@ -237,6 +238,7 @@ export const applyForEventApproval = async (req, res) => {
             { role: "general-secretary", status: "Pending", comment: "" },
             { role: "treasurer", status: "Pending", comment: "" },
             { role: "president", status: "Pending", comment: "" },
+            { role: "students-welfare-office", status: "Pending", comment: "" },
             { role: "ARSW", status: "Pending", comment: "" },
             { role: associateDeanRole, status: "Pending", comment: "" },
             { role: "dean", status: "Pending", comment: "" },
@@ -360,6 +362,7 @@ const roleHierarchy = [
   "general-secretary",
   "treasurer",
   "president",
+  "students-welfare-office",
   "ARSW",
   "associate-dean",
   "dean",
@@ -372,6 +375,7 @@ const getRoleHierarchyForEvent = (eventType) => {
     "general-secretary",
     "treasurer",
     "president",
+    "students-welfare-office",
     "ARSW",
     isCultural ? "associate-dean-socio-cultural" : "associate-dean",
     "dean",
@@ -869,8 +873,11 @@ export const handleApprovalStatus = async (req, res) => {
       return res.status(404).json({ message: "Event approval not found." });
     }
 
-    // Check if ARSW is trying to approve with pending budget revisions
-    if (role === "ARSW" && status === "Approved") {
+    // Check if budget-authority role is trying to approve with pending budget revisions
+    if (
+      ["ARSW", "students-welfare-office"].includes(role) &&
+      status === "Approved"
+    ) {
       const pendingRevisions = eventApproval.arsw_budget_revisions?.filter(
         (r) => r.clubSecretaryApprovalStatus === "Pending",
       );
@@ -924,9 +931,12 @@ export const handleApprovalStatus = async (req, res) => {
 
     eventApproval.approvals[approvalIndex].status = status;
 
-    // For ARSW approval, auto-add "Edited budget" comment if applicable
+    // For budget-authority approval, auto-add "Edited budget" comment if applicable
     let finalComment = comment || "";
-    if (role === "ARSW" && status === "Approved") {
+    if (
+      ["ARSW", "students-welfare-office"].includes(role) &&
+      status === "Approved"
+    ) {
       finalComment = `Edited budget${comment ? ` - ${comment}` : ""}`;
     }
 
@@ -1744,6 +1754,7 @@ export const editBudget = async (req, res) => {
     // Check if the user has permission to edit budget
     if (
       ![
+        "students-welfare-office",
         "ARSW",
         "associate-dean",
         "associate-dean-socio-cultural",
@@ -1751,24 +1762,25 @@ export const editBudget = async (req, res) => {
       ].includes(role)
     ) {
       return res.status(403).json({
-        message: "Only ARSW, Associate Dean, or Dean can edit the budget.",
+        message:
+          "Only students-welfare-office, ARSW, Associate Dean, or Dean can edit the budget.",
       });
     }
 
-    // Special handling for ARSW budget edits
-    if (role === "ARSW") {
-      // Check if ARSW has already completed their budget edit cycle (finalized revision exists)
+    // Special handling for budget-authority edits (students-welfare-office/ARSW)
+    if (["students-welfare-office", "ARSW"].includes(role)) {
+      // Check if this role has already completed their budget edit cycle (finalized revision exists)
       if (
         event.arsw_budget_revisions &&
         event.arsw_budget_revisions.length > 0
       ) {
         const hasFinalized = event.arsw_budget_revisions.some(
-          (r) => r.isFinalized,
+          (r) => r.editedBy === role && r.isFinalized,
         );
         if (hasFinalized) {
           return res.status(403).json({
             message:
-              "ARSW has already completed their budget edit cycle. No further budget edits are allowed. You can now proceed with approval, rejection, or other actions.",
+              `${role} has already completed the budget edit cycle. No further budget edits are allowed. You can now proceed with approval, rejection, or other actions.`,
           });
         }
       }
@@ -1781,7 +1793,9 @@ export const editBudget = async (req, res) => {
       ) {
         previousQueryRevision = event.arsw_budget_revisions.find(
           (r) =>
-            r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized,
+            r.editedBy === role &&
+            r.clubSecretaryApprovalStatus === "QueryRaised" &&
+            !r.isFinalized,
         );
       }
 
@@ -1813,13 +1827,13 @@ export const editBudget = async (req, res) => {
           totalBudget: proposedEstimatedBudget,
         });
 
-        // Update the ARSW approval status to "Pending" so they can approve
-        const arsw_approval = event.approvals.find(
-          (app) => app.role === "ARSW",
+        // Update this role approval status to "Pending" so they can approve
+        const budgetAuthorityApproval = event.approvals.find(
+          (app) => app.role === role,
         );
-        if (arsw_approval) {
-          arsw_approval.status = "Pending";
-          arsw_approval.timestamp = new Date();
+        if (budgetAuthorityApproval) {
+          budgetAuthorityApproval.status = "Pending";
+          budgetAuthorityApproval.timestamp = new Date();
         }
 
         // Update proposed budget fields
@@ -1840,7 +1854,7 @@ export const editBudget = async (req, res) => {
           const subject = `Budget Finalized - ${event.eventName}`;
           const message = `Dear ${event.nameOfTheOrganizer},
 
-Your budget revision query has been addressed. ARSW has submitted the finalized budget.
+Your budget revision query has been addressed. ${role} has submitted the finalized budget.
 
 Event Details:
 - Event Name: ${event.eventName}
@@ -1896,13 +1910,13 @@ Event Approval System`;
           totalBudget: proposedEstimatedBudget,
         });
 
-        // Update the ARSW approval status to "Edited" to indicate budget has been edited
-        const arsw_approval = event.approvals.find(
-          (app) => app.role === "ARSW",
+        // Update this role approval status to "Edited" to indicate budget has been edited
+        const budgetAuthorityApproval = event.approvals.find(
+          (app) => app.role === role,
         );
-        if (arsw_approval) {
-          arsw_approval.status = "Edited";
-          arsw_approval.timestamp = new Date();
+        if (budgetAuthorityApproval) {
+          budgetAuthorityApproval.status = "Edited";
+          budgetAuthorityApproval.timestamp = new Date();
         }
 
         // Update proposed budget fields for backwards compatibility
@@ -1918,7 +1932,7 @@ Event Approval System`;
           const subject = `Budget Revision Submitted - ${event.eventName}`;
           const message = `Dear ${event.nameOfTheOrganizer},
 
-Your event "${event.eventName}" has been revised by ARSW with a new proposed budget.
+Your event "${event.eventName}" has been revised by ${role} with a new proposed budget.
 
 Event Details:
 - Event Name: ${event.eventName}
@@ -2006,6 +2020,7 @@ export const revertBudgetToOriginal = async (req, res) => {
     // Check if user has permission to revert (only those who can edit budgets)
     if (
       ![
+        "students-welfare-office",
         "ARSW",
         "associate-dean",
         "associate-dean-socio-cultural",
@@ -2040,10 +2055,12 @@ export const revertBudgetToOriginal = async (req, res) => {
     // Clear ARSW budget revisions
     event.arsw_budget_revisions = undefined;
 
-    // Reset ARSW approval status back to Pending if it was "Edited"
-    const arsw_approval = event.approvals.find((app) => app.role === "ARSW");
-    if (arsw_approval && arsw_approval.status === "Edited") {
-      arsw_approval.status = "Pending";
+    // Reset the current role status back to Pending if it was "Edited"
+    const budgetAuthorityApproval = event.approvals.find(
+      (app) => app.role === role,
+    );
+    if (budgetAuthorityApproval && budgetAuthorityApproval.status === "Edited") {
+      budgetAuthorityApproval.status = "Pending";
     }
 
     await event.save();
@@ -2102,26 +2119,29 @@ export const respondToBudgetRevision = async (req, res) => {
     revision.clubSecretaryResponse = response || "";
     revision.respondedAt = new Date();
 
-    // Update ARSW approval status based on club secretary's response
-    const arsw_approval = event.approvals.find((app) => app.role === "ARSW");
-    if (arsw_approval) {
+    // Update budget-authority approval status based on club secretary's response
+    const budgetEditorRole = revision.editedBy || "ARSW";
+    const budgetAuthorityApproval = event.approvals.find(
+      (app) => app.role === budgetEditorRole,
+    );
+    if (budgetAuthorityApproval) {
       if (status === "Approved") {
-        // Club secretary approved the ARSW budget revision
-        // 1. Auto-approve ARSW
-        arsw_approval.status = "Approved";
-        arsw_approval.comment = `Budget revision #${revisionNumber} approved by club secretary. (Auto-approved)`;
-        arsw_approval.timestamp = new Date();
+        // Club secretary approved the budget revision
+        // 1. Auto-approve the budget editor role
+        budgetAuthorityApproval.status = "Approved";
+        budgetAuthorityApproval.comment = `Budget revision #${revisionNumber} approved by club secretary. (Auto-approved)`;
+        budgetAuthorityApproval.timestamp = new Date();
 
         // 2. Apply the proposed budget as the actual budget
         event.budgetBreakup = revision.proposedBudgetBreakup;
         event.estimatedBudget = revision.proposedEstimatedBudget;
-        event.budgetEditedBy = "ARSW";
+        event.budgetEditedBy = budgetEditorRole;
         event.budgetEditedAt = revision.editedAt;
 
-        // 3. Record this approval in budget history as an ARSW revision approval
+        // 3. Record this approval in budget history as a budget-authority revision approval
         if (!event.budgetHistory) event.budgetHistory = [];
         event.budgetHistory.push({
-          editedBy: "ARSW",
+          editedBy: budgetEditorRole,
           editedAt: revision.editedAt,
           justification: `Budget revision #${revisionNumber} approved and applied by club secretary`,
           budgetBreakup: revision.proposedBudgetBreakup,
@@ -2132,23 +2152,23 @@ export const respondToBudgetRevision = async (req, res) => {
         event.proposedBudgetBreakup = undefined;
         event.proposedEstimatedBudget = undefined;
       } else if (status === "QueryRaised") {
-        // Club secretary raised a query - ARSW needs to edit again
-        arsw_approval.status = "Query";
-        arsw_approval.comment = `Club secretary raised query on budget revision #${revisionNumber}: ${response || "No query text provided"}`;
-        arsw_approval.timestamp = new Date();
+        // Club secretary raised a query - budget editor role needs to edit again
+        budgetAuthorityApproval.status = "Query";
+        budgetAuthorityApproval.comment = `Club secretary raised query on budget revision #${revisionNumber}: ${response || "No query text provided"}`;
+        budgetAuthorityApproval.timestamp = new Date();
       }
     }
 
     await event.save();
 
-    // Send email to ARSW about club secretary's response
+    // Send email to budget editor role about club secretary's response
     try {
-      const arswEmail = getEmailForRole("ARSW");
+      const editorRoleEmail = getEmailForRole(budgetEditorRole);
       let emailSubject, emailMessage;
 
       if (status === "Approved") {
         emailSubject = `Budget Revision Approved - ${event.eventName}`;
-        emailMessage = `Dear ARSW Team,
+        emailMessage = `Dear ${budgetEditorRole} Team,
 
 The club secretary has reviewed and approved the budget revision for the event "${event.eventName}".
 
@@ -2163,7 +2183,7 @@ Best regards,
 Event Approval System`;
       } else {
         emailSubject = `Budget Revision Query - ${event.eventName}`;
-        emailMessage = `Dear ARSW Team,
+        emailMessage = `Dear ${budgetEditorRole} Team,
 
 The club secretary has raised a query regarding the budget revision for the event "${event.eventName}".
 
@@ -2181,9 +2201,9 @@ Best regards,
 Event Approval System`;
       }
 
-      if (arswEmail) {
-        // await sendEmail(arswEmail, emailSubject, emailMessage);
-        // console.log(`ARSW notification email sent for event ${event.referenceNumber}`);
+      if (editorRoleEmail) {
+        // await sendEmail(editorRoleEmail, emailSubject, emailMessage);
+        // console.log(`${budgetEditorRole} notification email sent for event ${event.referenceNumber}`);
       }
     } catch (emailError) {
       console.error(

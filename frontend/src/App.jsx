@@ -28,7 +28,7 @@ function App() {
           <Route
             path="/staff/pending"
             element={
-              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"]}>
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "students-welfare-office", "ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"]}>
                 <StaffDashboard />
               </ProtectedRoute>
             }
@@ -36,7 +36,7 @@ function App() {
           <Route
             path="/staff/processed"
             element={
-              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"]}>
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "students-welfare-office", "ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"]}>
                 <StaffDashboard />
               </ProtectedRoute>
             }
@@ -44,7 +44,7 @@ function App() {
           <Route
             path="/staff"
             element={
-              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"]}>
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "students-welfare-office", "ARSW", "associate-dean", "associate-dean-socio-cultural", "dean"]}>
                 <StaffDashboard />
               </ProtectedRoute>
             }

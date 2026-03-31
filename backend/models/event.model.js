@@ -97,6 +97,7 @@ const eventApprovalSchema = new Schema(
             "general-secretary",
             "treasurer",
             "president",
+            "students-welfare-office",
             "ARSW",
             "associate-dean",
             "associate-dean-socio-cultural",

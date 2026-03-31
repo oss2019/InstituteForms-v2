@@ -449,6 +449,7 @@ const PendingApprovals = () => {
       "general-secretary",
       "treasurer",
       "president",
+      "students-welfare-office",
       "ARSW",
       "associate-dean",
       "associate-dean-socio-cultural",
