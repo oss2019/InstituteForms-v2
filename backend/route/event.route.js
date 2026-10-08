@@ -7,7 +7,9 @@ import {
   editEventDetails,
   getPendingApprovals,
   getRejectedApplications,
+  deleteEventApplication,
   getClosedApplications,
+  getInitiatedApplications,
   getEventById,
   handleApprovalStatus, // Import the updated controller
   raiseQuery,
@@ -20,6 +22,9 @@ import {
   getPendingApprovalsWithFilters,
   getEditHistory,
   editBudget,
+  respondToBudgetRevision,
+  getFullyApprovedEvents,
+  getAllInitiatedEvents,
 } from "../controller/event.controller.js";
 
 const router = express.Router();
@@ -39,14 +44,18 @@ router.post("/approved", getApprovedApplications);
 // Get all rejected event applications (POST)
 router.post("/rejected", getRejectedApplications);
 
+// Delete a non-closed event application (president or owning club secretary)
+router.delete("/:applicationId/delete", deleteEventApplication);
+router.delete("/:applicationId/rejected", deleteEventApplication);
+
 // Get all closed event applications (POST)
 router.post("/closed", getClosedApplications);
 
+//Get all initiated event applications (POST)
+router.post("/initiated",getInitiatedApplications);
+
 // Approve or reject an event application based on the status (PATCH)
 router.patch("/:applicationId/status", handleApprovalStatus);
-
-// Get event details by ID (GET)
-router.get("/:id", getEventById);
 
 // Raise a query for an event application (POST)
 router.post("/raise-query", raiseQuery);
@@ -69,11 +78,17 @@ router.patch("/edit", editEventDetails);
 // Edit budget breakup (PATCH) - for ARSW/Associate Dean/Dean
 router.patch("/edit-budget", editBudget);
 
+// Respond to budget revision (PATCH) - for club secretary to accept or raise query
+router.patch("/respond-budget-revision", respondToBudgetRevision);
+
 // Get edit history for an event (GET)
 router.get("/:eventId/edit-history", getEditHistory);
 
 // Get semester options for filtering (GET)
 router.get("/semesters/options", getSemesterOptions);
+
+// Get event details by ID (GET) - keep this catch-all after named GET routes
+router.get("/:id", getEventById);
 
 // Get approved applications with filters and search (POST)
 router.post("/approved/filtered", getApprovedApplicationsWithFilters);
@@ -81,4 +96,7 @@ router.post("/approved/filtered", getApprovedApplicationsWithFilters);
 // Get pending applications with filters and search (POST)
 router.post("/pending/filtered", getPendingApprovalsWithFilters);
 
+// Students Welfare Office routes
+router.post("/swo/approved-events",getFullyApprovedEvents);
+router.post("/swo/initiated-events",getAllInitiatedEvents);
 export default router;

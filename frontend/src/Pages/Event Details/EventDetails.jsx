@@ -2,9 +2,99 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom"; // Use useNavigate hook
 import axios from "axios";
 import { toast } from "react-hot-toast";
+import DOMPurify from "dompurify";
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import "./EventDetails.css";
 
 import { generatePDF } from "../../utils/pdfGenerator";
+import EventForm from "../../Components/EventForm/EventForm";
+
+// Collapsible row for a single budget history entry
+const BudgetHistoryEntry = ({ entry, entryNum, roleLabel, isLatest, revision }) => {
+  const [expanded, setExpanded] = React.useState(false);
+  return (
+    <div
+      className={`budget-entry ${isLatest ? "budget-entry-latest" : ""}`}
+    >
+      {/* Header with toggle on right */}
+      <div className="budget-entry-header-row">
+        <div>
+          <div className="budget-entry-header">
+            <span className="budget-entry-title">
+              #{entryNum} · {roleLabel}
+            </span>
+            {isLatest && (
+              <span className="budget-latest-badge">Latest</span>
+            )}
+          </div>
+          <div className="budget-entry-meta">
+            ₹{entry.totalBudget.toLocaleString()}
+          </div>
+          <div className="budget-entry-date">
+            {new Date(entry.editedAt).toLocaleString()}
+          </div>
+        </div>
+        <button
+          className="budget-toggle-btn"
+          onClick={() => setExpanded(prev => !prev)}
+        >
+          {expanded ? "▲ Hide" : "▼ Breakdown"}
+        </button>
+      </div>
+
+      {/* Justification */}
+      {entry.justification && (
+        <div className="budget-entry-justification">
+          "{entry.justification}"
+        </div>
+      )}
+
+      {/* Budget breakdown – shown on expand, full width */}
+      {expanded && (
+        <div className="budget-breakdown">
+          <table className="table table-sm table-bordered mb-0" style={{ fontSize: "0.85rem" }}>
+            <thead className="table-light">
+              <tr>
+                <th>Expense Head</th>
+                <th style={{ width: "150px" }}>Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entry.budgetBreakup.map((item, i) => (
+                <tr key={i}>
+                  <td>{item.expenseHead}</td>
+                  <td>₹{item.estimatedAmount.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="table-warning fw-semibold">
+                <td>Total</td>
+                <td>₹{entry.totalBudget.toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {/* Club Secretary response as query – Always visible, not hidden */}
+      {revision?.clubSecretaryResponse && (
+        <div className="budget-entry-query-justification">
+          <strong>
+            {revision.clubSecretaryApprovalStatus === "Approved" ? "Approved" : "Query"}:
+          </strong>{" "}
+          {revision.clubSecretaryResponse}
+          {revision.respondedAt && (
+            <div style={{ fontSize: "0.75rem", marginTop: "4px", color: "#6c757d" }}>
+              {new Date(revision.respondedAt).toLocaleString()}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const EventDetails = () => {
   const { id } = useParams(); // Extract event ID from the route params
@@ -23,6 +113,8 @@ const EventDetails = () => {
   const pdfObjectUrlRef = useRef(null);
   const navigate = useNavigate(); // Initialize navigate hook
   const role = localStorage.getItem("role"); // Fetch role from localStorage
+  const budgetAuthorityRoles = ["students-welfare-office", "ARSW", "associate-dean", "associate-dean-socio-cultural", "associate-dean-hostel", "chief-warden", "dean"];
+  const userID = localStorage.getItem("userID"); // Fetch current user's ID
   const userEmail =
     localStorage.getItem("email") || localStorage.getItem("userEmail"); // Get user email
   const [showEditModal, setShowEditModal] = useState(false);
@@ -34,6 +126,23 @@ const EventDetails = () => {
   const [editBudgetBreakup, setEditBudgetBreakup] = useState([]);
   const [showBudgetEditModal, setShowBudgetEditModal] = useState(false);
   const [proposedBudgetBreakup, setProposedBudgetBreakup] = useState([]);
+  const [budgetJustification, setBudgetJustification] = useState("");
+  const [showBudgetHistory, setShowBudgetHistory] = useState(true);
+  const [showAllBudgetHistory, setShowAllBudgetHistory] = useState(false);
+  const [showQueries, setShowQueries] = useState(false);
+  // Add state for editing additional amenities
+  const [editAdditionalAmenities, setEditAdditionalAmenities] = useState([]);
+
+  // Add state for budget revision review (club secretary)
+  const [showBudgetRevisionModal, setShowBudgetRevisionModal] = useState(false);
+  const [selectedRevision, setSelectedRevision] = useState(null);
+  const [revisionResponse, setRevisionResponse] = useState("");
+  const [revisionResponseType, setRevisionResponseType] = useState("Approved"); // "Approved" or "QueryRaised"
+
+  const isHostelEvent = eventDetails?.eventType?.toLowerCase() === "hostel";
+  const approvalHierarchy = isHostelEvent
+    ? ["club-secretary", "general-secretary", "treasurer", "president", "students-welfare-office", "ARSW", "chief-warden", "associate-dean-hostel", "dean"]
+    : ["club-secretary", "general-secretary", "treasurer", "president", "students-welfare-office", "ARSW", "associate-dean", "dean"];
 
   useEffect(() => {
     // Function to fetch event details by ID
@@ -89,16 +198,6 @@ const EventDetails = () => {
 
   // Helper function to get approvals up to rejection point
   const getApprovalsToDisplay = (approvals) => {
-    const roleHierarchy = [
-      "club-secretary",
-      "general-secretary",
-      "treasurer",
-      "president",
-      "ARSW",
-      "associate-dean",
-      "dean"
-    ];
-
     // Find the first rejection in the hierarchy
     const rejectionIndex = approvals.findIndex(
       (approval) => approval.status === "Rejected"
@@ -115,15 +214,9 @@ const EventDetails = () => {
 
   // Helper function to check if current user can approve/reject
   const canCurrentUserApprove = (approvals) => {
-    const roleHierarchy = [
-      "club-secretary",
-      "general-secretary",
-      "treasurer",
-      "president",
-      "ARSW",
-      "associate-dean",
-      "dean"
-    ];
+    const roleHierarchy = approvalHierarchy;
+    console.log("Approvals:", eventDetails.approvals);
+    console.log("Role:", role);
 
     // If there's a rejection, no one can approve anymore
     const hasRejection = approvals.some(
@@ -132,17 +225,22 @@ const EventDetails = () => {
     if (hasRejection) {
       return false;
     }
-
-    // Check if current user's role has a pending status
-    const currentUserApproval = approvals.find(
-      (approval) => approval.role === role
-    );
-    return currentUserApproval && currentUserApproval.status === "Pending";
+    const currentIndex = approvals.findIndex((approval) => approval.role === role);
+    if (currentIndex === -1) {return false;} // User's role not in approval hierarchy
+    if (approvals[currentIndex].status !== "Pending") {return false;} // Current user's approval is not pending  
+    return approvals.slice(0, currentIndex).every(approval => approval.status === "Approved");
+    
   };
 
   const canEditEvent = () => {
     // Only club-secretary who created the event can edit
-    if (role !== "club-secretary") {
+    if (!["club-secretary","general-secretary"].includes(role)) {
+      return false;
+    }
+    if(!eventDetails || eventDetails.userID?.toString() !== userID?.toString()) {
+      return false;
+    }
+    if (hasCurrentRoleActiveQuery()) {
       return false;
     }
     
@@ -170,49 +268,231 @@ const EventDetails = () => {
     
     return true;
   };
+
+  // Helper function to check if there's a pending budget revision for club secretary
+  const getPendingBudgetRevision = () => {
+    if (!eventDetails?.arsw_budget_revisions) return null;
+    return [...eventDetails.arsw_budget_revisions]
+      .reverse()
+      .find((r) => r.clubSecretaryApprovalStatus === "Pending");
+  };
+
+  // Helper function to check if club secretary needs to respond to a query on budget
+  const getQueryOnBudgetRevision = () => {
+    if (!eventDetails?.arsw_budget_revisions) return null;
+    return [...eventDetails.arsw_budget_revisions]
+      .reverse()
+      .find(
+        (r) =>
+          r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized,
+      );
+  };
+
+  // Helper function to get ARSW budget revision with query for display
+  const getARSWBudgetQueryRevision = () => {
+    if (!eventDetails?.arsw_budget_revisions) return null;
+    return [...eventDetails.arsw_budget_revisions]
+      .reverse()
+      .find(
+        (r) =>
+          r.clubSecretaryApprovalStatus === "QueryRaised" && !r.isFinalized,
+      );
+  };
+
+  // Helper function to check if ARSW can edit budget after query
+  const canARSWEditAfterQuery = () => {
+    if (!budgetAuthorityRoles.includes(role)) return false;
+    const budgetAuthorityApproval = eventDetails?.approvals?.find(
+      (a) => a.role === role,
+    );
+    if (!budgetAuthorityApproval) return false;
+    return (
+      budgetAuthorityApproval.status === "Query" ||
+      budgetAuthorityApproval.status === "Edited"
+    );
+  };
+
+  // Helper function to check if can take action (reject/query) despite being in edit mode
+  const canTakeActionWhenEdited = (approvals) => {
+    const currentApproval = approvals.find((approval) => approval.role === role);
+    if (!currentApproval) return false;
+    // Allow Reject and Query when status is "Edited" or "Query" (after ARSW edits budget)
+    return currentApproval.status === "Edited" || currentApproval.status === "Query";
+  };
+
+  // Helper function to check if budget revision has been finalized
+  const isBudgetFinalized = () => {
+    if (!eventDetails?.arsw_budget_revisions) return false;
+    const lastRevision = eventDetails.arsw_budget_revisions[eventDetails.arsw_budget_revisions.length - 1];
+    return lastRevision && lastRevision.isFinalized;
+  };
+
+  // Open budget revision review modal
+  const handleOpenBudgetRevisionReview = (revision) => {
+    setSelectedRevision(revision);
+    setRevisionResponse("");
+    setRevisionResponseType("Approved");
+    setShowBudgetRevisionModal(true);
+  };
+
+  // Handle club secretary's response to budget revision
+  const handleRespondToBudgetRevision = async () => {
+    if (!selectedRevision) {
+      toast.error("No revision selected");
+      return;
+    }
+
+    if (revisionResponseType === "QueryRaised" && !revisionResponse.trim()) {
+      toast.error("Please provide a query/feedback");
+      return;
+    }
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
+      
+      await axios.patch(`${apiUrl}/event/respond-budget-revision`, {
+        eventId: eventDetails._id,
+        revisionNumber: selectedRevision.revisionNumber,
+        status: revisionResponseType,
+        response: revisionResponseType === "QueryRaised" ? revisionResponse : ""
+      });
+
+      toast.success(`Budget revision ${revisionResponseType === "Approved" ? "approved" : "query raised"} successfully!`);
+      setShowBudgetRevisionModal(false);
+      
+      // Refresh event details
+      const response = await axios.get(`${apiUrl}/event/${eventDetails._id}`);
+      setEventDetails(response.data);
+    } catch (error) {
+      console.error("Error responding to budget revision:", error);
+      toast.error(error.response?.data?.message || "Failed to respond to budget revision");
+    }
+  };
+
+  // Auto-show budget revision modal if there's a pending revision and user is club secretary
+  useEffect(() => {
+    if (eventDetails && ["club-secretary","general-secretary"].includes(role) && !showBudgetRevisionModal) {
+      const pendingRevision = getPendingBudgetRevision();
+      if (pendingRevision && !showBudgetRevisionModal) {
+        // Only show automatically once - don't block the user from viewing other parts
+        // handleOpenBudgetRevisionReview(pendingRevision);
+      }
+    }
+  }, [eventDetails, role, showBudgetRevisionModal]);
+
+  // Helper function to build timeline events
+  const buildTimelineEvents = () => {
+    const events = [];
+    
+    // Add event creation
+    if (eventDetails?.createdAt) {
+      events.push({
+        type: "created",
+        date: new Date(new Date(eventDetails.createdAt).getTime() - 10000),
+        title: "Event Created",
+        description: "Event application submitted",
+        icon: "⭐",
+        color: "#6f42c1"
+      });
+    }
+    
+    // Add approval actions
+    if (eventDetails?.approvals) {
+      eventDetails.approvals.forEach((approval) => {
+        const hasTimestamp = approval.timestamp;
+        const shouldShowApprovalOrReject = approval.status === "Approved" || approval.status === "Rejected";
+        
+        // Show only completed actions (Approved/Rejected) - pending items shown separately below
+        if (hasTimestamp && shouldShowApprovalOrReject) {
+          let title = `${approval.role.replace(/-/g, ' ').replace(/^\//, '').toUpperCase()}`;
+          let icon = "";
+          let color = "#6c757d";
+          let description = approval.comment || "No comments";
+          
+          if (approval.status === "Approved") {
+            title += approval.role === 'dean' ? " Approved" : " Recommended";
+            icon = "✓";
+            color = "#28a745";
+          } else if (approval.status === "Rejected") {
+            title += " Rejected";
+            icon = "✗";
+            color = "#dc3545";
+          }
+          
+          events.push({
+            type: "approval",
+            date: new Date(approval.timestamp || eventDetails.createdAt),
+            title: title,
+            description: approval.comment || "No comments",
+            icon: icon,
+            color: color,
+            role: approval.role
+          });
+        }
+      });
+    }
+    
+    // Add query raised from queries array (only if not answered)
+    if (eventDetails?.queries) {
+      eventDetails.queries.forEach((query) => {
+        // Show query raised only if NOT answered
+        if (query.raisedAt && !query.answeredAt) {
+          events.push({
+            type: "query-raised",
+            date: new Date(query.raisedAt),
+            title: `${query.askerRole.replace(/-/g, ' ').toUpperCase()} Query`,
+            description: query.queryText,
+            icon: "?",
+            color: "#ffc107"
+          });
+        }
+      });
+    }
+
+    // Do not add edit history to timeline
+    
+    // Sort events by date
+    return events.sort((a, b) => a.date - b.date);
+  };
+
   // When opening modal, prefill form and budget breakup
   useEffect(() => {
     if (showEditModal && eventDetails) {
       setEditForm({
-        eventName: eventDetails.eventName,
-        eventType: eventDetails.eventType,
-        clubName: eventDetails.clubName,
-        startDate: eventDetails.startDate?.slice(0, 10),
-        endDate: eventDetails.endDate?.slice(0, 10),
-        eventVenue: eventDetails.eventVenue,
-        sourceOfBudget: eventDetails.sourceOfBudget,
-        // estimatedBudget: eventDetails.estimatedBudget, // REMOVE THIS LINE
-        nameOfTheOrganizer: eventDetails.nameOfTheOrganizer,
-        designation: eventDetails.designation,
-        email: eventDetails.email,
-        phoneNumber: eventDetails.phoneNumber,
-        requirements: eventDetails.requirements?.join(", "),
-        eventDescription: eventDetails.eventDescription,
-        internalParticipants: eventDetails.internalParticipants,
-        externalParticipants: eventDetails.externalParticipants,
-        listOfCollaboratingOrganizations:
-          eventDetails.listOfCollaboratingOrganizations,
-        anyAdditionalAmenities: eventDetails.anyAdditionalAmenities,
+        eventName: eventDetails.eventName || '',
+        partOfGymkhanaCalendar: eventDetails.partOfGymkhanaCalendar || '',
+        eventType: eventDetails.eventType || '',
+        clubName: eventDetails.clubName || '',
+        startDate: eventDetails.startDate ? (eventDetails.startDate.slice(0, 16).includes('T') ? eventDetails.startDate.slice(0, 16) : `${eventDetails.startDate.slice(0, 10)}T00:00`) : '',
+        endDate: eventDetails.endDate ? (eventDetails.endDate.slice(0, 16).includes('T') ? eventDetails.endDate.slice(0, 16) : `${eventDetails.endDate.slice(0, 10)}T00:00`) : '',
+        eventVenue: eventDetails.eventVenue || '',
+        sourceOfBudget: eventDetails.sourceOfBudget || '',
+        nameOfTheOrganizer: eventDetails.nameOfTheOrganizer || '',
+        designation: eventDetails.designation || '',
+        email: eventDetails.email || '',
+        phoneNumber: eventDetails.phoneNumber || '',
+        requirements: eventDetails.requirements && Array.isArray(eventDetails.requirements) 
+          ? eventDetails.requirements
+              .filter(r => typeof r === 'string' ? r.trim() : r.name && r.name.trim())
+              .map(r => typeof r === 'string' ? r : r.name)
+              .join(", ")
+          : '',
+        eventDescription: eventDetails.eventDescription || '',
+        internalParticipants: eventDetails.internalParticipants || '',
+        externalParticipants: eventDetails.externalParticipants || '',
+        listOfCollaboratingOrganizations: eventDetails.listOfCollaboratingOrganizations || '',
       });
-      // Normalize various possible shapes of budgetBreakup from backend into
-      // { label, amount } rows used by the edit modal inputs.
+
+      // Normalize budget breakup
       const normalizeBudget = (budget) => {
         if (!Array.isArray(budget)) return [];
         return budget.map((item) => {
           if (!item) return { label: "", amount: "" };
-          // support backend model: { expenseHead, estimatedAmount }
-          // support frontend older shape: { label, amount }
-          // support other variants: { name, value } or plain numbers/strings
           if (typeof item === "string") {
             return { label: item, amount: "" };
           }
-
-          const label =
-            item.expenseHead ?? item.label ?? item.head ?? item.name ?? item.item ?? "";
-
-          const amountRaw =
-            item.estimatedAmount ?? item.estimatedBudget ?? item.amount ?? item.value ?? item.cost ?? "";
-
+          const label = item.expenseHead ?? item.label ?? item.head ?? item.name ?? item.item ?? "";
+          const amountRaw = item.estimatedAmount ?? item.estimatedBudget ?? item.amount ?? item.value ?? item.cost ?? "";
           return {
             label: String(label || ""),
             amount: amountRaw !== null && amountRaw !== undefined && amountRaw !== "" ? String(amountRaw) : "",
@@ -221,6 +501,20 @@ const EventDetails = () => {
       };
 
       setEditBudgetBreakup(normalizeBudget(eventDetails.budgetBreakup));
+
+      // Handle additional amenities - normalize to array of objects
+      const normalizeAmenities = (amenities) => {
+        if (!amenities) return [];
+        if (Array.isArray(amenities)) {
+          return amenities.filter(a => a && (a.amenityName || a.name)).map(a => ({
+            amenityName: a.amenityName || a.name || '',
+            description: a.description || ''
+          }));
+        }
+        return [];
+      };
+
+      setEditAdditionalAmenities(normalizeAmenities(eventDetails.additionalAmenities));
     }
   }, [showEditModal, eventDetails]);
 
@@ -241,15 +535,69 @@ const EventDetails = () => {
     setEditBudgetBreakup(prev => prev.filter((_, i) => i !== idx));
   };
 
+  const handleAddAmenityRow = () => {
+    setEditAdditionalAmenities(prev => [...prev, { amenityName: "", description: "" }]);
+  };
+
+  const handleAmenityChange = (index, e) => {
+    const { name, value } = e.target;
+    setEditAdditionalAmenities(prev =>
+      prev.map((item, i) =>
+        i === index ? { ...item, [name]: value } : item
+      )
+    );
+  };
+
+  const handleRemoveAmenityRow = (index) => {
+    setEditAdditionalAmenities(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Calculate estimated budget from breakup
   const calculatedEstimatedBudget = editBudgetBreakup.reduce(
     (sum, item) => sum + (parseFloat(item.amount) || 0),
     0
   );
 
+  const canViewBudget = () => {
+    // Associate Dean (Socio-Cultural) cannot view
+    // hostel-event budgets.
+    if (
+      isHostelEvent &&
+      role === "associate-dean-socio-cultural"
+    ) {
+      return false;
+    }
+
+    return true;
+  };
   // Handlers for ARSW/Associate Dean/Dean budget editing
   const canEditBudget = () => {
-    return role === "ARSW" || role === "associate-dean" || role === "dean";
+    if (!budgetAuthorityRoles.includes(role)) {
+      return false;
+    }
+
+    if (!eventDetails) {
+      return false;
+    }
+
+    if (
+      isHostelEvent &&
+      role === "associate-dean-socio-cultural"
+    ) {
+      return false;
+    }
+    // Check if it's this role's turn in the approval hierarchy
+    if (canCurrentUserApprove(eventDetails.approvals)) {
+      return true;
+    }
+
+    // Budget-authority roles can re-edit after club secretary raises a query.
+    if (canARSWEditAfterQuery()) {
+      return true;
+    }
+
+    // Check if all previous approvals are approved
+    return false;
   };
 
   const handleOpenBudgetEditModal = () => {
@@ -285,8 +633,21 @@ const EventDetails = () => {
       });
     };
 
-    const normalized = normalizeBudget(eventDetails.budgetBreakup);
+    // Check if there's a query revision - if so, use that as the base for editing
+    const queryRevision = getQueryOnBudgetRevision();
+    let budgetToEdit;
+    
+    if (queryRevision && queryRevision.proposedBudgetBreakup) {
+      // Use the proposed budget from the query revision
+      budgetToEdit = queryRevision.proposedBudgetBreakup;
+    } else {
+      // Otherwise use the current budgetBreakup
+      budgetToEdit = eventDetails.budgetBreakup;
+    }
+
+    const normalized = normalizeBudget(budgetToEdit);
     setProposedBudgetBreakup(normalized.length ? normalized : []);
+    setBudgetJustification("");
     setShowBudgetEditModal(true);
   };
 
@@ -312,9 +673,10 @@ const EventDetails = () => {
   );
 
   const handleBudgetEditSubmit = async () => {
+
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
-      
+
       // Transform proposed budget to backend shape
       const transformedProposedBudget = proposedBudgetBreakup
         .filter(item => (item.label || "").trim() !== "")
@@ -323,11 +685,16 @@ const EventDetails = () => {
           estimatedAmount: Number(parseFloat(item.amount)) || 0,
         }));
 
+      // Check if this is a finalization (ARSW editing after query)
+      const isFinalization = !!getQueryOnBudgetRevision();
+
       await axios.patch(`${apiUrl}/event/edit-budget`, {
         eventId: eventDetails._id,
         role: role,
         proposedBudgetBreakup: transformedProposedBudget,
         proposedEstimatedBudget: calculatedProposedBudget,
+        isFinalization: isFinalization,
+        justification: budgetJustification.trim() || "",
       });
 
       toast.success("Budget edited successfully!");
@@ -342,43 +709,55 @@ const EventDetails = () => {
     }
   };
 
-  const handleEditChange = (e) => {
-    setEditForm({ ...editForm, [e.target.name]: e.target.value });
-  };
+  const handleRevertBudget = async () => {
+    // Confirm before reverting
+    if (!window.confirm("Are you sure you want to revert to the original budget? This action cannot be undone.")) {
+      return;
+    }
 
-  const handleEditSubmit = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
-      // Transform editBudgetBreakup into backend schema: { expenseHead, estimatedAmount }
-      const transformedBudget = editBudgetBreakup
-        .filter(item => (item.label || "").trim() !== "")
-        .map(item => ({
-          expenseHead: (item.label || "").trim(),
-          estimatedAmount: Number(parseFloat(item.amount)) || 0,
-        }));
+
+      await axios.post(`${apiUrl}/event/revert-budget`, {
+        eventId: eventDetails._id,
+        role: role,
+      });
+
+      toast.success("Budget reverted to original successfully!");
+      
+      // Refresh event details
+      const response = await axios.get(`${apiUrl}/event/${eventDetails._id}`);
+      setEventDetails(response.data);
+    } catch (error) {
+      console.error("Budget revert error:", error);
+      toast.error("Failed to revert budget.");
+    }
+  };
+
+  const handleEditFormSubmit = async (requestData) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4001";
 
       await axios.patch(`${apiUrl}/event/edit`, {
         eventId: eventDetails._id,
         userID: localStorage.getItem("userID"),
-        updates: {
-          ...editForm,
-          requirements: editForm.requirements
-            ? editForm.requirements.split(",").map((r) => r.trim())
-            : [],
-          budgetBreakup: transformedBudget,
-          estimatedBudget: calculatedEstimatedBudget,
-        },
+        updates: requestData,
       });
-      toast.success("Event updated successfully! Query status preserved.");
+      
+      toast.success("Event updated successfully!");
       setShowEditModal(false);
+      
       // Refresh event details
       const response = await axios.get(`${apiUrl}/event/${eventDetails._id}`);
       setEventDetails(response.data);
+      
       // Refresh edit history
       const historyResponse = await axios.get(`${apiUrl}/event/${eventDetails._id}/edit-history`);
       setEditHistory(historyResponse.data.editHistory || []);
     } catch (error) {
+      console.error("Edit error:", error);
       toast.error("Failed to update event.");
+      throw error;
     }
   };
 
@@ -489,6 +868,7 @@ const EventDetails = () => {
         response: queryResponse,
         userRole: role,
         userEmail: userEmail,
+        userID: userID,
       });
 
       toast.success("Query response submitted successfully!");
@@ -569,9 +949,12 @@ const EventDetails = () => {
 
       toast.success("Query raised successfully!");
       
-      // Refresh queries
-      const response = await axios.get(`${apiUrl}/event/${id}/queries`);
-      setQueries(response.data.queries || []);
+      // Refresh queries and event details
+      const queryResponse = await axios.get(`${apiUrl}/event/${id}/queries`);
+      setQueries(queryResponse.data.queries || []);
+      
+      const eventResponse = await axios.get(`${apiUrl}/event/${id}`);
+      setEventDetails(eventResponse.data);
       
       setShowApprovedQueryModal(false);
       setApprovedQueryText("");
@@ -587,7 +970,7 @@ const EventDetails = () => {
 
   // Check if event can be closed
   const canCloseEvent = () => {
-    if (!['associate-dean', 'dean', 'ARSW'].includes(role)) return false;
+    if (!['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW', 'students-welfare-office'].includes(role)) return false;
     if (eventDetails.status === 'Closed') return false;
     
     const allApproved = eventDetails.approvals.every(app => app.status === 'Approved');
@@ -595,14 +978,36 @@ const EventDetails = () => {
     
     const currentDate = new Date();
     const endDate = new Date(eventDetails.endDate);
-    const hundredDaysBefore = new Date(endDate);
-    hundredDaysBefore.setDate(endDate.getDate() - 100);
-    return currentDate > hundredDaysBefore;
+    // const hundredDaysBefore = new Date(endDate);
+    // hundredDaysBefore.setDate(endDate.getDate() - 100);
+    return currentDate > endDate;
+  };
+
+  const hasActiveQuery = () => {
+    if(!queries || queries.length === 0) return false;
+    return queries.some(q => q.status === "Pending");
+  };
+
+  const hasCurrentRoleActiveQuery = () => {
+    if(!queries || queries.length === 0) return false;
+    return queries.some(q => q.askerRole === role && q.status === "Pending");
+  }
+
+  const canReplyToQuery = (query) => {
+    if (!['club-secretary', 'general-secretary'].includes(role)) return false;
+    if (!eventDetails || !userID) return false;
+    // Only the event creator can reply
+    if (eventDetails.userID?.toString() !== userID?.toString()) return false;
+    // Cannot reply to your own query
+    if (query.askerRole === role) return false;
+    // Query must be pending
+    if (query.status !== 'Pending') return false;
+    return true;
   };
 
   // Check if can raise query on approved event
   const canRaiseApprovedQuery = () => {
-    if (!['associate-dean', 'dean', 'ARSW'].includes(role)) return false;
+    if (!['associate-dean', 'associate-dean-socio-cultural', 'dean', 'ARSW', 'students-welfare-office'].includes(role)) return false;
     if (eventDetails.status === 'Closed') return false;
     
     const allApproved = eventDetails.approvals.every(app => app.status === 'Approved');
@@ -612,7 +1017,7 @@ const EventDetails = () => {
   const handleGeneratePDF = async () => {
     const headerImageURL = "/form_header.png"; // Path to the header image
     try {
-      const { blobUrl, dataUrl } = await generatePDF(eventDetails, headerImageURL);
+      const { blobUrl, dataUrl } = await generatePDF(eventDetails, headerImageURL, role);
 
       if (pdfObjectUrlRef.current) {
         URL.revokeObjectURL(pdfObjectUrlRef.current);
@@ -635,7 +1040,7 @@ const EventDetails = () => {
   const getActionLabel = (action) => {
     switch (action) {
       case "Approved":
-        return "Approve";
+        return role === 'dean' ? "Approve" : "Recommend";
       case "Rejected":
         return "Reject";
       case "Query":
@@ -648,712 +1053,609 @@ const EventDetails = () => {
 
   return (
     <div className="event-details-container">
-      <div className="event-details">
-        <h1>Event Details</h1>
-        {eventDetails.status === 'Closed' && (
-          <div className="alert alert-dark mt-2">
-            <strong>⛔ Event Closed</strong><br/>
-            This event has been officially closed by {eventDetails.closedBy || 'an administrator'} on {eventDetails.closedAt ? new Date(eventDetails.closedAt).toLocaleDateString() : 'N/A'}.
+      {/* Top Header */}
+      <div className="ed-top-header">
+        <div className="ed-top-left">
+          <div className="ed-title-row">
+            <button
+              className="ed-back-btn"
+              onClick={() => navigate(-1)}
+              title="Go back"
+            >
+              ← Back
+            </button>
+            <h1 className="ed-event-name">
+              {eventDetails.eventName}
+              {eventDetails.status === 'Closed' && (
+                <span className="badge bg-dark ms-2" style={{ fontSize: '0.5em', verticalAlign: 'middle' }}>Closed</span>
+              )}
+            </h1>
           </div>
-        )}
+        </div>
+        <div className="ed-top-right">
+          <div className="ed-ref-number-box">
+            <span className="ed-ref-label">Reference Number</span>
+            <span className="ed-ref-value">{eventDetails.referenceNumber || 'Not Applicable'}</span>
+          </div>
+          <div className="ed-date-display">
+            <span className="ed-date-label">Start Date</span>
+            <span className="ed-date-value">{new Date(eventDetails.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Back button next to the event name */}
-      <div className="event-details-header">
-        <h4>
-          {eventDetails.eventName}
-          {eventDetails.status === 'Closed' && (
-            <span className="badge bg-dark ms-2">Closed</span>
-          )}
-        </h4>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={() => navigate(-1)}
-        >
-          Back
-        </button>
-        {canEditEvent() && (
-          <button
-            className="btn btn-warning btn-sm ms-2"
-            onClick={() => setShowEditModal(true)}
-          >
-            Edit Event
-          </button>
-        )}
-        {showEditModal && (
-          <div
-            className="modal-overlay"
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.5)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 1000,
-            }}
-          >
-            <div
-              className="modal-content"
-              style={{
-                backgroundColor: "white",
-                padding: "20px",
-                borderRadius: "8px",
-                minWidth: "400px",
-                maxWidth: "600px",
-                maxHeight: "90vh",
-                overflowY: "auto",
-              }}
-            >
-              <h4>Edit Event Details</h4>
-              <div className="form-group mb-2">
-                <label>Event Name</label>
-                <input
-                  className="form-control"
-                  name="eventName"
-                  value={editForm.eventName || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Part of Gymkhana Calendar</label>
-                <select
-                  className="form-control"
-                  name="partOfGymkhanaCalendar"
-                  value={editForm.partOfGymkhanaCalendar || ""}
-                  onChange={handleEditChange}
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div className="form-group mb-2">
-                <label>Event Type</label>
-                <input
-                  className="form-control"
-                  name="eventType"
-                  value={editForm.eventType || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Club Name</label>
-                <input
-                  className="form-control"
-                  name="clubName"
-                  value={editForm.clubName || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Start Date</label>
-                <input
-                  type="date"
-                  className="form-control"
-                  name="startDate"
-                  value={editForm.startDate || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>End Date</label>
-                <input
-                  type="date"
-                  className="form-control"
-                  name="endDate"
-                  value={editForm.endDate || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Event Venue</label>
-                <input
-                  className="form-control"
-                  name="eventVenue"
-                  value={editForm.eventVenue || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Source of Budget</label>
-                <input
-                  className="form-control"
-                  name="sourceOfBudget"
-                  value={editForm.sourceOfBudget || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              {/* Remove Estimated Budget input */}
-              {/* Budget Breakup Section */}
-              <div className="form-group mb-2">
-                <label>Budget Breakup</label>
-                {editBudgetBreakup.map((item, idx) => (
-                  <div key={idx} className="d-flex mb-2 align-items-center">
-                    <input
-                      className="form-control me-2"
-                      style={{ width: "50%" }}
-                      placeholder="Label"
-                      value={item.label}
-                      onChange={e =>
-                        handleBudgetBreakupChange(idx, "label", e.target.value)
-                      }
-                    />
-                    <input
-                      className="form-control me-2"
-                      style={{ width: "35%" }}
-                      placeholder="Amount"
-                      type="number"
-                      min="0"
-                      value={item.amount}
-                      onChange={e =>
-                        handleBudgetBreakupChange(idx, "amount", e.target.value)
-                      }
-                    />
-                    <button
-                      className="btn btn-danger btn-sm"
-                      type="button"
-                      onClick={() => handleRemoveBudgetBreakup(idx)}
-                      title="Remove"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
-                <button
-                  className="btn btn-outline-primary btn-sm mt-1"
-                  type="button"
-                  onClick={handleAddBudgetBreakup}
-                >
-                  Add Item
-                </button>
-                <div className="mt-2">
-                  <strong>Estimated Budget: </strong>
-                  ₹{calculatedEstimatedBudget}
-                </div>
-              </div>
-              <div className="form-group mb-2">
-                <label>Name of the Organizer</label>
-                <input
-                  className="form-control"
-                  name="nameOfTheOrganizer"
-                  value={editForm.nameOfTheOrganizer || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Designation</label>
-                <input
-                  className="form-control"
-                  name="designation"
-                  value={editForm.designation || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Email</label>
-                <input
-                  className="form-control"
-                  name="email"
-                  value={editForm.email || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Phone Number</label>
-                <input
-                  className="form-control"
-                  name="phoneNumber"
-                  value={editForm.phoneNumber || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Requirements (comma separated)</label>
-                <input
-                  className="form-control"
-                  name="requirements"
-                  value={editForm.requirements || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Any Additional Amenities</label>
-                <input
-                  className="form-control"
-                  name="anyAdditionalAmenities"
-                  value={editForm.anyAdditionalAmenities || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Event Description</label>
-                <textarea
-                  className="form-control"
-                  name="eventDescription"
-                  value={editForm.eventDescription || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>Internal Participants</label>
-                <input
-                  className="form-control"
-                  name="internalParticipants"
-                  value={editForm.internalParticipants || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>External Participants</label>
-                <input
-                  className="form-control"
-                  name="externalParticipants"
-                  value={editForm.externalParticipants || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="form-group mb-2">
-                <label>List of Collaborating Organizations</label>
-                <input
-                  className="form-control"
-                  name="listOfCollaboratingOrganizations"
-                  value={editForm.listOfCollaboratingOrganizations || ""}
-                  onChange={handleEditChange}
-                />
-              </div>
-              <div className="modal-buttons mt-3">
-                <button
-                  className="btn btn-secondary me-2"
-                  onClick={() => setShowEditModal(false)}
-                >
-                  Cancel
-                </button>
-                <button className="btn btn-success" onClick={handleEditSubmit}>
-                  Save Changes
-                </button>
-              </div>
+      {eventDetails.status === 'Closed' && (
+        <div className="alert alert-dark mt-2">
+          <strong>⛔ Event Closed</strong><br/>
+          This event has been officially closed by {eventDetails.closedBy || 'an administrator'} on {eventDetails.closedAt ? new Date(eventDetails.closedAt).toLocaleDateString() : 'N/A'}.
+        </div>
+      )}
+
+      {canEditEvent() && (
+        <div className="ed-edit-bar">
+          <button className="btn btn-warning btn-sm" onClick={() => setShowEditModal(true)}>✏️ Edit Event</button>
+        </div>
+      )}
+
+      {/* Edit Modal - Using EventForm Component */}
+      {showEditModal && eventDetails && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', zIndex: 1000, overflowY: 'auto', paddingTop: '20px' }}>
+          <div className="modal-content" style={{ backgroundColor: 'white', borderRadius: '8px', minWidth: '500px', maxWidth: '800px', marginBottom: '40px' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0 }}>Edit Event Details</h4>
+              <button 
+                type="button" 
+                className="btn btn-close" 
+                onClick={() => setShowEditModal(false)}
+                aria-label="Close"
+              ></button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <EventForm 
+                initialData={eventDetails}
+                isEditMode={true}
+                onSubmit={handleEditFormSubmit}
+                onClose={() => setShowEditModal(false)}
+              />
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="event-details-content">
-        <p>
-          <strong>Type:</strong> {eventDetails.eventType}
-        </p>
-        <p>
-          <strong>Club Name:</strong> {eventDetails.clubName}
-        </p>
-        <p>
-          <strong>Start Date:</strong>{" "}
-          {new Date(eventDetails.startDate).toLocaleDateString()}
-        </p>
-        <p>
-          <strong>End Date:</strong>{" "}
-          {new Date(eventDetails.endDate).toLocaleDateString()}
-        </p>
-        <p>
-          <strong>Venue:</strong> {eventDetails.eventVenue}
-        </p>
-        <p>
-          <strong>Source of Budget:</strong> {eventDetails.sourceOfBudget}
-        </p>
-        <p>
-          <strong>Estimated Budget:</strong> ₹{eventDetails.estimatedBudget}
-        </p>
+      {/* Main Grid Layout */}
+      <div className="ed-grid">
 
-        {/* Show budget breakup if available */}
-        {Array.isArray(eventDetails.budgetBreakup) && eventDetails.budgetBreakup.length > 0 && (
-          <>
-            <h4>Budget Breakup</h4>
-            <table className="table table-sm">
-              <thead>
-                <tr>
-                  <th>Head</th>
-                  <th style={{ width: "150px" }}>Amount (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventDetails.budgetBreakup.map((item, idx) => {
-                  const label = item?.expenseHead ?? item?.label ?? item?.name ?? item?.head ?? item ?? "";
-                  const amount = item?.estimatedAmount ?? item?.amount ?? item?.value ?? "";
-                  return (
-                    <tr key={idx}>
-                      <td style={{ wordBreak: "break-word" }}>{label || "—"}</td>
-                      <td>{amount !== "" && amount !== null && amount !== undefined ? `₹${amount}` : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </>
-        )}
+        {/* Left Column */}
+        <div className="ed-left-col">
 
-        {/* Show proposed budget if edited by ARSW/Associate Dean/Dean */}
-        {eventDetails.proposedBudgetBreakup && eventDetails.proposedBudgetBreakup.length > 0 && (
-          <>
-            <h4 className="text-info">Revised Budget (Edited by {eventDetails.budgetEditedBy})</h4>
-            <p>
-              <strong>Revised Estimated Budget:</strong> ₹{eventDetails.proposedEstimatedBudget}
-            </p>
-            <table className="table table-sm table-info">
-              <thead>
-                <tr>
-                  <th>Head</th>
-                  <th style={{ width: "150px" }}>Amount (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventDetails.proposedBudgetBreakup.map((item, idx) => {
-                  const label = item?.expenseHead ?? item?.label ?? item?.name ?? item?.head ?? "";
-                  const amount = item?.estimatedAmount ?? item?.amount ?? item?.value ?? "";
-                  return (
-                    <tr key={idx}>
-                      <td style={{ wordBreak: "break-word" }}>{label || "—"}</td>
-                      <td>{amount !== "" && amount !== null && amount !== undefined ? `₹${amount}` : "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <p className="text-muted small">
-              <em>Edited on: {new Date(eventDetails.budgetEditedAt).toLocaleString()}</em>
-            </p>
-          </>
-        )}
+          {/* Event Information */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Event Information</h5>
+            <div className="ed-info-row"><span className="ed-info-label">Club Name</span><span className="ed-info-value">{eventDetails.clubName}</span></div>
+            <div className="ed-info-row"><span className="ed-info-label">Type</span><span className="ed-info-value">{eventDetails.eventType || '—'}</span></div>
+            <div className="ed-info-row">
+  <span className="ed-info-label">Start Date & Time</span>
+  <span className="ed-info-value">
+    {new Date(eventDetails.startDate).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).replace(',', '')}
+  </span>
+</div>
 
-        {/* Budget Edit Button for ARSW/Associate Dean/Dean */}
-        {canEditBudget() && (
-          <button 
-            className="btn btn-warning btn-sm mb-3" 
-            onClick={handleOpenBudgetEditModal}
-          >
-            <i className="bi bi-pencil-square"></i> Edit Budget
-          </button>
-        )}
-
-        <h4>Organizer Details</h4>
-        <p>
-          <strong>Name:</strong> {eventDetails.nameOfTheOrganizer}
-        </p>
-        <p>
-          <strong>Designation:</strong> {eventDetails.designation}
-        </p>
-        <p>
-          <strong>Email:</strong> {eventDetails.email}
-        </p>
-        <p>
-          <strong>Phone Number:</strong> {eventDetails.phoneNumber}
-        </p>
-
-        <h4>Requirements</h4>
-        <ul>
-          {eventDetails.requirements?.map((req, index) => (
-            <li key={index}>{req}</li>
-          ))}
-        </ul>
-
-        <h4>Description</h4>
-        <p>{eventDetails.eventDescription}</p>
-
-        <h4>Participants</h4>
-        <p>
-          <strong>External:</strong> {eventDetails.externalParticipants}
-        </p>
-        <p>
-          <strong>Internal:</strong> {eventDetails.internalParticipants}
-        </p>
-
-        {eventDetails.externalParticipants > 0 && (
-          <p>
-            <strong>Collaborating Organizations:</strong>{" "}
-            {eventDetails.listOfCollaboratingOrganizations}
-          </p>
-        )}
-
-        <h4>Approval Status</h4>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Comment</th>
-            </tr>
-          </thead>
-          <tbody>
-            {getApprovalsToDisplay(eventDetails.approvals).map(
-              (approval, index) => (
-                <tr key={index}>
-                  <td>{approval.role}</td>
-                  <td>{approval.status}</td>
-                  <td>{approval.comment || "N/A"}</td>
-                </tr>
-              )
+<div className="ed-info-row">
+  <span className="ed-info-label">End Date & Time</span>
+  <span className="ed-info-value">
+    {new Date(eventDetails.endDate).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).replace(',', '')}
+  </span>
+</div>
+            <div className="ed-info-row"><span className="ed-info-label">Venue</span><span className="ed-info-value">{eventDetails.eventVenue}</span></div>
+            {canViewBudget() && (<div className="ed-info-row"><span className="ed-info-label">Source of Budget</span><span className="ed-info-value">{eventDetails.sourceOfBudget}</span></div>)}
+            {canViewBudget() && (<div className="ed-info-row"><span className="ed-info-label">Estimated Budget</span><span className="ed-info-value">₹{eventDetails.estimatedBudget}</span></div>)}
+            {canViewBudget() && eventDetails.budgetAnnexureNumber && (
+              <div className="ed-info-row"><span className="ed-info-label">Budget Annexure No.</span><span className="ed-info-value">{eventDetails.budgetAnnexureNumber}</span></div>
             )}
-          </tbody>
-        </table>
+          </div>
 
-        {/* Edit History Section */}
-        {(() => {
-          // Filter out edits with no actual changes
-          const validEdits = editHistory.filter(edit => edit.changes && Object.keys(edit.changes).length > 0);
-          
-          if (validEdits.length === 0) return null;
-          
-          return (
-            <>
-              <div className="d-flex justify-content-between align-items-center mt-4">
-                <h4>Edit History</h4>
+          {/* Budget Breakup */}
+          {canViewBudget() && Array.isArray(eventDetails.budgetBreakup) && eventDetails.budgetBreakup.length > 0 && (
+            <div className="ed-card">
+              <h5 className="ed-card-title">Budget Breakup</h5>
+              <table className="table table-sm">
+                <thead>
+                  <tr><th>Head</th><th style={{ width: '150px' }}>Amount (₹)</th></tr>
+                </thead>
+                <tbody>
+                  {eventDetails.budgetBreakup.map((item, idx) => {
+                    const label = item?.expenseHead ?? item?.label ?? item?.name ?? item?.head ?? item ?? "";
+                    const amount = item?.estimatedAmount ?? item?.amount ?? item?.value ?? "";
+                    return (
+                      <tr key={idx}>
+                        <td style={{ wordBreak: 'break-word' }}>{label || '—'}</td>
+                        <td>{amount !== '' && amount !== null && amount !== undefined ? `₹${amount}` : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="table-light fw-bold">
+                  <tr>
+                    <td>Total Budget</td>
+                    <td>₹{eventDetails.estimatedBudget?.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              </table>
+              {canEditBudget() && (!budgetAuthorityRoles.includes(role) || !isBudgetFinalized()) && (
+                <button className="btn btn-warning btn-sm mt-2" onClick={handleOpenBudgetEditModal}>✏️ Edit Budget</button>
+              )}
+            </div>
+          )}
+
+          {/* Budget Modification History */}
+          {canViewBudget() && eventDetails.budgetHistory && eventDetails.budgetHistory.length >= 2 && (
+            <div className="ed-card">
+                <h5 className="ed-card-title mb-0">
+                  Budget Modification History
+                  <span className="badge bg-secondary ms-2" style={{ fontSize: "0.75rem" }}>
+                    {eventDetails.budgetHistory.length}
+                  </span>
+                </h5>
+
+              {showBudgetHistory && (
+                <div className="mt-3">
+                  {(() => {
+                    const history = [...eventDetails.budgetHistory].reverse();
+                    const visibleHistory = showAllBudgetHistory ? history : history.slice(0, 1);
+                    
+                    return (
+                      <>
+                        {visibleHistory.map((entry, idx) => {
+                          const entryNum = eventDetails.budgetHistory.length - idx;
+                          const roleLabel = entry.editedBy
+                            .replace(/-/g, " ")
+                            .replace(/\b\w/g, c => c.toUpperCase());
+                          let revision = null;
+                          if (budgetAuthorityRoles.includes(entry.editedBy)) {
+                            const entryTime = new Date(entry.editedAt).getTime();
+                            const roleRevisions = (eventDetails.arsw_budget_revisions || [])
+                              .filter((r) => r.editedBy === entry.editedBy)
+                              .sort(
+                                (a, b) =>
+                                  new Date(a.editedAt).getTime() -
+                                  new Date(b.editedAt).getTime(),
+                              );
+
+                            revision =
+                              [...roleRevisions]
+                                .reverse()
+                                .find(
+                                  (r) =>
+                                    Number(r.proposedEstimatedBudget) === Number(entry.totalBudget) &&
+                                    new Date(r.editedAt).getTime() <= entryTime + 1000,
+                                ) ||
+                              [...roleRevisions]
+                                .reverse()
+                                .find(
+                                  (r) => new Date(r.editedAt).getTime() <= entryTime + 1000,
+                                ) ||
+                              roleRevisions[roleRevisions.length - 1] ||
+                              null;
+                          }
+                          return (
+                            <BudgetHistoryEntry
+                              key={idx}
+                              entry={entry}
+                              entryNum={entryNum}
+                              roleLabel={roleLabel}
+                              isLatest={idx === 0}
+                              revision={revision}
+                            />
+                          );
+                        })}
+                        {eventDetails.budgetHistory.length > 1 && (
+                          <div className="text-center mt-2">
+                            <button
+                              className="btn btn-sm btn-outline-secondary"
+                              onClick={() => setShowAllBudgetHistory(!showAllBudgetHistory)}
+                            >
+                              {showAllBudgetHistory ? "Hide Old Changes" : "Show All Changes"}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
+          {/* Requirements */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Requirements</h5>
+            {Array.isArray(eventDetails.requirements) && eventDetails.requirements.length > 0 ? (
+              <table className="table table-sm">
+                <thead>
+                  <tr>
+                    <th style={{ width: '50px' }}>Sl. No</th>
+                    <th>Requirement</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eventDetails.requirements.map((req, index) => (
+                    <tr key={index}>
+                      <td>{index + 1}</td>
+                      <td>{typeof req === 'string' ? req : req.name || ''}</td>
+                      <td>{typeof req === 'string' ? '—' : req.description || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-muted mb-0">No requirements specified</p>
+            )}
+            {eventDetails.anyAdditionalAmenities && (
+              <div className="ed-info-row mt-2">
+                <span className="ed-info-label">Additional Amenities</span>
+                <span className="ed-info-value">{eventDetails.anyAdditionalAmenities}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Description */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Description</h5>
+            <div
+              className="ed-description-content"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(eventDetails.eventDescription || '') }}
+            />
+          </div>
+
+          {/* Edit History Section - All Changes in One Table */}
+          {(() => {
+            const formatValue = (value) => {
+              if (value === null || value === undefined) return 'N/A';
+              if (Array.isArray(value)) return value.join(', ');
+              if (typeof value === 'object' && !(value instanceof Date)) return JSON.stringify(value);
+              if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value))) {
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+              }
+              return String(value);
+            };
+
+            const getVisibleChanges = (changes) =>
+              Object.entries(changes || {}).filter(([field, change]) =>
+                field !== 'budgetBreakup' &&
+                formatValue(change.oldValue) !== formatValue(change.newValue)
+              );
+
+            const validEdits = editHistory.filter(edit =>
+              edit.changes && getVisibleChanges(edit.changes).length > 0
+            );
+
+            if (validEdits.length === 0) return null;
+            
+            // Collect all changes across all edits
+            const allChanges = [];
+            validEdits.forEach((edit, index) => {
+              getVisibleChanges(edit.changes).forEach(([field, change]) => {
+                allChanges.push({
+                  editNum: validEdits.length - index,
+                  editorName: edit.editorName,
+                  editorEmail: edit.editorEmail,
+                  editedAt: new Date(edit.editedAt),
+                  field,
+                  oldValue: change.oldValue,
+                  newValue: change.newValue
+                });
+              });
+            });
+
+            return (
+              <div className="ed-card ed-card-history">
+                <div className="ed-collapsible-header">
+                  <h5 className="ed-card-title mb-0">Edit History <span className="badge bg-secondary ms-2" style={{ fontSize: "0.75rem" }}>{validEdits.length}</span></h5>
+                  <button
+                    className="ed-toggle-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowEditHistory(!showEditHistory);
+                    }}
+                  >
+                    {showEditHistory ? "Hide" : "Show"}
+                  </button>
+                </div>
+                {showEditHistory && (
+                  <div className="edit-history-table-wrapper">
+                    <table className="table table-sm table-bordered mb-0">
+                      <thead className="table-light">
+                        <tr>
+                          <th style={{ width: '12%' }}>Edit #</th>
+                          <th style={{ width: '25%' }}>Field</th>
+                          <th style={{ width: '25%' }}>Old Value</th>
+                          <th style={{ width: '25%' }}>New Value</th>
+                          <th style={{ width: '13%' }}>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allChanges.map((change, idx) => {
+                          const displayField = change.field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                          return (
+                            <tr key={idx}>
+                              <td><strong>#{change.editNum}</strong></td>
+                              <td><strong>{displayField}</strong></td>
+                              <td style={{ color: '#dc3545', wordBreak: 'break-word', backgroundColor: '#fff5f5' }}><small>{formatValue(change.oldValue)}</small></td>
+                              <td style={{ color: '#28a745', wordBreak: 'break-word', backgroundColor: '#f0fff4' }}><small>{formatValue(change.newValue)}</small></td>
+                              <td><small>{change.editedAt.toLocaleDateString()}</small></td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+        </div>
+        <div className="ed-right-col">
+          <div className="ed-card">
+            <h5 className="ed-card-title">Participants</h5>
+            <div className="ed-participant-stats">
+              <div className="ed-stat-box">
+                <span className="ed-stat-number">{eventDetails.internalParticipants || 0}</span>
+                <span className="ed-stat-label">Internal</span>
+              </div>
+              <div className="ed-stat-box">
+                <span className="ed-stat-number">{eventDetails.externalParticipants || 0}</span>
+                <span className="ed-stat-label">External</span>
+              </div>
+            </div>
+            {eventDetails.externalParticipants > 0 && eventDetails.listOfCollaboratingOrganizations && (
+              <div className="ed-info-row mt-3">
+                <span className="ed-info-label">Collaborating Orgs</span>
+                <span className="ed-info-value">{eventDetails.listOfCollaboratingOrganizations}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Organizer Details */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Organizer Details</h5>
+            <div className="organizer-detail-row"><span className="organizer-label">Name</span><span className="organizer-value">{eventDetails.nameOfTheOrganizer || '—'}</span></div>
+            <div className="organizer-detail-row"><span className="organizer-label">Designation</span><span className="organizer-value">{eventDetails.designation || '—'}</span></div>
+            <div className="organizer-detail-row"><span className="organizer-label">Email</span><span className="organizer-value">{eventDetails.email || '—'}</span></div>
+            <div className="organizer-detail-row"><span className="organizer-label">Phone</span><span className="organizer-value">{eventDetails.phoneNumber || '—'}</span></div>
+          </div>
+
+          {/* Unified Approval & Activity Timeline */}
+          <div className="ed-card">
+            <h5 className="ed-card-title">Approval & Activity</h5>
+            <div className="activity-timeline">
+              {(() => {
+                const completed = buildTimelineEvents();
+                
+                // Check if there's any rejection in the approval chain
+                const hasRejection = (eventDetails.approvals || []).some(a => a.status === 'Rejected');
+                
+                // Always show pending items (even for display purposes after rejection)
+                const pending = (eventDetails.approvals || []).filter(a =>
+                  a.status !== 'Approved' && a.status !== 'Rejected'
+                );
+                
+                // Find the first pending index to mark it as "current"
+                const firstPendingRole = pending.length > 0 ? pending[0].role : null;
+
+                return (
+                  <>
+                    {completed.length === 0 && pending.length === 0 && (
+                      <p className="text-muted small">No activity recorded yet.</p>
+                    )}
+
+                    {completed.map((event, index) => (
+                      <div key={`c-${index}`} className="at-item">
+                        <div className="at-line-col">
+                          <div className="at-dot" style={{ background: event.color, borderColor: event.color }}>{event.icon}</div>
+                          {(index < completed.length - 1 || pending.length > 0) && <div className="at-connector" />}
+                        </div>
+                        <div className="at-content" style={{ borderLeftColor: event.color }}>
+                          <div className="at-title">{event.title}</div>
+                          {event.description && event.description !== 'No comments' && (
+                            <div className="at-desc">{event.description}</div>
+                          )}
+                          <div className="at-date">
+                            {event.date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            {' '}
+                            {event.date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {pending.map((approval, index) => {
+                      const isCurrent = !hasRejection && approval.role === firstPendingRole;
+                      const dotColor = isCurrent ? '#007bff' : hasRejection ? '#dc3545' : '#adb5bd';
+                      const borderColor = isCurrent ? '#007bff' : hasRejection ? '#dc3545' : '#dee2e6';
+                      const isLast = index === pending.length - 1;
+                      const dotIcon = isCurrent ? '⏳' : hasRejection ? '—' : '○';
+                      const statusText = hasRejection ? 'Not required' : (approval.role === 'dean' ? 'Pending approval' : 'Pending recommendation');
+                      const statusBadge = isCurrent ? 'Awaiting' : hasRejection ? 'Rejected Below' : null;
+                      
+                      return (
+                        <div key={`p-${index}`} className={`at-item at-item-pending${hasRejection ? ' at-item-rejected' : ''}`}>
+                          <div className="at-line-col">
+                            <div
+                              className={`at-dot at-dot-pending${isCurrent ? ' at-dot-current' : ''}`}
+                              style={{ background: dotColor, borderColor: dotColor }}
+                            >
+                              {dotIcon}
+                            </div>
+                            {!isLast && <div className="at-connector at-connector-pending" />}
+                          </div>
+                          <div className="at-content at-content-pending" style={{ borderLeftColor: borderColor }}>
+                            <div className="at-title" style={{ color: isCurrent ? '#212529' : hasRejection ? '#6c757d' : '#adb5bd' }}>
+                              {approval.role.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                              {statusBadge && <span className={`badge ms-2 ${isCurrent ? 'bg-primary' : 'bg-secondary'}`} style={{ fontSize: '0.7rem' }}>{statusBadge}</span>}
+                            </div>
+                            <div className="at-date" style={{ color: isCurrent ? '#495057' : hasRejection ? '#adb5bd' : '#adb5bd' }}>{statusText}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Queries Section - In Right Column Below Timeline - HIDDEN */}
+          {queries.length > 0 && (
+            <div className="ed-card ed-card-query mt-3">
+               <div className="ed-collapsible-header">
+                <h5 className="ed-card-title mb-0">Queries <span className="badge bg-secondary ms-2" style={{ fontSize: "0.75rem" }}>{queries.length}</span></h5>
                 <button
-                  className="btn btn-sm btn-outline-secondary"
-                  onClick={() => setShowEditHistory(!showEditHistory)}
+                  className="ed-toggle-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowQueries(!showQueries);
+                  }}
                 >
-                  {showEditHistory ? 'Hide History' : 'Show History'}
+                  {showQueries ? "Hide" : "Show"}
                 </button>
               </div>
-              {showEditHistory && (() => {
-              console.log("All edits:", editHistory);
-              console.log("Valid edits after filter:", validEdits);
-              
-              if (validEdits.length === 0) {
-                return (
-                  <div className="edit-history-section mt-3">
-                    <p className="text-muted">No edit history available.</p>
-                  </div>
-                );
-              }
-              
-              return (
-                <div className="edit-history-section mt-3">
-                  {validEdits.map((edit, index) => {
-                    console.log(`Edit #${index}:`, edit, "Changes keys:", Object.keys(edit.changes || {}));
-                    return (
-                    <div
-                      key={index}
-                      className="edit-history-card mb-3 p-3"
-                      style={{
-                        border: "1px solid #ddd",
-                        borderRadius: "5px",
-                        backgroundColor: "#f8f9fa"
-                      }}
-                    >
-                      <div className="edit-header">
-                        <strong>Edit #{validEdits.length - index}</strong>
-                        <span className="text-muted ms-2">
-                          by {edit.editorName} ({edit.editorEmail})
-                        </span>
-                        <span className="text-muted ms-2">
-                          on {new Date(edit.editedAt).toLocaleString()}
+              {showQueries && (
+                <div className="queries-section">
+                  {queries.map((query) => (
+                    <div key={query.queryId} className="query-justification-card" style={{ border: '1px solid #ddd', padding: '12px', marginBottom: '12px', borderRadius: '4px', backgroundColor: '#fff' }}>
+                      <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <strong>Query from {query.askerRole.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</strong>
+                          <span className={`badge ms-2 ${query.status === 'Pending' ? 'bg-warning' : 'bg-success'}`} style={{ fontSize: "0.75rem" }}>{query.status}</span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: '#6c757d', whiteSpace: 'nowrap' }}>
+                          {new Date(query.raisedAt).toLocaleString('en-IN', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                         </span>
                       </div>
-                    <div className="edit-changes mt-2">
-                      <strong>Changes Made:</strong>
-                      {Object.keys(edit.changes || {}).length === 0 ? (
-                        <p className="text-muted mt-2">No changes recorded</p>
-                      ) : (
-                        <table className="table table-sm table-bordered mt-2">
-                          <thead className="table-light">
-                            <tr>
-                              <th style={{ width: '25%' }}>Field</th>
-                              <th style={{ width: '37.5%' }}>Old Value</th>
-                              <th style={{ width: '37.5%' }}>New Value</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {Object.entries(edit.changes || {}).map(([field, change]) => {
-                              // Don't render budgetBreakup changes in the table
-                              if (field === 'budgetBreakup') return null;
-                              // Format values for display
-                              const formatValue = (value) => {
-                                if (value === null || value === undefined) return "N/A";
-                                if (Array.isArray(value)) return value.join(", ");
-                                if (typeof value === 'object' && !(value instanceof Date)) return JSON.stringify(value);
-                                
-                                // Handle date strings and Date objects
-                                if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value))) {
-                                  const date = new Date(value);
-                                  if (!isNaN(date.getTime())) {
-                                    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-                                  }
-                                }
-                                
-                                return String(value);
-                              };
-                              
-                              // Skip date fields if the formatted values are the same
-                              const dateFields = ['startDate', 'endDate'];
-                              if (dateFields.includes(field)) {
-                                const formattedOld = formatValue(change.oldValue);
-                                const formattedNew = formatValue(change.newValue);
-                                if (formattedOld === formattedNew) {
-                                  return null; // Skip this field
-                                }
-                              }
-                              
-                              // Format field name for display (camelCase to Title Case)
-                              const displayField = field
-                                .replace(/([A-Z])/g, ' $1')
-                                .replace(/^./, str => str.toUpperCase());
-
-                              return (
-                                <tr key={field}>
-                                  <td><strong>{displayField}</strong></td>
-                                  <td style={{ 
-                                    color: "#dc3545", 
-                                    wordBreak: "break-word",
-                                    backgroundColor: "#fff5f5"
-                                  }}>
-                                    {formatValue(change.oldValue)}
-                                  </td>
-                                  <td style={{ 
-                                    color: "#28a745",
-                                    wordBreak: "break-word",
-                                    backgroundColor: "#f0fff4"
-                                  }}>
-                                    {formatValue(change.newValue)}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                      <div style={{ marginBottom: '10px', padding: '8px', backgroundColor: '#f9f9f9', borderRadius: '3px' }}>
+                        {query.queryText}
+                      </div>
+                      {query.response && (
+                        <div style={{ borderTop: '1px solid #ddd', paddingTop: '10px', marginTop: '10px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                            <strong>Response:</strong>
+                            <small style={{ color: '#6c757d', fontSize: '0.75rem' }}>
+                              {new Date(query.answeredAt).toLocaleString('en-IN', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </small>
+                          </div>
+                          <p style={{ marginBottom: '0' }}>{query.response}</p>
+                        </div>
+                      )}
+                      {canReplyToQuery(query) && (
+                        <button className="btn btn-sm btn-primary mt-3" onClick={() => handleQueryReply(query)}>Reply to Query</button>
                       )}
                     </div>
-                  </div>
-                  );
-                })}
-              </div>
-              );
-            })()}
-            </>
-          );
-        })()}
-
-        {/* Queries Section */}
-        {queries.length > 0 && (
-          <>
-            <h4>Queries</h4>
-            <div className="queries-section">
-              {queries.map((query, index) => (
-                <div
-                  key={query.queryId}
-                  className="query-card mb-3 p-3"
-                  style={{ border: "1px solid #ddd", borderRadius: "5px" }}
-                >
-                  <div className="query-header">
-                    <strong>Query from {query.askerRole}:</strong>
-                    <span className="text-muted ms-2">
-                      {new Date(query.raisedAt).toLocaleDateString()}
-                    </span>
-                    <span
-                      className={`badge ms-2 ${
-                        query.status === "Pending" ? "bg-warning" : "bg-success"
-                      }`}
-                    >
-                      {query.status}
-                    </span>
-                  </div>
-                  <div className="query-text mt-2">
-                    <p>
-                      <strong>Query:</strong> {query.queryText}
-                    </p>
-                  </div>
-                  {query.response && (
-                    <div className="query-response mt-2">
-                      <p>
-                        <strong>Response:</strong> {query.response}
-                      </p>
-                      <small className="text-muted">
-                        Responded on:{" "}
-                        {new Date(query.answeredAt).toLocaleDateString()}
-                      </small>
-                    </div>
-                  )}
-                  {query.status === "Pending" && role === "club-secretary" && (
-                    <button
-                      className="btn btn-sm btn-primary mt-2"
-                      onClick={() => handleQueryReply(query)}
-                    >
-                      Reply to Query
-                    </button>
-                  )}
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          </>
-        )}
-
-        {/* Render Approve and Reject buttons only if the role is not 'club-secretary' and user can approve */}
-        {role !== "club-secretary" &&
-          canCurrentUserApprove(eventDetails.approvals) && (
-            <>
-              <button
-                className="btn btn-success mb-1 me-2"
-                onClick={() => handleApprovalClick("Approved")}
-              >
-                Approve
-              </button>
-              <button
-                className="btn btn-danger mb-1 me-2"
-                onClick={() => handleApprovalClick("Rejected")}
-              >
-                Reject
-              </button>
-              <button
-                className="btn btn-warning mb-1 me-2"
-                onClick={() => handleApprovalClick("Query")}
-              >
-                Raise Query
-              </button>
-            </>
           )}
 
-        <button className="btn btn-primary mb-1" onClick={handleGeneratePDF}>
-          Generate & Preview PDF
-        </button>
+        </div>
+      </div>
 
-        {/* Close Event Button - for associate-dean, dean, ARSW only */}
-        {canCloseEvent() && (
-          <button 
-            className="btn btn-dark mb-1 ms-2" 
-            onClick={() => setShowCloseModal(true)}
-          >
-            Close Event
-          </button>
-        )}
-
-        {/* Raise Query for Approved Event - for associate-dean, dean, ARSW only */}
-        {canRaiseApprovedQuery() && (
-          <button 
-            className="btn btn-info mb-1 ms-2" 
-            onClick={() => setShowApprovedQueryModal(true)}
-          >
-            Raise Query
-          </button>
-        )}
-
-        {/* Conditionally render the iframe only after generating PDF */}
-        {isPDFGenerated && (
+      {/* Action Buttons */}
+      <div className="ed-actions">
+        {/* Approval buttons for ARSW and other roles */}
+        {(canCurrentUserApprove(eventDetails.approvals) || canTakeActionWhenEdited(eventDetails.approvals)) && (
           <>
-            <iframe
-              id="pdf-preview"
-              key={pdfPreviewUrl || pdfPreviewDataUrl}
-              className="pdf-preview"
-              style={{ width: "100%", height: "500px", border: "none" }}
-              src={pdfPreviewUrl || pdfPreviewDataUrl || undefined}
-              title="PDF Preview"
-            ></iframe>
-            {!pdfPreviewUrl && pdfPreviewDataUrl && (
-              <p style={{ marginTop: "8px" }}>
-                If the preview stays blank, <a href={pdfPreviewDataUrl} target="_blank" rel="noopener noreferrer">open the PDF in a new tab</a>.
-              </p>
+            {budgetAuthorityRoles.includes(role) && getPendingBudgetRevision() ? (
+              <div className="alert alert-warning mb-3">
+                <strong>⏳ Awaiting Club Secretary Review:</strong> Your budget revision is pending club secretary approval. 
+                <br/>
+                <small>You cannot proceed until they accept or raise a query.</small>
+              </div>
+            ) : null}
+
+            <button 
+              className="btn btn-success" 
+              onClick={() => handleApprovalClick('Approved')}
+              disabled={
+                (budgetAuthorityRoles.includes(role) && getPendingBudgetRevision()) ||
+                (budgetAuthorityRoles.includes(role) && getQueryOnBudgetRevision())
+              }
+            >
+              {role === 'dean' ? 'Approve' : 'Recommend'}
+            </button>
+            <button className="btn btn-danger" onClick={() => handleApprovalClick('Rejected')}>Reject</button>
+            {!hasCurrentRoleActiveQuery() && !hasActiveQuery() && (
+              <button className="btn btn-warning" onClick={() => handleApprovalClick('Query')}>Raise Query</button>
             )}
           </>
         )}
+        {canCloseEvent() && (
+          <button className="btn btn-dark" onClick={() => setShowCloseModal(true)}>Close Event</button>
+        )}
+        {canRaiseApprovedQuery() && (
+          <button className="btn btn-info" onClick={() => setShowApprovedQueryModal(true)}>Raise Query</button>
+        )}
+        <button className="btn btn-primary" onClick={handleGeneratePDF}>Generate & Preview PDF</button>
+      </div>
+
+      {/* PDF Preview */}
+      {isPDFGenerated && (
+        <div className="ed-card mt-3">
+          <iframe
+            id="pdf-preview"
+            key={pdfPreviewUrl || pdfPreviewDataUrl}
+            className="pdf-preview"
+            style={{ width: '100%', height: '500px', border: 'none' }}
+            src={pdfPreviewUrl || pdfPreviewDataUrl || undefined}
+            title="PDF Preview"
+          />
+          {!pdfPreviewUrl && pdfPreviewDataUrl && (
+            <p style={{ marginTop: '8px' }}>
+              If the preview stays blank, <a href={pdfPreviewDataUrl} target="_blank" rel="noopener noreferrer">open the PDF in a new tab</a>.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Edit Modal - Using EventForm Component */}
+      {showEditModal && eventDetails && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', zIndex: 1000, overflowY: 'auto', paddingTop: '20px' }}>
+          <div className="modal-content" style={{ backgroundColor: 'white', borderRadius: '8px', minWidth: '500px', maxWidth: '800px', marginBottom: '40px' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid #dee2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ margin: 0 }}>Edit Event Details</h4>
+              <button 
+                type="button" 
+                className="btn btn-close" 
+                onClick={() => setShowEditModal(false)}
+                aria-label="Close"
+              ></button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <EventForm 
+                initialData={eventDetails}
+                isEditMode={true}
+                onSubmit={handleEditFormSubmit}
+                onClose={() => setShowEditModal(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
         {/* Comment Modal */}
         {showModal && (
@@ -1673,16 +1975,36 @@ const EventDetails = () => {
                 overflowY: "auto",
               }}
             >
-              <h4>Edit Budget Proposal</h4>
+              <h4>
+                {getQueryOnBudgetRevision() ? "Edit Budget (Final)" : "Edit Budget Proposal"}
+              </h4>
 
-              {/* Original Budget Summary */}
+              {/* Show info about what budget is being edited */}
+              {getQueryOnBudgetRevision() && (
+                <div className="alert alert-info mb-3">
+                  <strong>📋 Reviewing Query Feedback:</strong>
+                  <p className="mt-2 mb-0">{getQueryOnBudgetRevision().clubSecretaryResponse}</p>
+                </div>
+              )}
+
+              {/* Original/Current Budget Summary */}
               <div className="alert alert-secondary mb-3">
-                <h6>Original Budget: ₹{eventDetails.estimatedBudget}</h6>
+                <h6>
+                  {getQueryOnBudgetRevision() ? 
+                    `Previous Proposed Budget: ₹${getQueryOnBudgetRevision().proposedEstimatedBudget}` 
+                    : `Current Budget: ₹${eventDetails.estimatedBudget}`
+                  }
+                </h6>
               </div>
 
               {/* Proposed Budget Breakup Section */}
               <div className="form-group mb-3">
-                <label><strong>Proposed Budget Breakup</strong></label>
+                <label><strong>
+                  {getQueryOnBudgetRevision() ? 
+                    "Revised Budget Breakup (Final)" 
+                    : "Proposed Budget Breakup"
+                  }
+                </strong></label>
                 <div style={{ maxHeight: "400px", overflowY: "auto" }}>
                   <table className="table table-sm table-bordered">
                     <thead className="table-light">
@@ -1746,12 +2068,28 @@ const EventDetails = () => {
                 </div>
               </div>
 
+              {/* Justification field */}
+              <div className="form-group mb-3">
+                <label>
+                  <strong>Reason / Justification </strong>
+                  <span className="text-muted" style={{ fontWeight: 400, fontSize: "0.85rem" }}></span>
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={3}
+                  placeholder="Briefly explain why this budget modification is needed..."
+                  value={budgetJustification}
+                  onChange={e => setBudgetJustification(e.target.value)}
+                />
+              </div>
+
               <div className="modal-buttons mt-3">
                 <button
                   className="btn btn-secondary me-2"
                   onClick={() => {
                     setShowBudgetEditModal(false);
                     setProposedBudgetBreakup([]);
+                    setBudgetJustification("");
                   }}
                 >
                   Cancel
@@ -1767,7 +2105,209 @@ const EventDetails = () => {
             </div>
           </div>
         )}
-      </div>
+
+        {/* Budget Revision Review Modal for Club Secretary */}
+        {showBudgetRevisionModal && selectedRevision && (
+          <div
+            className="modal-overlay"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 1000,
+            }}
+          >
+            <div
+              className="modal-content"
+              style={{
+                backgroundColor: "white",
+                padding: "20px",
+                borderRadius: "8px",
+                minWidth: "500px",
+                maxWidth: "700px",
+                maxHeight: "90vh",
+                overflowY: "auto",
+              }}
+            >
+              <h4>Review Budget Revision</h4>
+              <p className="text-muted">
+                {selectedRevision?.editedBy || "Budget authority"} has submitted a revised budget for your event. Please review and respond.
+              </p>
+
+              {/* Revised Budget Details */}
+              <div className="alert alert-info mb-3">
+                <strong>{selectedRevision?.editedBy || "Budget authority"} Revision #{selectedRevision.revisionNumber}</strong>
+                <div className="mt-2">
+                  <p className="mb-1">
+                    <strong>Proposed Budget: </strong>
+                    <span className="text-danger">₹{selectedRevision.proposedEstimatedBudget}</span>
+                  </p>
+                  <p className="mb-1">
+                    <strong>Original Budget: </strong>
+                    ₹{eventDetails.estimatedBudget}
+                  </p>
+                  <p className="mb-0">
+                    <strong>Submitted: </strong>
+                    {new Date(selectedRevision.editedAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              {(() => {
+                const arswHistoryEntries = (eventDetails.budgetHistory || []).filter(
+                  (e) => e.editedBy === selectedRevision?.editedBy,
+                );
+                const matchingEntry = arswHistoryEntries[selectedRevision.revisionNumber - 1];
+                return matchingEntry?.justification ? (
+                  <div className="alert alert-warning py-2 px-3 mb-3" style={{ fontSize: '0.875rem' }}>
+                    <strong>{selectedRevision?.editedBy || "Budget authority"}'s Reason:</strong> {matchingEntry.justification}
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Budget Breakup */}
+              <div className="mb-3">
+                <h6>Budget Breakup:</h6>
+                <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+                  <table className="table table-sm table-bordered">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Expense Head</th>
+                        <th style={{ width: "150px" }}>Amount (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedRevision.proposedBudgetBreakup.map((item, idx) => (
+                        <tr key={idx}>
+                          <td>{item.expenseHead}</td>
+                          <td>₹{item.estimatedAmount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Response Options */}
+              <div className="form-group mb-3">
+                <label><strong>Your Response:</strong></label>
+                <div className="mb-2">
+                  <label className="form-check">
+                    <input
+                      type="radio"
+                      className="form-check-input"
+                      name="revisionResponse"
+                      value="Approved"
+                      checked={revisionResponseType === "Approved"}
+                      onChange={(e) => {
+                        setRevisionResponseType(e.target.value);
+                        setRevisionResponse("");
+                      }}
+                    />
+                    <span className="form-check-label">✓ Accept the revised budget</span>
+                  </label>
+                </div>
+                <div>
+                  <label className="form-check">
+                    <input
+                      type="radio"
+                      className="form-check-input"
+                      name="revisionResponse"
+                      value="QueryRaised"
+                      checked={revisionResponseType === "QueryRaised"}
+                      onChange={(e) => {
+                        setRevisionResponseType(e.target.value);
+                        setRevisionResponse("");
+                      }}
+                    />
+                    <span className="form-check-label">? Raise a query/suggestion</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Query text – only required when raising a query */}
+              {revisionResponseType === "QueryRaised" && (
+                <div className="form-group mb-3">
+                  <label>
+                    <strong>Your Query / Feedback<span className="text-danger"> *</span></strong>
+                  </label>
+                  <textarea
+                    className="form-control"
+                    rows="3"
+                    placeholder="Provide your feedback or query about the proposed budget..."
+                    value={revisionResponse}
+                    onChange={(e) => setRevisionResponse(e.target.value)}
+                  />
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="modal-buttons mt-3">
+                <button
+                  className="btn btn-secondary me-2"
+                  onClick={() => {
+                    setShowBudgetRevisionModal(false);
+                    setSelectedRevision(null);
+                    setRevisionResponse("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleRespondToBudgetRevision}
+                  disabled={revisionResponseType === "QueryRaised" && !revisionResponse.trim()}
+                >
+                  <i className="bi bi-check-circle"></i> Submit Response
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Display pending budget revision notification for club secretary */}
+        {role === "club-secretary" && eventDetails && getPendingBudgetRevision() && (
+          <div className="alert alert-warning alert-dismissible fade show mt-3" role="alert">
+            <strong>⚠️ Action Required: Budget Revision Awaiting Your Review</strong>
+            <p className="mb-2">
+              {(getPendingBudgetRevision()?.editedBy === "students-welfare-office"
+                ? "SW Office"
+                : "ARSW")} has submitted a revised budget for your event. Please review and accept or raise a query.
+            </p>
+            <button
+              className="btn btn-sm btn-warning"
+              onClick={() => handleOpenBudgetRevisionReview(getPendingBudgetRevision())}
+            >
+              Review Budget Revision
+            </button>
+            <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        )}
+
+        {/* Display query on budget revision notification for club secretary */}
+        {role === "club-secretary" && eventDetails && getQueryOnBudgetRevision() && (
+          <div className="alert alert-info alert-dismissible fade show mt-3" role="alert">
+            <strong>
+              ⏳ Waiting for {(getQueryOnBudgetRevision()?.editedBy === "students-welfare-office"
+                ? "SW Office"
+                : "ARSW")} Response
+            </strong>
+            <p className="mb-1 mt-1">
+              You raised the following query on the budget revision. Waiting for {(getQueryOnBudgetRevision()?.editedBy === "students-welfare-office"
+                ? "SW Office"
+                : "ARSW")} to address it.
+            </p>
+            <div className="p-2 bg-white rounded border" style={{ fontSize: "0.875rem" }}>
+              {getQueryOnBudgetRevision().clubSecretaryResponse || "—"}
+            </div>
+            <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        )}
     </div>
   );
 };

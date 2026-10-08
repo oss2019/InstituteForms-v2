@@ -27,10 +27,16 @@ const Home = () => {
 
         const { email, name, image, role, category } = result.data.user;
         const token = result.data.token;
+        const normalizedCategory = (category || "").toLowerCase();
 
         const allowedRolesForStaff = [
-          "president", "treasurer", "ARSW", 
-          "associate-dean", "general-secretary", "dean"
+          "president", "treasurer", "ARSW",
+          "associate-dean", "associate-dean-socio-cultural", "associate-dean-hostel", "chief-warden", "general-secretary", "dean",
+          "students-welfare-office"
+        ];
+
+        const allowedRolesForClubSecretary = [
+          "club-secretary", "general-secretary"
         ];
 
         const loginUser = (userRole) => {
@@ -40,6 +46,7 @@ const Home = () => {
             localStorage.setItem("email", email);
             localStorage.setItem("role", role);
             localStorage.setItem("category", category);
+            localStorage.setItem("name", name || "");
 
             axios.post(`${apiUrl}/user/details`, { email: email })
               .then(response => {
@@ -49,14 +56,18 @@ const Home = () => {
                   console.error("Error fetching user data:", error);
                   toast.error("Failed to load user data");
               });
-              
-            setTimeout(() => navigate(`/${userRole}`), 1000);
+
+            // Route students-welfare-office to their own dashboard
+            const destination = role === "students-welfare-office" ? "swo" : userRole;
+            setTimeout(() => navigate(`/${destination}`), 1000);
         };
 
-        if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
+        if (selectedRole === "staff" && role === "general-secretary" && normalizedCategory === "hostel") {
+          toast.error("Hostel General Secretary must use the secretary portal.");
+        } else if (selectedRole === "staff" && allowedRolesForStaff.includes(role)) {
           loginUser("staff");
-        } else if (role === selectedRole) {
-          loginUser(selectedRole);
+        } else if (selectedRole === "club-secretary" && allowedRolesForClubSecretary.includes(role)) {
+          loginUser("club-secretary");
         } else {
           toast.error("Not authorized for this role.");
         }
@@ -140,7 +151,7 @@ const Home = () => {
                       ? "Sign Up"
                       : role === "club-secretary"
                       ? "Club Secretary"
-                      : "Staff Portal"}
+                      : "Administration Portal"}
                   </h2>
                   <div className="toggle-container d-flex align-items-center mt-2">
                     <GoogleLogin

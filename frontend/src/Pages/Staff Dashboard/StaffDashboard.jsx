@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import toast, { Toaster } from "react-hot-toast";
 
 
@@ -11,10 +11,20 @@ import { FiMail, FiCheckSquare, FiLogOut, FiX, FiMenu } from 'react-icons/fi';
 import './StaffDashboard.css';
 
 function StaffDashboard() {
-  const [activeSection, setActiveSection] = useState('pendingApprovals');
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [role, setRole] = useState('Staff');
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Determine active section based on current route
+  const getActiveSectionFromRoute = () => {
+    if (location.pathname.includes('/staff/processed')) {
+      return 'processedApplications';
+    }
+    return 'pendingApprovals'; // Default to pending
+  };
+
+  const activeSection = getActiveSectionFromRoute();
 
   // Fetches the user's role from localStorage on component mount
   useEffect(() => {
@@ -24,6 +34,9 @@ function StaffDashboard() {
       'president': 'President',
       'ARSW': 'ARSW',
       'associate-dean': 'Associate Dean',
+      'associate-dean-socio-cultural': 'Associate Dean (Socio-Cult)',
+      'associate-dean-hostel': 'Associate Dean (Hostel)',
+      'chief-warden': 'Chief Warden',
       'dean': 'Dean'
     };
     const storedRole = localStorage.getItem('role');
@@ -41,15 +54,18 @@ function StaffDashboard() {
   };
 
   const handleSectionChange = (newSection) => {
-    setActiveSection(newSection);
     setSidebarOpen(false);
+    if (newSection === 'pendingApprovals') {
+      navigate('/staff/pending');
+    } else if (newSection === 'processedApplications') {
+      navigate('/staff/processed');
+    }
   };
   
   // Navigation items are now defined in an array for clean rendering
   const navItems = [
     { id: 'pendingApprovals', label: 'Pending Applications', icon: <FiMail />, action: () => handleSectionChange('pendingApprovals') },
     { id: 'processedApplications', label: 'Processed Applications', icon: <FiCheckSquare />, action: () => handleSectionChange('processedApplications') },
-    { id: 'logout', label: 'Logout', icon: <FiLogOut />, action: handleLogout, className: 'logout-nav-item' }
   ];
 
   const renderContent = () => {
@@ -92,6 +108,13 @@ function StaffDashboard() {
             </li>
           ))}
         </ul>
+
+        <div className="sidebar-footer">
+          <button className="sidebar-button logout-nav-item" onClick={handleLogout}>
+            <FiLogOut />
+            <span>Logout</span>
+          </button>
+        </div>
       </nav>
 
       <main className="main-content">

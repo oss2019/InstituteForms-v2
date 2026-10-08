@@ -1,0 +1,77 @@
+.budget-container {
+  padding: 20px;
+}
+
+.budget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+}
+
+.budget-header h2 {
+  margin-bottom: 5px;
+}
+
+.budget-header .form-select {
+  min-width: 150px;
+}
+
+.council-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.budget-stat {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.budget-stat h4 {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.club-card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.club-budget-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.budget-accordion .accordion-button {
+  font-weight: 600;
+}
+
+.budget-accordion .accordion-body {
+  background: #fafafa;
+}
+
+.table code {
+  font-size: 0.8rem;
+}
+
+@media (max-width: 768px) {
+  .budget-header {
+    align-items: stretch;
+  }
+
+  .budget-header > div {
+    width: 100%;
+  }
+
+  .council-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+}

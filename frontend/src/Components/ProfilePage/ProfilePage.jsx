@@ -10,7 +10,7 @@ const ProfilePage = () => {
   const [error, setError] = useState("");
 
   // Define categories for the dropdown
-  const categories = ["Technical", "Cultural", "Sports", "Others"];
+  const categories = ["Technical", "Cultural", "Sports", "Hostel", "Others"];
 
   useEffect(() => {
     const fetchUserData = async () => {

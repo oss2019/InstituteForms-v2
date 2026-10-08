@@ -3,6 +3,7 @@ import Home from "./Pages/Home/Home.jsx";
 import ProtectedRoute from "./Components/ProtectedRoute/ProtectedRoute.jsx";
 import StudentDashboard from "./Pages/Student DashBoard/StudentDashboard.jsx";
 import StaffDashboard from "./Pages/Staff Dashboard/StaffDashboard.jsx";
+import SWODashboard from "./Pages/SWO Dashboard/SWODashboard.jsx";
 import EventDetails from "./Pages/Event Details/EventDetails.jsx"; // Import EventDetails component
 import { Toaster } from "react-hot-toast"; // Import the Toaster component
 import PageNotFound from "./Pages/Page Not Found/PageNotFound.jsx";
@@ -19,23 +20,47 @@ function App() {
           <Route
             path="/club-secretary"
             element={
-              <ProtectedRoute requiredRoles={["club-secretary"]}>
+              <ProtectedRoute requiredRoles={["club-secretary", "general-secretary"]}>
                 <StudentDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/pending"
+            element={
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "students-welfare-office", "ARSW", "associate-dean", "associate-dean-socio-cultural", "associate-dean-hostel", "chief-warden", "dean"]}>
+                <StaffDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/processed"
+            element={
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "students-welfare-office", "ARSW", "associate-dean", "associate-dean-socio-cultural", "associate-dean-hostel", "chief-warden", "dean"]}>
+                <StaffDashboard />
               </ProtectedRoute>
             }
           />
           <Route
             path="/staff"
             element={
-              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean"]}>
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "students-welfare-office", "ARSW", "associate-dean", "associate-dean-socio-cultural", "associate-dean-hostel", "chief-warden", "dean"]}>
                 <StaffDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/swo"
+            element={
+              <ProtectedRoute requiredRoles={["students-welfare-office"]}>
+                <SWODashboard />
               </ProtectedRoute>
             }
           />
           <Route
             path="/event-details/:id" // Add dynamic route for event details
             element={
-              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "dean"]}>
+              <ProtectedRoute requiredRoles={["general-secretary", "staff", "treasurer", "president", "ARSW", "associate-dean", "associate-dean-socio-cultural", "associate-dean-hostel", "chief-warden", "dean", "students-welfare-office"]}>
                 <EventDetails />
               </ProtectedRoute>
             }

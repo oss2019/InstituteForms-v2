@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './ProcessedEventApplications.css';
-import { Card, Container, Row, Col, Form, Button, InputGroup, Accordion, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, InputGroup, Accordion, Badge, Modal } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 
 const StaffDashboard = () => {
@@ -18,7 +18,13 @@ const StaffDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState('');
-  const [activeTab, setActiveTab] = useState('approved');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deletingEvent, setDeletingEvent] = useState(false);
+  const [activeTab, setActiveTab] = useState(() => {
+    // Load activeTab from localStorage, default to 'approved'
+    return localStorage.getItem('processedAppActiveTab') || 'approved';
+  });
   
   // Filter states
   const [selectedSemester, setSelectedSemester] = useState('');
@@ -35,7 +41,19 @@ const StaffDashboard = () => {
   const [eventTypeOptions, setEventTypeOptions] = useState([]);
   
   const navigate = useNavigate();
+ // Semester sorting helper - sorts chronologically (newest first)
+  const sortSemestersChronologically = (semesters) => {
+    return [...semesters].sort((a, b) => {
+      const [aSeason, aYear] = a.semester.split(' ');
+      const [bSeason, bYear] = b.semester.split(' ');
+      const aYearNum = parseInt(aYear);
+      const bYearNum = parseInt(bYear);
 
+      if (aYearNum !== bYearNum) return bYearNum - aYearNum; // Descending by year
+      // In same year: Spring first, then Autumn
+      return aSeason === 'Spring' ? -1 : 1;
+    });
+  };
   // Fetch semester options
   useEffect(() => {
     const fetchSemesterOptions = async () => {
@@ -51,7 +69,13 @@ const StaffDashboard = () => {
           }
         });
         
-        setSemesterOptions(response.data);
+        // Sort semesters chronologically (latest first)
+        const sortedSemesters = sortSemestersChronologically(response.data);
+        setSemesterOptions(sortedSemesters);
+        // Set first semester as default (latest semester)
+        if (sortedSemesters.length > 0 && !selectedSemester) {
+          setSelectedSemester(sortedSemesters[0].semester);
+        }
       } catch (error) {
         console.error('Error fetching semester options:', error);
       }
@@ -59,6 +83,11 @@ const StaffDashboard = () => {
 
     fetchSemesterOptions();
   }, []);
+
+  // Save activeTab to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('processedAppActiveTab', activeTab);
+  }, [activeTab]);
 
   // Fetch applications with filters
   const fetchApplications = async (page = 1, resetPage = false) => {
@@ -77,7 +106,7 @@ const StaffDashboard = () => {
         academicYear: selectedAcademicYear || undefined,
         search: searchTerm || undefined,
         page: resetPage ? 1 : page,
-        limit: 10
+        limit: 10000
       };
 
       // Fetch approved applications with filters
@@ -107,7 +136,7 @@ const StaffDashboard = () => {
       setGroupedRejected(groupedRejected);
 
       // Fetch closed applications (only for authorized roles)
-      if (['associate-dean', 'dean', 'ARSW'].includes(storedUserRole)) {
+      if (['associate-dean', 'associate-dean-socio-cultural', 'associate-dean-hostel', 'chief-warden', 'dean', 'ARSW', 'treasurer', 'general-secretary', 'president'].includes(storedUserRole)) {
         try {
           const closedResponse = await axios.post(`${apiUrl}/event/closed`, {
             role: storedUserRole,
@@ -183,7 +212,8 @@ const StaffDashboard = () => {
           e.nameOfTheOrganizer?.toLowerCase().includes(s) ||
           e.eventVenue?.toLowerCase().includes(s) ||
           e.eventType?.toLowerCase().includes(s) ||
-          e.semester?.toLowerCase().includes(s)
+          e.semester?.toLowerCase().includes(s) ||
+          e.referenceNumber?.toLowerCase().includes(s)
         ));
       }
       if (myActionFilter && userRole) {
@@ -202,6 +232,8 @@ const StaffDashboard = () => {
         case 'oldest': result.sort((a,b)=> new Date(a.startDate)-new Date(b.startDate)); break;
         case 'name-az': result.sort((a,b)=> a.eventName.localeCompare(b.eventName)); break;
         case 'name-za': result.sort((a,b)=> b.eventName.localeCompare(a.eventName)); break;
+        case 'reference-az': result.sort((a,b)=> (a.referenceNumber || "").localeCompare(b.referenceNumber || "")); break;
+        case 'reference-za': result.sort((a,b)=> (b.referenceNumber || "").localeCompare(a.referenceNumber || "")); break;
         default: result.sort((a,b)=> new Date(b.startDate)-new Date(a.startDate));
       }
       setDisplay(result);
@@ -241,6 +273,26 @@ const StaffDashboard = () => {
     applyFilters();
   };
 
+  const handleNextSemester = () => {
+    // Next = move backwards in array (to more recent/newer semesters)
+    if (!semesterOptions || semesterOptions.length === 0) return;
+    const currentIndex = semesterOptions.findIndex(opt => opt.semester === selectedSemester);
+    if (currentIndex > 0) {
+      setSelectedSemester(semesterOptions[currentIndex - 1].semester);
+    }
+  };
+
+  const handlePreviousSemester = () => {
+    // Previous = move forward in array (to older semesters)
+    if (!semesterOptions || semesterOptions.length === 0) return;
+    const currentIndex = semesterOptions.findIndex(opt => opt.semester === selectedSemester);
+    if (currentIndex < semesterOptions.length - 1) {
+      setSelectedSemester(semesterOptions[currentIndex + 1].semester);
+    }
+  };
+
+  const currentSemesterIndex = semesterOptions && semesterOptions.length > 0 ? semesterOptions.findIndex(opt => opt.semester === selectedSemester) : 0;
+
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
     fetchApplications(newPage);
@@ -248,6 +300,37 @@ const StaffDashboard = () => {
 
   const handleViewDetails = (eventId) => {
     navigate(`/event-details/${eventId}`);
+  };
+
+  const handleDeleteRejectedEvent = async (event) => {
+    event.stopPropagation();
+    setDeleteTarget(event.currentTarget.dataset.eventId);
+    setDeleteConfirmation('');
+  };
+
+  const closeDeleteModal = () => {
+    if (deletingEvent) return;
+    setDeleteTarget(null);
+    setDeleteConfirmation('');
+  };
+
+  const confirmDeleteRejectedEvent = async () => {
+    if (deleteConfirmation !== 'Delete' || !deleteTarget) return;
+
+    setDeletingEvent(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4001';
+      await axios.delete(`${apiUrl}/event/${deleteTarget}/delete`, {
+        data: { role: userRole },
+      });
+      await fetchApplications(currentPage);
+      closeDeleteModal();
+    } catch (error) {
+      console.error('Error deleting rejected event:', error);
+      setError(error.response?.data?.message || 'Failed to delete rejected event.');
+    } finally {
+      setDeletingEvent(false);
+    }
   };
 
   const getOverallStatus = (approvals) => {
@@ -265,28 +348,42 @@ const StaffDashboard = () => {
   };
 
   const renderEventCard = (application) => (
-    <Col md={6} key={application._id}>
-      <Card 
-        className={`dashboard-card mb-4 ${getOverallStatus(application.approvals).toLowerCase()}`}
-        style={{ cursor: 'pointer' }}
-        onClick={() => handleViewDetails(application._id)}
-      >
-        <Card.Body>
-          <Card.Title>{`${application.eventType} Event` || 'Unknown Event'}</Card.Title>
-          <Card.Text>
-            <strong>Organizer:</strong> {application.nameOfTheOrganizer || 'Unknown Organizer'} <br />
-            <strong>Email:</strong> {application.email || 'No Email Provided'} <br />
-            <strong>Event Name:</strong> {application.eventName} <br />
-            <strong>Venue:</strong> {application.eventVenue || 'Venue not specified'} <br />
-            <strong>Date:</strong> {new Date(application.startDate).toLocaleDateString()} - {new Date(application.endDate).toLocaleDateString()} <br />
-            <strong>Semester:</strong> {application.semester || 'Not specified'} <br />
-            <strong>Current Status:</strong> {getOverallStatus(application.approvals)} <br />
-            <strong>My Comment:</strong> {application.approvals.find(app => app.role === userRole)?.comment || 'No comment'}
-          </Card.Text>
-        </Card.Body>
-      </Card>
-    </Col>
+    <tr key={application._id} className={`event-row ${getOverallStatus(application.approvals).toLowerCase()}`} onClick={() => handleViewDetails(application._id)}>
+      <td className="event-name">{application.eventName}</td>
+      <td className="event-organizer">{application.nameOfTheOrganizer || 'Unknown'}</td>
+      <td className="event-date">{new Date(application.startDate).toLocaleDateString()}</td>
+      <td className="event-status">
+        <span style={{fontWeight: 'bold', color: getStatusColor(getOverallStatus(application.approvals))}}>
+          {getOverallStatus(application.approvals)}
+        </span>
+      </td>
+      <td style={{textAlign: 'center', fontFamily: 'monospace', fontSize: '0.9rem'}}>
+        {application.referenceNumber || 'Not Applicable'}
+      </td>
+      {activeTab === 'rejected' && userRole === 'president' && (
+        <td style={{textAlign: 'center'}}>
+          <Button
+            variant="outline-danger"
+            size="sm"
+            data-event-id={application._id}
+            onClick={handleDeleteRejectedEvent}
+          >
+            Delete
+          </Button>
+        </td>
+      )}
+    </tr>
   );
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'Approved': return '#198754';
+      case 'Rejected': return '#dc3545';
+      case 'Pending': return '#ffc107';
+      case 'Query': return '#0dcaf0';
+      default: return '#666';
+    }
+  };
 
   const renderGroupedEvents = (groupedEvents, title) => (
     <>
@@ -299,9 +396,20 @@ const StaffDashboard = () => {
                 {semester} ({events.length} event{events.length !== 1 ? 's' : ''})
               </Accordion.Header>
               <Accordion.Body>
-                <Row>
-                  {events.map(renderEventCard)}
-                </Row>
+                <table className="events-table">
+                  <thead>
+                    <tr>
+                      <th>Event Name</th>
+                      <th>Organizer</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      {userRole === 'president' && <th>Action</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {events.map(renderEventCard)}
+                  </tbody>
+                </table>
               </Accordion.Body>
             </Accordion.Item>
           ))}
@@ -313,7 +421,7 @@ const StaffDashboard = () => {
   );
 
   const canViewClosedEvents = () => {
-    return ['associate-dean', 'dean', 'ARSW'].includes(userRole);
+    return true;
   };
 
   return (
@@ -326,14 +434,14 @@ const StaffDashboard = () => {
             className={`btn ${activeTab === 'approved' ? 'btn-primary' : 'btn-outline-primary'}`}
             onClick={() => setActiveTab('approved')}
           >
-            Approved ({displayApproved.length})
+            Approved ({approvedApplications.length})
           </button>
           <button
             type="button"
             className={`btn ${activeTab === 'rejected' ? 'btn-danger' : 'btn-outline-danger'}`}
             onClick={() => setActiveTab('rejected')}
           >
-            Rejected ({displayRejected.length})
+            Rejected ({rejectedApplications.length})
           </button>
           {canViewClosedEvents() && (
             <button
@@ -341,7 +449,7 @@ const StaffDashboard = () => {
               className={`btn ${activeTab === 'closed' ? 'btn-secondary' : 'btn-outline-secondary'}`}
               onClick={() => setActiveTab('closed')}
             >
-              Closed ({displayClosed.length})
+              Closed ({closedApplications.length})
             </button>
           )}
         </div>
@@ -423,6 +531,8 @@ const StaffDashboard = () => {
                 <option value="oldest">Oldest</option>
                 <option value="name-az">Name A-Z</option>
                 <option value="name-za">Name Z-A</option>
+                <option value="reference-az">Reference # A-Z</option>
+                <option value="reference-za">Reference # Z-A</option>
               </Form.Select>
             </Form.Group>
           </Col>
@@ -431,7 +541,7 @@ const StaffDashboard = () => {
               <Form.Label>Search</Form.Label>
               <InputGroup>
                 <Form.Control
-                  placeholder="Search name, venue, type..."
+                  placeholder="Search name, venue, type, reference..."
                   value={searchTerm}
                   onChange={(e)=> setSearchTerm(e.target.value)}
                 />
@@ -443,9 +553,9 @@ const StaffDashboard = () => {
             <Button variant="outline-danger" className="w-100" onClick={clearFilters}>Reset</Button>
           </Col>
           <Col md={12} className="mt-2 d-flex flex-wrap gap-2">
-            <Badge bg="secondary">Approved: {displayApproved.length}</Badge>
-            <Badge bg="danger">Rejected: {displayRejected.length}</Badge>
-            {canViewClosedEvents() && <Badge bg="dark">Closed: {displayClosed.length}</Badge>}
+            <Badge bg="secondary">Approved: {approvedApplications.length}</Badge>
+            <Badge bg="danger">Rejected: {rejectedApplications.length}</Badge>
+            {canViewClosedEvents() && <Badge bg="dark">Closed: {closedApplications.length}</Badge>}
             <Badge bg="warning" text="dark">Pending: {approvedApplications.filter(a=> getOverallStatus(a.approvals)==='Pending').length}</Badge>
             <Badge bg="info" text="dark">Query: {approvedApplications.filter(a=> getOverallStatus(a.approvals)==='Query').length}</Badge>
           </Col>
@@ -461,47 +571,161 @@ const StaffDashboard = () => {
           {/* Render based on active tab */}
           {activeTab === 'approved' && (
             <>
-              {renderGroupedEvents(groupedApproved, "Approved Event Applications")}
-              
-              {/* Pagination for Approved Events */}
-              {pagination.totalPages > 1 && (
-                <div className="d-flex justify-content-center mb-4">
-                  <Button 
-                    variant="outline-primary" 
-                    disabled={!pagination.hasPrev}
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    className="me-2"
-                  >
-                    Previous
-                  </Button>
-                  <span className="align-self-center mx-3">
-                    Page {pagination.currentPage} of {pagination.totalPages}
-                  </span>
-                  <Button 
-                    variant="outline-primary" 
-                    disabled={!pagination.hasNext}
-                    onClick={() => handlePageChange(currentPage + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
+              <h2 className="mb-3">Approved Event Applications - {selectedSemester || 'All Semesters'}</h2>
+              {selectedSemester && groupedApproved[selectedSemester] ? (
+                <table className="events-table mb-4">
+                  <thead>
+                    <tr>
+                      <th>Event Name</th>
+                      <th>Organizer</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedApproved[selectedSemester].map(renderEventCard)}
+                  </tbody>
+                </table>
+              ) : <p>No approved events found for the selected semester.</p>}
+              <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handlePreviousSemester}
+                  disabled={currentSemesterIndex >= semesterOptions.length - 1}
+                  title="Previous semester (older)"
+                >
+                  ← Previous Semester
+                </Button>
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
+                </Button>
+              </div>
             </>
           )}
 
           {activeTab === 'rejected' && (
             <>
-              {renderGroupedEvents(groupedRejected, "Rejected Event Applications")}
+              <h2 className="mb-3">Rejected Event Applications - {selectedSemester || 'All Semesters'}</h2>
+              {Object.keys(groupedRejected).length > 0 ? (
+                <table className="events-table mb-4">
+                  <thead>
+                    <tr>
+                      <th>Event Name</th>
+                      <th>Organizer</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      {userRole === 'president' && <th>Action</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedSemester
+                      ? groupedRejected[selectedSemester] || []
+                      : Object.values(groupedRejected).flat()
+                    ).map(renderEventCard)}
+                  </tbody>
+                </table>
+              ) : <p>No rejected events found for the selected semester.</p>}
+              <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handlePreviousSemester}
+                  disabled={currentSemesterIndex >= semesterOptions.length - 1}
+                  title="Previous semester (older)"
+                >
+                  ← Previous Semester
+                </Button>
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
+                </Button>
+              </div>
             </>
           )}
 
           {activeTab === 'closed' && canViewClosedEvents() && (
             <>
-              {renderGroupedEvents(groupedClosed, "Closed Event Applications")}
+              <h2 className="mb-3">Closed Event Applications - {selectedSemester || 'All Semesters'}</h2>
+              {selectedSemester && groupedClosed[selectedSemester] ? (
+                <table className="events-table mb-4">
+                  <thead>
+                    <tr>
+                      <th>Event Name</th>
+                      <th>Organizer</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedClosed[selectedSemester].map(renderEventCard)}
+                  </tbody>
+                </table>
+              ) : <p>No closed events found for the selected semester.</p>}
+              <div className="semester-navigation mt-4 mb-4 d-flex justify-content-center gap-2">
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handlePreviousSemester}
+                  disabled={currentSemesterIndex >= semesterOptions.length - 1}
+                  title="Previous semester (older)"
+                >
+                  ← Previous Semester
+                </Button>
+                <Button 
+                  variant="outline-primary" 
+                  onClick={handleNextSemester}
+                  disabled={currentSemesterIndex <= 0}
+                  title="Next semester (newer)"
+                >
+                  Next Semester →
+                </Button>
+              </div>
             </>
           )}
         </>
       )}
+
+      <Modal show={Boolean(deleteTarget)} onHide={closeDeleteModal} centered>
+        <Modal.Header closeButton={!deletingEvent}>
+          <Modal.Title>Delete rejected event?</Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={(event) => {
+          event.preventDefault();
+          confirmDeleteRejectedEvent();
+        }}>
+          <Modal.Body>
+            <p>This permanently deletes the rejected event and cannot be undone.</p>
+            <Form.Group controlId="delete-confirmation">
+              <Form.Label>Type <strong>Delete</strong> to confirm.</Form.Label>
+              <Form.Control
+                autoFocus
+                value={deleteConfirmation}
+                onChange={(event) => setDeleteConfirmation(event.target.value)}
+                disabled={deletingEvent}
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={closeDeleteModal} disabled={deletingEvent}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              type="submit"
+              disabled={deleteConfirmation !== 'Delete' || deletingEvent}
+            >
+              {deletingEvent ? 'Deleting...' : 'Delete permanently'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
     </Container>
   );
 };

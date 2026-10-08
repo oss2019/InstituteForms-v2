@@ -5,6 +5,7 @@ const Schema = mongoose.Schema;
 const eventApprovalSchema = new Schema(
   {
     userID: { type: String, required: true },
+    referenceNumber: { type: String, required: true, unique: true },
     eventName: { type: String, required: true },
     partOfGymkhanaCalendar: { type: String, required: true },
     eventType: { type: String }, // Optional field for tracking event type
@@ -15,12 +16,20 @@ const eventApprovalSchema = new Schema(
     academicYear: { type: String, required: false }, // Academic year (e.g., "2024-2025")
     eventVenue: { type: String, required: true },
     sourceOfBudget: { type: String, required: true },
+    fundType: { type: String, enum: ["SAF", "HEF"], required: false }, // Fund type for General Secretary (SAF or HEF)
     estimatedBudget: { type: Number, required: true },
+    budgetAnnexureNumber: { type: String, required: false }, // Annexure number in club budget
     nameOfTheOrganizer: { type: String, required: true },
+    organizerRollNumber: { type: String, required: false },
     designation: { type: String, required: true },
     email: { type: String, required: true },
     phoneNumber: { type: String, required: true },
-    requirements: { type: [String], required: false },
+    requirements: [
+      {
+        name: { type: String, required: true },
+        description: { type: String, required: true }
+      }
+    ],
     anyAdditionalAmenities: { type: String },
     eventDescription: { type: String, required: true },
     internalParticipants: { type: Number, required: true },
@@ -42,6 +51,43 @@ const eventApprovalSchema = new Schema(
     proposedEstimatedBudget: { type: Number, required: false },
     budgetEditedBy: { type: String, required: false }, // Role of who edited the budget
     budgetEditedAt: { type: Date, required: false },
+    // Full audit log of every budget modification by any authorised role
+    budgetHistory: [
+      {
+        editedBy: { type: String, required: true },  // Role that made the change
+        editedAt: { type: Date, default: Date.now },
+        justification: { type: String, required: false, default: "" },
+        budgetBreakup: [
+          {
+            expenseHead: { type: String, required: true },
+            estimatedAmount: { type: Number, required: true }
+          }
+        ],
+        totalBudget: { type: Number, required: true }
+      }
+    ],
+    arsw_budget_revisions: [
+      {
+        revisionNumber: { type: Number, required: true }, // 1st edit, 2nd edit, etc.
+        proposedBudgetBreakup: [
+          {
+            expenseHead: { type: String, required: true },
+            estimatedAmount: { type: Number, required: true }
+          }
+        ],
+        proposedEstimatedBudget: { type: Number, required: true },
+        editedBy: { type: String, required: true }, // Role that made the edit (ARSW)
+        editedAt: { type: Date, default: Date.now },
+        clubSecretaryApprovalStatus: {
+          type: String,
+          enum: ["Pending", "Approved", "QueryRaised"],
+          default: "Pending"
+        }, // Club secretary's response to this revision
+        clubSecretaryResponse: { type: String, required: false }, // Query or approval comment from club secretary
+        respondedAt: { type: Date, required: false }, // When club secretary reviewed
+        isFinalized: { type: Boolean, default: false } // Indicates if ARSW approved this revision as final
+      }
+    ],
     approvals: [
       {
         role: {
@@ -49,10 +95,14 @@ const eventApprovalSchema = new Schema(
           enum: [
             "club-secretary",
             "general-secretary",
+            "chief-warden",
+            "associate-dean-hostel",
             "treasurer",
             "president",
+            "students-welfare-office",
             "ARSW",
             "associate-dean",
+            "associate-dean-socio-cultural",
             "dean"
           ],
           required: true,
@@ -70,6 +120,7 @@ const eventApprovalSchema = new Schema(
           default: "Pending",
         },
         comment: { type: String, required: false }, // Optional comment for feedback
+        timestamp: { type: Date, required: false }, // Timestamp when action was taken
       },
     ],
     queries: [
@@ -82,11 +133,15 @@ const eventApprovalSchema = new Schema(
           type: String,
           enum: [
             "general-secretary",
+            "chief-warden",
+            "associate-dean-hostel",
             "treasurer",
             "president",
             "ARSW",
             "associate-dean",
-            "dean"
+            "associate-dean-socio-cultural",
+            "dean",
+            "students-welfare-office"
           ],
           required: true,
         },
