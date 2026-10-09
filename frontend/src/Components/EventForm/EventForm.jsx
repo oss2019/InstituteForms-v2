@@ -14,6 +14,102 @@ import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs }         from "@mui/x-date-pickers/AdapterDayjs";
 import { StaticTimePicker }     from "@mui/x-date-pickers/StaticTimePicker";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
+import * as XLSX from "xlsx";
+
+const BUDGET_TYPES = ["Recurring", "Non-Recurring", "Events", "Subscriptions"];
+
+const getBudgetSheet = (workbook, userName) => {
+  const sheetName = workbook.SheetNames.find(name => name === userName);
+  return sheetName ? workbook.Sheets[sheetName] : null;
+};
+
+const getCellText = (value) => String(value ?? "").trim();
+
+const getAmount = (value) => {
+  const amount = Number(String(value ?? "").replace(/,/g, ""));
+  return Number.isFinite(amount) ? amount : 0;
+};
+
+const BUDGET_SECTION_HEADERS = ["Recurring Budget", "Non-Recurring Budget", "Events", "Subscriptions"];
+
+const getBudgetSectionRows = (rows, budgetType) => {
+  const header = budgetType === "Events" ? "Events" : `${budgetType} Budget`;
+  const sectionStart = rows.findIndex(row =>
+    row.some(cell => getCellText(cell) === header)
+  );
+
+  if (sectionStart === -1) return [];
+
+  const nextSectionStart = rows.findIndex((row, index) =>
+    index > sectionStart &&
+    row.some(cell => BUDGET_SECTION_HEADERS.includes(getCellText(cell)))
+  );
+
+  return rows.slice(sectionStart + 1, nextSectionStart === -1 ? rows.length : nextSectionStart);
+};
+
+const extractBudgetOptions = (sheet, budgetType) => {
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+  const options = [];
+  const sectionRows = getBudgetSectionRows(rows, budgetType);
+
+  if (budgetType === "Events") {
+    let eventName = "";
+    let inEventTable = false;
+    let eventRows = [];
+    const addEvent = () => {
+      if (eventName && eventRows.length > 0) {
+        options.push({ label: eventName, rows: eventRows });
+      }
+      eventRows = [];
+    };
+
+    sectionRows.forEach(row => {
+      const firstCell = getCellText(row[0]);
+      const description = getCellText(row[1]);
+      const lowerFirst = firstCell.toLowerCase();
+      if (lowerFirst.startsWith("event name")) {
+        addEvent();
+        eventName = firstCell.replace(/^event name\s*:?\s*/i, "").trim();
+        inEventTable = false;
+      } else if (description === "Description of Item") {
+        inEventTable = true;
+      } else if (inEventTable && description && description.toLowerCase() !== "total") {
+        const amount = getAmount(row[4]);
+        if (amount > 0) {
+          eventRows.push({ expenseHead: description, estimatedAmount: amount });
+        }
+      } else if (inEventTable && description.toLowerCase() === "total") {
+        inEventTable = false;
+      }
+    });
+    addEvent();
+    console.log("[Budget Autofill] Extracted rows:", {
+      budgetType,
+      options,
+    });
+    return options;
+  }
+
+  sectionRows.forEach(row => {
+    const description = getCellText(row[1]);
+    if (!description || description === "Description of Item") return;
+    if (description.toLowerCase() === "total") return;
+
+    const amount = getAmount(row[4]);
+    if (amount > 0) {
+      options.push({
+        label: `${description} (₹${amount})`,
+        rows: [{ expenseHead: description, estimatedAmount: amount }],
+      });
+    }
+  });
+  console.log("[Budget Autofill] Extracted rows:", {
+    budgetType,
+    options,
+  });
+  return options;
+};
 
 /* ── MUI theme — Bootstrap blue, no shadows, natural font ──────────── */
 const muiTheme = createTheme({
@@ -326,14 +422,21 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
   const [pdfPreviewDataUrl, setPdfPreviewDataUrl]   = useState("");
   const [isPDFGenerated, setIsPDFGenerated]         = useState(false);
   const [userRole, setUserRole]                     = useState("");
+  const [userType, setUserType]                     = useState("");
+  const [budgetSheet, setBudgetSheet]               = useState(null);
+  const [budgetType, setBudgetType]                 = useState("");
+  const [budgetOptions, setBudgetOptions]           = useState([]);
+  const [selectedBudgetOptions, setSelectedBudgetOptions] = useState([]);
+  const [isBudgetLoading, setIsBudgetLoading]       = useState(false);
   const pdfObjectUrlRef = useRef(null);
 
   useEffect(() => {
     const userName = localStorage.getItem("name");
     const role = localStorage.getItem("role");
-    // Try both "category" and "type" keys for general secretary type
-    let category = localStorage.getItem("category") || localStorage.getItem("type");
+    const type = localStorage.getItem("type") || "";
+    const category = localStorage.getItem("category") || "";
     setUserRole(role);
+    setUserType(type);
     
     // If general secretary, use category + " Council" as clubName
     let clubNameValue = userName || "";
@@ -342,6 +445,37 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
     }
     
     setFormData(prev => ({ ...prev, clubName: clubNameValue }));
+
+    if (role !== "club-secretary" || type !== "Technical" || !userName) return;
+    let isCurrent = true;
+    setIsBudgetLoading(true);
+    fetch("/TechnicalCouncilBudget-26-27.xlsx")
+      .then(response => {
+        if (!response.ok) throw new Error(`Budget workbook request failed (${response.status})`);
+        return response.arrayBuffer();
+      })
+      .then(buffer => {
+        const workbook = XLSX.read(buffer, { type: "array" });
+        const sheet = getBudgetSheet(workbook, userName);
+        if (!sheet) {
+          throw new Error(`No budget sheet found with the exact user name "${userName}"`);
+        }
+        console.log("[Budget Autofill] Matched workbook sheet:", {
+          userName,
+          type,
+          sheetName: userName,
+        });
+        if (isCurrent) setBudgetSheet(sheet);
+      })
+      .catch(error => {
+        console.error("Unable to load the technical council budget workbook:", error);
+        if (isCurrent) toast.error("Approved budget details could not be loaded.");
+      })
+      .finally(() => {
+        if (isCurrent) setIsBudgetLoading(false);
+      });
+
+    return () => { isCurrent = false; };
   }, []);
 
   useEffect(() => {
@@ -461,6 +595,47 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
     list[index][name] = value;
     const total = list.reduce((acc, curr) => acc + Number(curr.estimatedAmount || 0), 0);
     setFormData({ ...formData, budgetBreakup: list, estimatedBudget: total });
+  };
+
+  const handleBudgetTypeChange = (e) => {
+    const selectedType = e.target.value;
+    setBudgetType(selectedType);
+    setSelectedBudgetOptions([]);
+    if (!selectedType || !budgetSheet) {
+      setBudgetOptions([]);
+      return;
+    }
+    const options = extractBudgetOptions(budgetSheet, selectedType);
+    setBudgetOptions(options);
+    if (options.length === 0) {
+      toast.error(`No ${selectedType.toLowerCase()} budget details were found for this club.`);
+    }
+  };
+
+  const applyBudgetOptions = (selected) => {
+    const rows = selected.flatMap(index => budgetOptions[Number(index)]?.rows || []);
+    if (rows.length === 0) return;
+
+    const total = rows.reduce((sum, row) => sum + Number(row.estimatedAmount || 0), 0);
+    console.log("[Budget Autofill] Applying extracted budget:", {
+      budgetType,
+      selectedOptions: selected.map(index => budgetOptions[Number(index)]?.label),
+      rows,
+      total,
+    });
+    setFormData(prev => ({ ...prev, budgetBreakup: rows, estimatedBudget: total }));
+  };
+
+  const handleBudgetOptionToggle = (index) => {
+    const optionIndex = String(index);
+    const nextSelected = budgetType === "Events"
+      ? [optionIndex]
+      : selectedBudgetOptions.includes(optionIndex)
+        ? selectedBudgetOptions.filter(value => value !== optionIndex)
+        : [...selectedBudgetOptions, optionIndex];
+
+    setSelectedBudgetOptions(nextSelected);
+    applyBudgetOptions(nextSelected);
   };
 
   const handleAddRow = () => {
@@ -721,6 +896,62 @@ const EventForm = ({ initialData = null, onSubmit = null, onClose = null, isEdit
               placeholder="Since you selected Others, mention the source of budget"
               required
             />
+          </div>
+        )}
+
+        {userRole === "club-secretary" && userType === "Technical" && (
+          <div className="mb-3">
+            <label htmlFor="approvedBudgetType" className="form-label">
+              Autofill from Approved Technical Council Budget
+            </label>
+            <select
+              id="approvedBudgetType"
+              className="form-select"
+              value={budgetType}
+              onChange={handleBudgetTypeChange}
+              disabled={isBudgetLoading || !budgetSheet}
+            >
+              <option value="">
+                {isBudgetLoading ? "Loading approved budget..." : "Select a budget category"}
+              </option>
+              {BUDGET_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+            </select>
+            <div className="form-text">
+              Select a category, then choose the approved item(s) to add to the breakup below.
+            </div>
+            {budgetOptions.length > 0 && (
+              <>
+                <label htmlFor="approvedBudgetOption" className="form-label mt-2">
+                  {budgetType === "Events" ? "Select Event" : "Select Budget Item(s)"}
+                </label>
+                <div className="budget-option-list" role="group" aria-label="Approved budget options">
+                  {budgetOptions.map((option, index) => {
+                    const optionValue = String(index);
+                    const isSelected = selectedBudgetOptions.includes(optionValue);
+                    return (
+                      <label
+                        key={`${budgetType}-${index}`}
+                        className={`budget-option ${isSelected ? "budget-option-selected" : ""}`}
+                      >
+                        <input
+                          className="budget-option-input"
+                          type={budgetType === "Events" ? "radio" : "checkbox"}
+                          name="approvedBudgetOption"
+                          checked={isSelected}
+                          onChange={() => handleBudgetOptionToggle(index)}
+                        />
+                        <span className="budget-option-label">{option.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="form-text">
+                  {budgetType === "Events"
+                    ? "Select an event to add all of its approved description and amount rows."
+                    : "Select one or more items. The selected items replace the breakup rows below."}
+                </div>
+              </>
+            )}
           </div>
         )}
 

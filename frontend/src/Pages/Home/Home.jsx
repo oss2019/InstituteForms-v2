@@ -25,7 +25,7 @@ const Home = () => {
           token: authResult.credential,
         });
 
-        const { email, name, image, role, category } = result.data.user;
+        const { email, name, image, role, category, type } = result.data.user;
         const token = result.data.token;
         const normalizedCategory = (category || "").toLowerCase();
 
@@ -41,11 +41,12 @@ const Home = () => {
 
         const loginUser = (userRole) => {
             toast.success("Login successful!");
-            localStorage.setItem("user-info", JSON.stringify({ email, name, token, image, role, category }));
+            localStorage.setItem("user-info", JSON.stringify({ email, name, token, image, role, category, type }));
             localStorage.setItem("token", token);
             localStorage.setItem("email", email);
             localStorage.setItem("role", role);
             localStorage.setItem("category", category);
+            localStorage.setItem("type", type || "");
             localStorage.setItem("name", name || "");
 
             axios.post(`${apiUrl}/user/details`, { email: email })

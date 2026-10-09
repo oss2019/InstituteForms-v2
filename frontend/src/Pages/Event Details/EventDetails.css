@@ -1249,3 +1249,17 @@ tbody tr:only-child .tl-cell::after { display: none; }
   font-size: 0.9rem;
   line-height: 1.5;
 }
+.edit-history-rich-value {
+  max-height: 14rem;
+  overflow-y: auto;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.edit-history-rich-value p {
+  margin: 0 0 0.5rem;
+}
+
+.edit-history-rich-value p:last-child {
+  margin-bottom: 0;
+}

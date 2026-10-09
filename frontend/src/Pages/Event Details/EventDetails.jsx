@@ -233,7 +233,7 @@ const EventDetails = () => {
   };
 
   const canEditEvent = () => {
-    // Only club-secretary who created the event can edit
+    // Only the secretary who created the event can edit
     if (!["club-secretary","general-secretary"].includes(role)) {
       return false;
     }
@@ -242,6 +242,12 @@ const EventDetails = () => {
     }
     if (hasCurrentRoleActiveQuery()) {
       return false;
+    }
+
+    // General-secretary submissions are auto-approved on creation, so their
+    // approved statuses must not hide the edit action.
+    if (role === "general-secretary") {
+      return true;
     }
     
     // Check if there's any pending query
@@ -1334,6 +1340,21 @@ const EventDetails = () => {
               return String(value);
             };
 
+            const renderHistoryValue = (field, value) => {
+              if (field !== 'eventDescription' || typeof value !== 'string') {
+                return formatValue(value);
+              }
+
+              return (
+                <div
+                  className="edit-history-rich-value"
+                  dangerouslySetInnerHTML={{
+                    __html: DOMPurify.sanitize(value || '<p>N/A</p>')
+                  }}
+                />
+              );
+            };
+
             const getVisibleChanges = (changes) =>
               Object.entries(changes || {}).filter(([field, change]) =>
                 field !== 'budgetBreakup' &&
@@ -1395,8 +1416,8 @@ const EventDetails = () => {
                             <tr key={idx}>
                               <td><strong>#{change.editNum}</strong></td>
                               <td><strong>{displayField}</strong></td>
-                              <td style={{ color: '#dc3545', wordBreak: 'break-word', backgroundColor: '#fff5f5' }}><small>{formatValue(change.oldValue)}</small></td>
-                              <td style={{ color: '#28a745', wordBreak: 'break-word', backgroundColor: '#f0fff4' }}><small>{formatValue(change.newValue)}</small></td>
+                              <td style={{ color: '#dc3545', wordBreak: 'break-word', backgroundColor: '#fff5f5' }}><small>{renderHistoryValue(change.field, change.oldValue)}</small></td>
+                              <td style={{ color: '#28a745', wordBreak: 'break-word', backgroundColor: '#f0fff4' }}><small>{renderHistoryValue(change.field, change.newValue)}</small></td>
                               <td><small>{change.editedAt.toLocaleDateString()}</small></td>
                             </tr>
                           );

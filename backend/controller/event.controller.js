@@ -1938,7 +1938,7 @@ export const getPendingApprovalsWithFilters = async (req, res) => {
 
 
 
-// Edit all event details (only allowed by club-secretary and only if approvals are still pending at general-secretary)
+// Edit all event details for the event's owning secretary.
 export const editEventDetails = async (req, res) => {
   const { eventId, userID, updates } = req.body;
 
@@ -1950,8 +1950,8 @@ export const editEventDetails = async (req, res) => {
     }
 
     const user = await User.findById(userID);
-    if (!user || user.role !== "club-secretary") {
-      return res.status(403).json({ message: "Only club-secretary can edit event details." });
+    if (!user || !["club-secretary", "general-secretary"].includes(user.role)) {
+      return res.status(403).json({ message: "Only club-secretary or general-secretary can edit event details." });
     }
 
     if (event.userID.toString() !== userID.toString()) {
@@ -2025,7 +2025,7 @@ export const editEventDetails = async (req, res) => {
         editedAt: new Date(),
         editedBy: userID,
         changes: changes,
-        reason: "Event details updated by club-secretary"
+        reason: `Event details updated by ${user.role}`
       });
     }
 
